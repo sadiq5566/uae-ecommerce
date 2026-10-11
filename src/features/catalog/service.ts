@@ -205,3 +205,28 @@ export async function findSlugRedirect(kind: "product" | "category", slug: strin
   const c = (await Category.findOne({ slugHistory: s, active: true }, { slug: 1 }).lean()) as unknown as { slug: string } | null;
   return c?.slug ?? null;
 }
+
+export type Suggestion = { type: "product" | "category"; slug: string; name: L10n; icon: string; price?: number };
+
+/**
+ * Lightweight autocomplete: whole-word text search first (indexed), then a prefix match on name/brand/SKU. Bounded, projection-only.
+ * Swap for a dedicated search engine when the catalogue outgrows MongoDB text search.
+ */
+export async function suggest(q: string, limit = 6): Promise<Suggestion[]> {
+  const term = q.trim().slice(0, 60);
+  if (term.length < 2) return [];
+  await connectDb();
+  const base = { status: "published" } as const;
+  const proj = { slug: 1, name: 1, icon: 1, finalPrice: 1, images: 1 } as const;
+  let rows = (await Product.find({ ...base, $text: { $search: term } }, proj).sort({ soldCount: -1 }).limit(limit).lean()) as unknown as { slug: string; name: L10n; icon: string; finalPrice: number }[];
+  if (rows.length < limit) {
+    const re = new RegExp(`(^|\\s)${escapeRe(term)}`, "i");
+    const more = (await Product.find({ ...base, slug: { $nin: rows.map((r) => r.slug) }, $or: [{ "name.en": re }, { "name.ar": re }, { brand: re }, { sku: new RegExp(`^${escapeRe(term)}`, "i") }] }, proj).sort({ soldCount: -1 }).limit(limit - rows.length).lean()) as unknown as typeof rows;
+    rows = [...rows, ...more];
+  }
+  const cats = (await getCategories()).filter((c) => c.name.en.toLowerCase().includes(term.toLowerCase()) || c.name.ar.includes(term)).slice(0, 2);
+  return [
+    ...cats.map((c) => ({ type: "category" as const, slug: c.slug, name: c.name, icon: c.icon })),
+    ...rows.map((r) => ({ type: "product" as const, slug: r.slug, name: r.name, icon: r.icon, price: r.finalPrice })),
+  ].slice(0, limit);
+}

@@ -6,11 +6,13 @@ import type { Locale } from "@/lib/i18n";
 import type { CategoryView } from "@/features/catalog/service";
 import { useSession } from "./session-store";
 import { LangSwitcher } from "./lang-switcher";
+import { SearchBox } from "./search-box";
 import { ThemeToggle } from "./theme-toggle";
 
 export function Header({ locale, t, categories }: { locale: Locale; t: Dictionary; categories: CategoryView[] }) {
   const [scrolled, setScrolled] = useState(false);
   const drawer = useRef<HTMLDialogElement>(null);
+  const closeDrawer = () => drawer.current?.close();
   const { cartCount: count, user, wishlist } = useSession();
 
   useEffect(() => {
@@ -31,7 +33,7 @@ export function Header({ locale, t, categories }: { locale: Locale; t: Dictionar
     <header className={`sticky top-0 z-50 border-b transition-all duration-300 ${scrolled ? "border-line bg-bg/85 shadow-card backdrop-blur-lg" : "border-transparent bg-bg"}`}>
       <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:start-4 focus:top-2 focus:z-50 focus:rounded-lg focus:bg-brand focus:px-4 focus:py-2 focus:text-brand-fg">{t.nav.skip}</a>
       <div className="bg-brand px-4 py-1.5 text-center text-xs font-medium text-brand-fg">
-        {t.topbar.shipping} · <span className="hidden sm:inline">{t.topbar.cod}</span>
+        {t.topbar.shipping}<span className="hidden sm:inline"> · {t.topbar.cod}</span>
       </div>
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 sm:px-6">
         <button onClick={() => drawer.current?.showModal()} aria-label={t.nav.menu} className="grid size-10 place-items-center rounded-full hover:bg-surface-2 lg:hidden">
@@ -41,38 +43,34 @@ export function Header({ locale, t, categories }: { locale: Locale; t: Dictionar
           <span className="grid size-9 place-items-center rounded-xl bg-brand text-brand-fg transition-transform group-hover:rotate-12">س</span>
           <span className="hidden sm:inline">{t.brand}</span>
         </Link>
-        <nav aria-label="Main" className="ms-6 hidden items-center gap-1 lg:flex">
+        <nav aria-label={t.nav.main} className="ms-6 hidden items-center gap-1 lg:flex">
           {links.map((l) => (
             <Link key={l.href} href={l.href} className="relative rounded-full px-3 py-2 text-sm font-medium after:absolute after:inset-x-3 after:bottom-1 after:h-0.5 after:origin-center after:scale-x-0 after:bg-brand after:transition-transform hover:after:scale-x-100">{l.label}</Link>
           ))}
         </nav>
-        <form action={`/${locale}/search`} role="search" className="mx-2 hidden min-w-0 flex-1 md:block">
-          <input name="q" type="search" placeholder={t.nav.search} aria-label={t.nav.search} className="w-full rounded-full border border-line bg-surface px-5 py-2.5 text-sm outline-none transition focus:border-brand focus:shadow-card" />
-        </form>
+        <SearchBox locale={locale} placeholder={t.nav.search} labels={{ results: t.nav.suggestions, category: t.nav.categoryTag }} className="mx-2 hidden min-w-0 flex-1 md:block" />
         <div className="ms-auto flex items-center gap-2 md:ms-0">
           <div className="hidden sm:block"><ThemeToggle labels={t.nav} /></div>
           <LangSwitcher locale={locale} label={t.nav.language} />
-          <Link href={`/${locale}/wishlist`} aria-label={`${t.nav.wishlist} (${wishlist.length})`} className="relative hidden size-10 place-items-center rounded-full bg-surface-2 text-lg transition hover:bg-brand-soft sm:grid">♡{wishlist.length > 0 && <span key={wishlist.length} className="animate-pop absolute -end-1 -top-1 grid min-w-5 place-items-center rounded-full bg-danger px-1 text-[11px] font-bold text-white">{wishlist.length}</span>}</Link>
+          <Link href={`/${locale}/wishlist`} aria-label={`${t.nav.wishlist} (${wishlist.length})`} className="relative hidden size-10 place-items-center rounded-full bg-surface-2 text-lg transition hover:bg-brand-soft sm:grid">♡{wishlist.length > 0 && <span key={wishlist.length} className="animate-pop absolute -end-1 -top-1 grid min-w-5 place-items-center rounded-full bg-danger-solid px-1 text-[11px] font-bold text-white">{wishlist.length}</span>}</Link>
           <Link href={user ? `/${locale}/account` : `/${locale}/login`} aria-label={user ? `${t.nav.accountLabel}: ${user.name}` : t.nav.signIn} className="grid size-10 place-items-center rounded-full bg-surface-2 transition hover:bg-brand-soft">
             {user ? <span className="text-sm font-bold text-brand">{user.name.trim()[0]?.toUpperCase()}</span> : <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="8" r="4" /><path d="M4 21c1-4 4-6 8-6s7 2 8 6" /></svg>}
           </Link>
           <Link href={`/${locale}/cart`} aria-label={`${t.nav.cart} (${count})`} className="relative grid size-10 place-items-center rounded-full bg-surface-2 transition hover:bg-brand-soft">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 6h15l-1.5 9h-12zM6 6 5 3H2M9 20a1 1 0 1 0 0 .01M18 20a1 1 0 1 0 0 .01" /></svg>
-            {count > 0 && <span key={count} className="animate-pop absolute -end-1 -top-1 grid min-w-5 place-items-center rounded-full bg-gold px-1 text-[11px] font-bold text-bg">{count}</span>}
+            {count > 0 && <span key={count} className="animate-pop absolute -end-1 -top-1 grid min-w-5 place-items-center rounded-full bg-gold px-1 text-[11px] font-bold text-gold-fg">{count}</span>}
           </Link>
         </div>
       </div>
 
-      <dialog ref={drawer} onClick={(e) => e.target === drawer.current && drawer.current?.close()} className="m-0 h-full max-h-none w-[min(86vw,22rem)] max-w-none bg-surface p-0 text-fg backdrop:bg-black/50 backdrop:backdrop-blur-sm ltr:me-auto rtl:ms-auto">
+      <dialog ref={drawer} onClick={(e) => e.target === drawer.current && drawer.current?.close()} className="m-0 h-full max-h-none w-[min(86vw,22rem)] max-w-none bg-surface p-0 text-fg backdrop:bg-black/50 backdrop:backdrop-blur-sm me-auto">
         <div className="flex h-full flex-col gap-6 overflow-y-auto p-5">
           <div className="flex items-center justify-between">
             <span className="font-display text-lg font-bold">{t.brand}</span>
             <button onClick={() => drawer.current?.close()} aria-label={t.nav.close} className="grid size-9 place-items-center rounded-full hover:bg-surface-2">✕</button>
           </div>
-          <form action={`/${locale}/search`} role="search">
-            <input name="q" type="search" placeholder={t.nav.search} aria-label={t.nav.search} className="w-full rounded-full border border-line bg-bg px-5 py-3 text-sm outline-none focus:border-brand" />
-          </form>
-          <nav className="flex flex-col" aria-label="Mobile">
+          <SearchBox locale={locale} placeholder={t.nav.search} labels={{ results: t.nav.suggestions, category: t.nav.categoryTag }} onNavigate={closeDrawer} />
+          <nav className="flex flex-col" aria-label={t.nav.mobile}>
             {links.map((l) => (
               <Link key={l.href} href={l.href} onClick={() => drawer.current?.close()} className="rounded-xl px-3 py-3 font-medium hover:bg-surface-2">{l.label}</Link>
             ))}

@@ -50,7 +50,7 @@ export function ImportWizard({ kind, label }: { kind: Kind; label: string }) {
       {preview && !preview.ok && <p role="alert" className="mt-4 rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger">{preview.error}</p>}
       {p && (
         <div className="mt-5 flex flex-col gap-4">
-          {p.unknown.length > 0 && <p className="rounded-xl bg-gold-soft px-4 py-3 text-sm text-gold">Ignored unknown column(s): {p.unknown.join(", ")}</p>}
+          {p.unknown.length > 0 && <p className="rounded-xl bg-gold-soft px-4 py-3 text-sm text-gold-ink">Ignored unknown column(s): {p.unknown.join(", ")}</p>}
           <div className="flex flex-wrap gap-2 text-sm"><Pill tone="green">{valid.filter((v) => v.action === "create").length} to create</Pill><Pill tone="gold">{valid.filter((v) => v.action === "update").length} to update</Pill><Pill tone={invalid.length ? "red" : "grey"}>{invalid.length} with errors</Pill></div>
           <p className="text-xs text-muted">Columns found: {p.present.join(", ")}. Only these columns are written; empty cells leave existing values unchanged. Rows with errors are <b>not</b> imported — fix them and re-upload (download the error report below).</p>
           <Table head={["Line", "Key", "Action", "Details"]}>

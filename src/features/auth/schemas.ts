@@ -31,7 +31,8 @@ export const profileSchema = z.object({
   locale: z.enum(["en", "ar"]),
 });
 
-export const EMIRATES = ["abu-dhabi", "dubai", "sharjah", "ajman", "umm-al-quwain", "ras-al-khaimah", "fujairah"] as const;
+import { EMIRATES } from "@/lib/emirates";
+export { EMIRATES };
 const opt = (max: number) => z.string().trim().max(max, "too_long").optional().transform((v) => v || undefined);
 
 export const addressSchema = z.object({

@@ -47,7 +47,7 @@ export function PageForm({ page }: { page: { slug: string; title: { en: string; 
         <TF s={s} name="title_en" label="Title (EN)" defaultValue={page.title.en} /><TF s={s} name="title_ar" label="Title (AR)" defaultValue={page.title.ar} dir="rtl" />
         <TA s={s} name="body_en" label="Text (EN)" defaultValue={page.body.en} rows={14} /><TA s={s} name="body_ar" label="Text (AR)" defaultValue={page.body.ar} rows={14} dir="rtl" />
       </div><div className="mt-4"><CB s={s} name="published" label="Published (visible in the store)" defaultChecked={page.published} /></div>
-      <p className="mt-3 rounded-xl bg-gold-soft px-4 py-3 text-xs text-gold">Legal and policy text (privacy, terms, returns…) must be written or approved by you. This store doesn&apos;t generate legal copy; Arabic text should be reviewed by a native speaker.</p></Card>
+      <p className="mt-3 rounded-xl bg-gold-soft px-4 py-3 text-xs text-gold-ink">Legal and policy text (privacy, terms, returns…) must be written or approved by you. This store doesn&apos;t generate legal copy; Arabic text should be reviewed by a native speaker.</p></Card>
       <Save pending={pending}>Save page</Save>
     </form>
   );

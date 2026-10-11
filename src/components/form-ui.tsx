@@ -21,7 +21,7 @@ export function PasswordField({ show, hide, ...p }: { show: string; hide: string
   return (
     <div className="relative">
       <Field {...p} type={visible ? "text" : "password"} />
-      <button type="button" onClick={() => setVisible((v) => !v)} aria-pressed={visible} className="absolute end-3 top-[2.35rem] text-xs font-medium text-muted hover:text-brand">{visible ? hide : show}</button>
+      <button type="button" onClick={() => setVisible((v) => !v)} aria-pressed={visible} className="absolute end-1 top-[2.2rem] min-h-8 rounded-lg px-3 text-xs font-medium text-muted hover:text-brand">{visible ? hide : show}</button>
     </div>
   );
 }

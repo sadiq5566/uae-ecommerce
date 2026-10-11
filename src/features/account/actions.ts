@@ -2,7 +2,9 @@
 import { revalidatePath } from "next/cache";
 import { Types } from "mongoose";
 import { connectDb } from "@/lib/db";
-import { getCurrentUser } from "@/lib/auth/session";
+import { hashPassword, verifyPassword } from "@/lib/auth/password";
+import { rateLimit } from "@/lib/rate-limit";
+import { createSession, destroyAllSessions, getCurrentUser } from "@/lib/auth/session";
 import { echo, fieldErrors, addressSchema, profileSchema, type FormState } from "@/features/auth/schemas";
 import { Address } from "@/models/address";
 import { User } from "@/models/user";
@@ -69,4 +71,23 @@ export async function setDefaultAddressAction(fd: FormData) {
   if (!(await Address.exists({ _id: id, user: user.id }))) return;
   await Address.updateMany({ user: user.id }, [{ $set: { isDefault: { $eq: ["$_id", new Types.ObjectId(id)] } } }]);
   revalidatePath("/[lang]/account/addresses", "page");
+}
+
+/** Change password while signed in: needs the current password, signs out every other device, keeps this one. */
+export async function changePasswordAction(_: FormState, fd: FormData): Promise<FormState> {
+  const user = await getCurrentUser();
+  if (!user) return { error: "auth" };
+  const current = String(fd.get("current") ?? ""); const next = String(fd.get("password") ?? "");
+  if (next.length < 10) return { fieldErrors: { password: "password_short" } };
+  if (next.length > 128) return { fieldErrors: { password: "password_long" } };
+  if (!(await rateLimit(`chpw:${user.id}`, 5, 900)).ok) return { error: "rate_limited" };
+  await connectDb();
+  const doc = await User.findById(user.id).select("+passwordHash");
+  if (!doc || !(await verifyPassword(current, doc.passwordHash))) return { fieldErrors: { current: "password_wrong" } };
+  if (current === next) return { fieldErrors: { password: "password_same" } };
+  doc.passwordHash = await hashPassword(next);
+  await doc.save();
+  await destroyAllSessions(user.id);
+  await createSession(user.id);
+  return { ok: true };
 }

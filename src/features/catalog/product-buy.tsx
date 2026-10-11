@@ -29,9 +29,9 @@ export function ProductBuy({ p, locale, t }: { p: ProductDetail; locale: Locale;
       <div>
         <p className="flex flex-wrap items-baseline gap-3">
           <span className="text-4xl font-bold">{formatAED(price, locale)}</span>
-          {off > 0 && <><s className="text-muted">{formatAED(p.price, locale)}</s><span className="rounded-full bg-danger px-2.5 py-1 text-xs font-bold text-white">{fmt(t.catalog.save, { n: off })}</span></>}
+          {off > 0 && <><s className="text-muted">{formatAED(p.price, locale)}</s><span className="rounded-full bg-danger-solid px-2.5 py-1 text-xs font-bold text-white">{fmt(t.catalog.save, { n: off })}</span></>}
         </p>
-        <p className={`mt-2 text-sm font-medium ${stock === 0 ? "text-danger" : stock <= p.lowStockThreshold ? "text-gold" : "text-brand"}`}>
+        <p className={`mt-2 text-sm font-medium ${stock === 0 ? "text-danger" : stock <= p.lowStockThreshold ? "text-gold-ink" : "text-brand"}`}>
           ● {stock === 0 ? t.catalog.outOfStock : stock <= p.lowStockThreshold ? fmt(t.catalog.lowStock, { n: stock }) : t.catalog.inStock}
         </p>
       </div>

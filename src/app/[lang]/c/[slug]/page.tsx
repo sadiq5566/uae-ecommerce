@@ -17,7 +17,7 @@ export async function generateMetadata({ params, searchParams }: PageProps<"/[la
   const f = parseFilters(await searchParams);
   return {
     title: cat.seo?.title?.[lang] ?? cat.name[lang],
-    description: cat.seo?.description?.[lang] ?? cat.description?.[lang] ?? undefined,
+    description: cat.seo?.description?.[lang] || cat.description?.[lang] || `${cat.name[lang]} — ${(await getDictionary(lang)).hero.subtitle}`,
     alternates: alternatesFor(lang, `/c/${slug}`),
     robots: noIndexIf(isFiltered(f)),
   };

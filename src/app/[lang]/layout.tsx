@@ -12,7 +12,8 @@ import { SessionBootstrap } from "@/components/session-store";
 
 const latin = Inter({ subsets: ["latin"], variable: "--font-latin", display: "swap" });
 const display = Fraunces({ subsets: ["latin"], variable: "--font-display-latin", display: "swap" });
-const arabic = IBM_Plex_Sans_Arabic({ subsets: ["arabic"], weight: ["400", "500", "600", "700"], variable: "--font-arabic", display: "swap" });
+// Arabic font: two weights, not preloaded — English pages never download it (unicode-range), Arabic pages fetch it on first Arabic glyph.
+const arabic = IBM_Plex_Sans_Arabic({ subsets: ["arabic"], weight: ["400", "700"], variable: "--font-arabic", display: "swap", preload: false });
 
 export const generateStaticParams = () => locales.map((lang) => ({ lang }));
 
@@ -44,7 +45,7 @@ export default async function RootLayout({ children, params }: LayoutProps<"/[la
         <ToastProvider>
           <SessionBootstrap />
           <Header locale={lang} t={t} categories={categories} />
-          <main id="main" className="flex-1">{children}</main>
+          <main id="main" tabIndex={-1} className="flex-1 outline-none">{children}</main>
           <Footer locale={lang} t={t} categories={categories} />
         </ToastProvider>
       </body>

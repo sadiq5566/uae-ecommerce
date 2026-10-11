@@ -6,6 +6,9 @@ import { fmt } from "@/lib/format";
 import { requireUser } from "@/lib/auth/guard";
 import { listOrdersForUser } from "@/features/orders/queries";
 import { StatusBadge } from "@/features/orders/status-badge";
+import { privatePage } from "@/lib/page-meta";
+
+export const generateMetadata = privatePage((t) => t.orders.title);
 
 export default async function OrdersPage({ params }: PageProps<"/[lang]/account/orders">) {
   const { lang } = await params;

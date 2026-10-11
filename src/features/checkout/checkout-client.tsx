@@ -88,7 +88,7 @@ export function CheckoutClient({ locale, t, addresses, methods, items, testMode 
             </div>
           )}
           {method && method !== "cod" && <p className="mt-3 text-xs text-muted">🔒 {t.checkout.secureNote}</p>}
-          {testMode && method && method !== "cod" && <p className="mt-2 inline-block rounded-full bg-gold-soft px-3 py-1 text-xs font-bold text-gold">⚠ {t.checkout.testMode}</p>}
+          {testMode && method && method !== "cod" && <p className="mt-2 inline-block rounded-full bg-gold-soft px-3 py-1 text-xs font-bold text-gold-ink">⚠ {t.checkout.testMode}</p>}
         </section>
 
         <section aria-labelledby="cp-h">
@@ -119,20 +119,22 @@ export function CheckoutClient({ locale, t, addresses, methods, items, testMode 
             </li>
           ))}
         </ul>
-        <dl className={`mt-5 flex flex-col gap-2 border-t border-line pt-4 text-sm transition-opacity ${quoting ? "opacity-50" : ""}`} aria-busy={quoting}>
+        <div className={`mt-5 border-t border-line pt-4 text-sm transition-opacity ${quoting ? "opacity-50" : ""}`} aria-busy={quoting}>
           {q ? (
             <>
-              <Row label={t.checkout.subtotal} value={formatAED(q.subtotal, locale)} />
-              {q.couponDiscount > 0 && <Row label={`${t.checkout.couponLine}${q.couponCode ? ` (${q.couponCode})` : ""}`} value={`−${formatAED(q.couponDiscount, locale)}`} accent />}
-              <Row label={t.checkout.delivery} value={q.deliveryFee === 0 ? t.checkout.free : formatAED(q.deliveryFee, locale)} accent={q.deliveryFee === 0} />
-              {q.codFee > 0 && <Row label={t.checkout.codFee} value={formatAED(q.codFee, locale)} />}
-              {q.tax > 0 && <Row label={q.taxIncluded ? t.checkout.taxIncl : t.checkout.tax} value={formatAED(q.tax, locale)} muted />}
-              <div className="mt-2 flex items-baseline justify-between border-t border-line pt-3"><dt className="font-semibold">{t.checkout.total}</dt><dd className="text-2xl font-bold">{formatAED(q.total, locale)}</dd></div>
-              <p className="text-xs text-muted">🚚 {fmt(t.checkout.estimate, { text: q.estimate[locale] })}</p>
+              <dl className="flex flex-col gap-2">
+                <Row label={t.checkout.subtotal} value={formatAED(q.subtotal, locale)} />
+                {q.couponDiscount > 0 && <Row label={`${t.checkout.couponLine}${q.couponCode ? ` (${q.couponCode})` : ""}`} value={`−${formatAED(q.couponDiscount, locale)}`} accent />}
+                <Row label={t.checkout.delivery} value={q.deliveryFee === 0 ? t.checkout.free : formatAED(q.deliveryFee, locale)} accent={q.deliveryFee === 0} />
+                {q.codFee > 0 && <Row label={t.checkout.codFee} value={formatAED(q.codFee, locale)} />}
+                {q.tax > 0 && <Row label={q.taxIncluded ? t.checkout.taxIncl : t.checkout.tax} value={formatAED(q.tax, locale)} muted />}
+                <div className="mt-2 flex items-baseline justify-between border-t border-line pt-3"><dt className="font-semibold">{t.checkout.total}</dt><dd className="text-2xl font-bold">{formatAED(q.total, locale)}</dd></div>
+              </dl>
+              <p className="mt-2 text-xs text-muted">🚚 {fmt(t.checkout.estimate, { text: q.estimate[locale] })}</p>
             </>
           ) : quoteErr ? <p role="alert" className="text-sm text-danger">{quoteErr === "below_minimum" ? fmt(er.below_minimum, {}) : er[quoteErr] ?? er.generic}</p>
             : <div className="skeleton h-24 rounded-xl" aria-hidden />}
-        </dl>
+        </div>
 
         <form action={action} className="mt-5 flex flex-col gap-3">
           <input type="hidden" name="locale" value={locale} /><input type="hidden" name="idempotencyKey" value={idempotencyKey} />

@@ -1,12 +1,13 @@
-import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getDictionary } from "@/lib/dictionaries";
 import { isLocale } from "@/lib/i18n";
 import { AuthShell } from "@/features/auth/auth-shell";
 import { ResetForm } from "@/features/auth/forms";
+import { privatePage } from "@/lib/page-meta";
 
 // Tokens in URLs must never leak via Referer or be indexed.
-export const metadata: Metadata = { robots: { index: false, follow: false }, referrer: "no-referrer" };
+
+export const generateMetadata = privatePage((t) => t.auth.resetTitle, { referrer: "no-referrer" });
 
 export default async function ResetPage({ params, searchParams }: PageProps<"/[lang]/reset-password">) {
   const { lang } = await params;

@@ -10,7 +10,12 @@ import { AutoRefresh } from "@/features/orders/auto-refresh";
 import { getOrderForUser } from "@/features/orders/queries";
 import { StatusBadge } from "@/features/orders/status-badge";
 
-export const metadata: Metadata = { robots: { index: false, follow: false } };
+export async function generateMetadata({ params }: PageProps<"/[lang]/account/orders/[number]">): Promise<Metadata> {
+  const { lang, number } = await params;
+  if (!isLocale(lang)) return {};
+  const t = await getDictionary(lang);
+  return { title: `${t.orders.title} · ${number}`, robots: { index: false, follow: false } };
+}
 const STEPS = ["confirmed", "processing", "packed", "out_for_delivery", "delivered"] as const;
 
 export default async function OrderPage({ params, searchParams }: PageProps<"/[lang]/account/orders/[number]">) {

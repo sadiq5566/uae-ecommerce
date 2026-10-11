@@ -28,6 +28,7 @@ export function Listing({ locale, t, title, subtitle, crumbs, path, f, data, cat
       <div className="mt-8 grid gap-8 lg:grid-cols-[16rem_1fr]">
         <aside className="hidden lg:block" aria-label={t.catalog.filters}><div className="sticky top-32 rounded-2xl border border-line bg-surface p-5">{form("filters-desktop")}</div></aside>
         <section aria-live="polite">
+          <h2 className="sr-only">{fmt(t.catalog.results, { n: data.total })}</h2>
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-muted">{fmt(t.catalog.results, { n: data.total })}</p>
             <div className="flex items-center gap-2">
@@ -48,7 +49,7 @@ export function Listing({ locale, t, title, subtitle, crumbs, path, f, data, cat
             </div>
           )}
           {data.pages > 1 && (
-            <nav aria-label="Pagination" className="mt-10 flex items-center justify-center gap-3 text-sm">
+            <nav aria-label={t.catalog.pagination} className="mt-10 flex items-center justify-center gap-3 text-sm">
               {page > 1 ? <Link rel="prev" href={`${path}${toQuery(f, { page: page - 1 })}`} className="rounded-full border border-line px-4 py-2 hover:border-brand">← {t.catalog.prev}</Link> : <span />}
               <span className="text-muted">{fmt(t.catalog.page, { p: page, n: data.pages })}</span>
               {page < data.pages ? <Link rel="next" href={`${path}${toQuery(f, { page: page + 1 })}`} className="rounded-full border border-line px-4 py-2 hover:border-brand">{t.catalog.next} →</Link> : <span />}

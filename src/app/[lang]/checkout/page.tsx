@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getDictionary } from "@/lib/dictionaries";
@@ -9,8 +8,10 @@ import { getAddresses } from "@/features/account/service";
 import { getCartView } from "@/features/cart/service";
 import { CheckoutClient } from "@/features/checkout/checkout-client";
 import { availableMethods } from "@/features/checkout/prepare";
+import { privatePage } from "@/lib/page-meta";
 
-export const metadata: Metadata = { robots: { index: false, follow: false } };
+
+export const generateMetadata = privatePage((t) => t.checkout.title);
 
 export default async function CheckoutPage({ params }: PageProps<"/[lang]/checkout">) {
   const { lang } = await params;

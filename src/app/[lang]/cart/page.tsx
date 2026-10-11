@@ -1,12 +1,13 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getDictionary } from "@/lib/dictionaries";
 import { isLocale } from "@/lib/i18n";
 import { CartLines } from "@/features/cart/cart-lines";
 import { getCartView } from "@/features/cart/service";
+import { privatePage } from "@/lib/page-meta";
 
-export const metadata: Metadata = { robots: { index: false, follow: false } };
+
+export const generateMetadata = privatePage((t) => t.cart.title);
 
 export default async function CartPage({ params }: PageProps<"/[lang]/cart">) {
   const { lang } = await params;

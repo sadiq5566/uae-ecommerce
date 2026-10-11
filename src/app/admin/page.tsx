@@ -63,8 +63,8 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
         </Card>
         <Card title="Popular & most viewed (all time)">
           <div className="grid gap-4 text-sm sm:grid-cols-2">
-            <div><p className="mb-2 text-xs font-semibold uppercase text-muted">Most sold</p><ol className="flex flex-col gap-1">{d.popular.map((p) => <li key={String(p._id)} className="flex justify-between gap-2"><span className="truncate">{p.name?.en}</span><b>{p.soldCount}</b></li>)}</ol></div>
-            <div><p className="mb-2 text-xs font-semibold uppercase text-muted">Most viewed</p><ol className="flex flex-col gap-1">{d.viewed.map((p) => <li key={String(p._id)} className="flex justify-between gap-2"><span className="truncate">{p.name?.en}</span><b>{p.viewCount}</b></li>)}</ol></div>
+            <div className="min-w-0"><p className="mb-2 text-xs font-semibold uppercase text-muted">Most sold</p><ol className="flex flex-col gap-1">{d.popular.map((p) => <li key={String(p._id)} className="flex justify-between gap-2"><span className="min-w-0 truncate">{p.name?.en}</span><b>{p.soldCount}</b></li>)}</ol></div>
+            <div className="min-w-0"><p className="mb-2 text-xs font-semibold uppercase text-muted">Most viewed</p><ol className="flex flex-col gap-1">{d.viewed.map((p) => <li key={String(p._id)} className="flex justify-between gap-2"><span className="min-w-0 truncate">{p.name?.en}</span><b>{p.viewCount}</b></li>)}</ol></div>
           </div>
         </Card>
         <Card title="Recent activity">

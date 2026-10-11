@@ -19,7 +19,11 @@
     "dark": "Dark",
     "system": "System",
     "accountLabel": "Account",
-    "signIn": "Sign in"
+    "signIn": "Sign in",
+    "main": "Main",
+    "mobile": "Mobile",
+    "suggestions": "Search suggestions",
+    "categoryTag": "Category"
   },
   "topbar": {
     "shipping": "Free delivery across the UAE on orders over AED 200",
@@ -158,7 +162,9 @@
     "popular": "Most viewed",
     "popularSub": "What shoppers are looking at",
     "bestSellers": "Best sellers",
-    "bestSellersSub": "Our customers' favourites"
+    "bestSellersSub": "Our customers' favourites",
+    "pagination": "Pagination",
+    "thumb": "Show image"
   },
   "errors": {
     "generic": "Something went wrong. Please try again.",
@@ -198,7 +204,9 @@
     "review_short": "Please write at least 10 characters.",
     "rating_invalid": "Choose a rating from 1 to 5.",
     "review_not_eligible": "Only customers who received this product can review it.",
-    "review_duplicate": "You have already reviewed this product."
+    "review_duplicate": "You have already reviewed this product.",
+    "password_wrong": "Your current password is incorrect.",
+    "password_same": "Choose a password different from the current one."
   },
   "auth": {
     "loginTitle": "Sign in",
@@ -239,7 +247,12 @@
     "noOrdersHint": "When you place an order it will appear here.",
     "startShopping": "Start shopping",
     "role": "Role",
-    "staff": "Staff account"
+    "staff": "Staff account",
+    "security": "Security",
+    "changePassword": "Change password",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "passwordChanged": "Password updated. You were signed out of other devices."
   },
   "address": {
     "add": "Add address",

@@ -65,8 +65,8 @@ export function Marquee({ locale, categories }: { locale: Locale; categories: Ca
   const row = [...words, ...words];
   return (
     <div aria-hidden className="mt-20 overflow-hidden border-y border-line bg-surface-2 py-4">
-      <div className="animate-marquee flex w-max gap-10 whitespace-nowrap font-display text-2xl font-bold text-muted/60">
-        {[...row, ...row].map((w, i) => <span key={i} className="flex items-center gap-10">{w} <span className="text-gold">✦</span></span>)}
+      <div className="animate-marquee flex w-max gap-10 whitespace-nowrap font-display text-2xl font-bold text-muted">
+        {[...row, ...row].map((w, i) => <span key={i} className="flex items-center gap-10">{w} <span className="text-gold-ink">✦</span></span>)}
       </div>
     </div>
   );

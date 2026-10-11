@@ -25,13 +25,13 @@ export function CartLines({ cart, locale, t }: { cart: CartView; locale: Locale;
     return null;
   };
   return (
-    <div className="grid gap-8 lg:grid-cols-[1fr_22rem]" aria-busy={pending}>
-      <ul className={`flex flex-col gap-4 transition-opacity ${pending ? "opacity-60" : ""}`}>
+    <div className="grid min-w-0 gap-8 lg:grid-cols-[1fr_22rem]" aria-busy={pending}>
+      <ul className={`flex min-w-0 flex-col gap-4 transition-opacity ${pending ? "opacity-60" : ""}`}>
         {cart.lines.map((l) => {
           const n = note(l);
           return (
-            <li key={l.sku} className="animate-slide-in flex gap-4 rounded-2xl border border-line bg-surface p-4">
-              <div className="grid size-24 shrink-0 place-items-center rounded-xl text-4xl" style={{ background: `linear-gradient(135deg, hsl(${l.hue} 70% 92%), hsl(${l.hue} 60% 82%))` }} aria-hidden>{l.icon}</div>
+            <li key={l.sku} className="animate-slide-in flex min-w-0 gap-3 rounded-2xl sm:gap-4 border border-line bg-surface p-4">
+              <div className="grid size-20 shrink-0 place-items-center rounded-xl text-3xl sm:size-24 sm:text-4xl" style={{ background: `linear-gradient(135deg, hsl(${l.hue} 70% 92%), hsl(${l.hue} 60% 82%))` }} aria-hidden>{l.icon}</div>
               <div className="flex min-w-0 flex-1 flex-col gap-1">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -40,7 +40,7 @@ export function CartLines({ cart, locale, t }: { cart: CartView; locale: Locale;
                   </div>
                   <p className="shrink-0 font-bold">{formatAED(l.lineTotal, locale)}</p>
                 </div>
-                {n && <p role="alert" className="text-xs font-medium text-gold">⚠ {n}</p>}
+                {n && <p role="alert" className="text-xs font-medium text-gold-ink">⚠ {n}</p>}
                 <div className="mt-auto flex items-center justify-between gap-2 pt-2">
                   {l.stock > 0 ? (
                     <div role="group" aria-label={t.catalog.quantity} className="flex items-center rounded-xl border border-line">
@@ -60,7 +60,7 @@ export function CartLines({ cart, locale, t }: { cart: CartView; locale: Locale;
         <p className="flex justify-between text-sm text-muted"><span>{fmt(t.cart.items, { n: cart.itemCount })}</span></p>
         <p className="mt-3 flex items-baseline justify-between"><span className="font-semibold">{t.cart.subtotal}</span><span className="text-2xl font-bold">{formatAED(cart.subtotal, locale)}</span></p>
         <p className="mt-3 text-xs text-muted">{t.cart.checkoutNote}</p>
-        {cart.lines.some((l) => l.status !== "ok") ? <p className="mt-5 rounded-xl bg-gold-soft px-4 py-3 text-center text-sm font-medium text-gold">⚠ {t.errors.cart_issues}</p>
+        {cart.lines.some((l) => l.status !== "ok") ? <p className="mt-5 rounded-xl bg-gold-soft px-4 py-3 text-center text-sm font-medium text-gold-ink">⚠ {t.errors.cart_issues}</p>
           : <Link href={`/${locale}/checkout`} className="mt-5 block w-full rounded-xl bg-brand px-5 py-3 text-center font-semibold text-brand-fg transition hover:brightness-110 active:scale-[0.98]">{t.cart.checkout}</Link>}
         <Link href={`/${locale}`} className="mt-4 block text-center text-sm font-medium text-brand hover:underline">{t.cart.continue}</Link>
       </aside>

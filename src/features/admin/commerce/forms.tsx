@@ -96,7 +96,7 @@ export function SettingsForm({ d }: { d: SettingsData }) {
       </Card>
       <Card title="VAT / tax">
         <div className="grid gap-4 sm:grid-cols-3"><div className="flex items-end"><CB s={s} name="taxEnabled" label="Show/charge VAT" defaultChecked={d.taxEnabled} /></div><TF s={s} name="taxRate" label="Rate (%)" type="number" step="0.01" min={0} max={100} defaultValue={d.taxRate} /><div className="flex items-end"><CB s={s} name="taxInclusive" label="Prices already include VAT" defaultChecked={d.taxInclusive} /></div></div>
-        <p className="mt-3 rounded-xl bg-gold-soft px-4 py-3 text-xs text-gold">⚠ Off by default. Confirm your VAT registration and invoicing rules with your accountant before enabling — this store does not assume any tax treatment.</p>
+        <p className="mt-3 rounded-xl bg-gold-soft px-4 py-3 text-xs text-gold-ink">⚠ Off by default. Confirm your VAT registration and invoicing rules with your accountant before enabling — this store does not assume any tax treatment.</p>
       </Card>
       <Card title="Payments">
         <div className="grid gap-4 sm:grid-cols-3"><TF s={s} name="pendingPaymentMinutes" label="Online payment window (minutes)" type="number" min={5} defaultValue={d.pendingPaymentMinutes} hint="Unpaid orders are cancelled and stock released after this." /></div>

@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getDictionary } from "@/lib/dictionaries";
@@ -6,8 +5,10 @@ import { isLocale } from "@/lib/i18n";
 import { requireUser } from "@/lib/auth/guard";
 import { ProductCard } from "@/components/product-card";
 import { getWishlistProducts } from "@/features/wishlist/service";
+import { privatePage } from "@/lib/page-meta";
 
-export const metadata: Metadata = { robots: { index: false, follow: false } };
+
+export const generateMetadata = privatePage((t) => t.wishlist.title);
 
 export default async function WishlistPage({ params }: PageProps<"/[lang]/wishlist">) {
   const { lang } = await params;
@@ -24,7 +25,7 @@ export default async function WishlistPage({ params }: PageProps<"/[lang]/wishli
           <Link href={`/${lang}`} className="rounded-full bg-brand px-5 py-2.5 text-sm font-semibold text-brand-fg">{t.account.startShopping}</Link>
         </div>
       ) : (
-        <div className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">{items.map((p) => <ProductCard key={p.id} p={p} locale={lang} t={t} />)}</div>
+        <div className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4"><h2 className="sr-only">{t.wishlist.title}</h2>{items.map((p) => <ProductCard key={p.id} p={p} locale={lang} t={t} />)}</div>
       )}
     </div>
   );

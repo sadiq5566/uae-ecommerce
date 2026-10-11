@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import { notFound, permanentRedirect } from "next/navigation";
 import { getDictionary } from "@/lib/dictionaries";
 import { REVIEW_SORTS, type ReviewSort } from "@/features/reviews/service";
@@ -7,6 +6,7 @@ import { ReviewsSection } from "@/features/reviews/reviews-section";
 import { isLocale } from "@/lib/i18n";
 import { ProductCard } from "@/components/product-card";
 import { ViewTracker } from "@/components/view-tracker";
+import { Gallery } from "@/features/catalog/gallery";
 import { Breadcrumbs } from "@/features/catalog/breadcrumbs";
 import { ProductBuy } from "@/features/catalog/product-buy";
 import { alternatesFor } from "@/features/catalog/seo";
@@ -65,14 +65,7 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
       <ViewTracker id={p.id} />
       <Breadcrumbs label={t.catalog.breadcrumb} items={crumbs} />
       <div className="mt-6 grid gap-10 lg:grid-cols-2">
-        <div className="animate-fade-up">
-          <div className="relative grid aspect-square place-items-center overflow-hidden rounded-3xl" style={{ background: `linear-gradient(135deg, hsl(${p.hue} 70% 92%), hsl(${p.hue} 60% 80%))` }}>
-            {p.images[0] ? <Image src={p.images[0].url} alt={p.images[0].alt?.[lang] ?? p.name[lang]} fill priority sizes="(min-width:1024px) 50vw, 100vw" className="object-cover" /> : <span aria-hidden className="animate-float text-[10rem] drop-shadow-2xl sm:text-[14rem]">{p.icon}</span>}
-          </div>
-          {p.images.length > 1 && (
-            <ul className="mt-3 flex gap-2 overflow-x-auto">{p.images.map((im, i) => <li key={i} className="relative size-20 shrink-0 overflow-hidden rounded-xl border border-line"><Image src={im.url} alt={im.alt?.[lang] ?? ""} fill sizes="80px" className="object-cover" /></li>)}</ul>
-          )}
-        </div>
+        <div className="animate-fade-up"><Gallery images={p.images} name={p.name[lang]} locale={lang} icon={p.icon} hue={p.hue} labels={{ thumb: t.catalog.thumb }} /></div>
         <div className="animate-fade-up flex flex-col gap-6 [animation-delay:120ms]">
           <div>
             {p.brand && <p className="text-sm font-semibold text-brand">{p.brand}</p>}

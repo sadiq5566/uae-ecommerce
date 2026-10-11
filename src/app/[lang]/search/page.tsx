@@ -8,7 +8,12 @@ import { Listing } from "@/features/catalog/listing";
 import { listProducts } from "@/features/catalog/service";
 
 // Internal search results are never indexed.
-export const metadata: Metadata = { robots: { index: false, follow: true } };
+export async function generateMetadata({ params, searchParams }: PageProps<"/[lang]/search">): Promise<Metadata> {
+  const { lang } = await params;
+  if (!isLocale(lang)) return {};
+  const [t, f] = [await getDictionary(lang), parseFilters(await searchParams)];
+  return { title: f.q ? fmt(t.catalog.searchFor, { q: f.q }) : t.catalog.searchTitle, robots: { index: false, follow: true } };
+}
 
 export default async function SearchPage({ params, searchParams }: PageProps<"/[lang]/search">) {
   const { lang } = await params;

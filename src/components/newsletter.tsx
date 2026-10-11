@@ -1,9 +1,9 @@
 "use client";
 import { useState } from "react";
-import { z } from "zod";
 import { useToast } from "./toast";
 
-const emailSchema = z.email();
+// Light client-side check only (no Zod in the browser bundle); real validation happens where the address is stored.
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 export function NewsletterForm({ t }: { t: { email: string; subscribe: string; invalid: string; thanks: string } }) {
   const [error, setError] = useState(false);
@@ -14,7 +14,7 @@ export function NewsletterForm({ t }: { t: { email: string; subscribe: string; i
       onSubmit={(e) => {
         e.preventDefault();
         const form = e.currentTarget;
-        const ok = emailSchema.safeParse(new FormData(form).get("email")).success;
+        const ok = EMAIL.test(String(new FormData(form).get("email") ?? "").trim());
         setError(!ok);
         if (ok) { toast(t.thanks); form.reset(); }
       }}
@@ -26,7 +26,7 @@ export function NewsletterForm({ t }: { t: { email: string; subscribe: string; i
           aria-invalid={error} aria-describedby={error ? "nl-err" : undefined}
           className="min-w-0 flex-1 rounded-xl border border-line bg-surface px-4 py-3 text-sm outline-none focus:border-brand"
         />
-        <button className="rounded-xl bg-gold px-5 py-3 text-sm font-semibold text-bg transition hover:brightness-110 active:scale-95">{t.subscribe}</button>
+        <button className="rounded-xl bg-gold px-5 py-3 text-sm font-semibold text-gold-fg transition hover:brightness-110 active:scale-95">{t.subscribe}</button>
       </div>
       {error && <p id="nl-err" role="alert" className="text-sm text-danger">{t.invalid}</p>}
     </form>

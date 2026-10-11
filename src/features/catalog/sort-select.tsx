@@ -8,7 +8,7 @@ export function SortSelect({ value, options, label }: { value: string; options: 
   return (
     <label className="flex items-center gap-2 text-sm">
       <span className="hidden text-muted sm:inline">{label}</span>
-      <select value={value} onChange={(e) => {
+      <select aria-label={label} value={value} onChange={(e) => {
         const p = new URLSearchParams(params.toString());
         p.delete("page");
         if (e.target.value === "relevance") p.delete("sort"); else p.set("sort", e.target.value);

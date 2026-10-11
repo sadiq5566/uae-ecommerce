@@ -11,7 +11,7 @@ export function PageHeader({ title, sub, actions }: { title: string; sub?: strin
 }
 
 export const Card = ({ title, children, className = "", actions }: { title?: string; children: ReactNode; className?: string; actions?: ReactNode }) => (
-  <section className={`rounded-2xl border border-line bg-surface p-5 ${className}`}>
+  <section className={`min-w-0 rounded-2xl border border-line bg-surface p-5 ${className}`}>
     {(title || actions) && <div className="mb-4 flex items-center justify-between gap-3">{title && <h2 className="font-semibold">{title}</h2>}{actions}</div>}
     {children}
   </section>
@@ -27,17 +27,17 @@ export function LinkButton({ href, children, variant = "primary" }: { href: stri
 }
 
 const tones: Record<string, string> = {
-  green: "bg-brand-soft text-brand", gold: "bg-gold-soft text-gold", red: "bg-danger/15 text-danger", grey: "bg-surface-2 text-muted", dark: "bg-fg text-bg",
+  green: "bg-brand-soft text-brand", gold: "bg-gold-soft text-gold-ink", red: "bg-danger/15 text-danger", grey: "bg-surface-2 text-muted", dark: "bg-fg text-bg",
 };
 export const Pill = ({ tone = "grey", children }: { tone?: keyof typeof tones; children: ReactNode }) => (
   <span className={`inline-block whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold ${tones[tone]}`}>{children}</span>
 );
 
-export function Table({ head, children, empty }: { head: string[]; children: ReactNode; empty?: string }) {
+export function Table({ head, children, empty, label = "Data table" }: { head: string[]; children: ReactNode; empty?: string; label?: string }) {
   return (
-    <div className="overflow-x-auto rounded-2xl border border-line bg-surface">
+    <div className="overflow-x-auto rounded-2xl border border-line bg-surface" tabIndex={0} role="region" aria-label={label}>
       <table className="w-full min-w-[40rem] text-sm">
-        <thead className="border-b border-line bg-surface-2 text-start text-xs uppercase tracking-wide text-muted"><tr>{head.map((h) => <th key={h} className="px-4 py-3 text-start font-semibold">{h}</th>)}</tr></thead>
+        <thead className="border-b border-line bg-surface-2 text-start text-xs uppercase tracking-wide text-muted"><tr>{head.map((h, i) => <th key={h + i} className="px-4 py-3 text-start font-semibold">{h || <span className="sr-only">Select</span>}</th>)}</tr></thead>
         <tbody className="divide-y divide-line [&_td]:px-4 [&_td]:py-3 [&_td]:align-middle">{children}</tbody>
       </table>
       {empty && <p className="px-4 py-10 text-center text-sm text-muted">{empty}</p>}
@@ -59,7 +59,7 @@ export function Pager({ page, pages, href }: { page: number; pages: number; href
 export const Stat = ({ label, value, hint, tone }: { label: string; value: ReactNode; hint?: string; tone?: "red" }) => (
   <div className="rounded-2xl border border-line bg-surface p-5">
     <p className="text-xs font-semibold uppercase tracking-wide text-muted">{label}</p>
-    <p className={`mt-2 font-display text-3xl font-bold ${tone === "red" ? "text-danger" : ""}`}>{value}</p>
+    <p className={`mt-2 break-words font-display text-2xl font-bold sm:text-3xl ${tone === "red" ? "text-danger" : ""}`}>{value}</p>
     {hint && <p className="mt-1 text-xs text-muted">{hint}</p>}
   </div>
 );

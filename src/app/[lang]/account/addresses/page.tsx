@@ -4,6 +4,9 @@ import { isLocale } from "@/lib/i18n";
 import { requireUser } from "@/lib/auth/guard";
 import { AddressList } from "@/features/account/address-list";
 import { getAddresses } from "@/features/account/service";
+import { privatePage } from "@/lib/page-meta";
+
+export const generateMetadata = privatePage((t) => t.account.addresses);
 
 export default async function AddressesPage({ params }: PageProps<"/[lang]/account/addresses">) {
   const { lang } = await params;

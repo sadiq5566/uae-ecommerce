@@ -43,7 +43,7 @@ export function ImagesEditor({ name = "images", initial, max = 10, single, onUrl
       </ul>
       {items.length < max && (
         <div className="flex flex-wrap items-center gap-2">
-          <input ref={file} type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f) upload(f); e.target.value = ""; }} />
+          <input ref={file} type="file" aria-label="Upload an image file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f) upload(f); e.target.value = ""; }} />
           <button type="button" className={mini} disabled={busy} onClick={() => file.current?.click()}>{busy ? "Uploading…" : "Upload image"}</button>
           <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="…or paste an allowed image URL" aria-label="Image URL" className={`${inputCls} max-w-xs`} />
           <button type="button" className={mini} disabled={!url.trim()} onClick={() => { commit(single ? [{ url: url.trim(), alt: { en: "", ar: "" } }] : [...items, { url: url.trim(), alt: { en: "", ar: "" } }]); setUrl(""); }}>Add URL</button>

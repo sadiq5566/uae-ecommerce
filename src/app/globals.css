@@ -15,7 +15,10 @@
   --brand-soft: #dff1ea;
   --gold: #b88a3b;
   --gold-soft: #f4e8cf;
-  --danger: #c0392b;
+  --danger: #b32d20;
+  --danger-solid: #b32d20; /* background for white text */
+  --gold-ink: #7a5712; /* gold used as TEXT (AA on white and on gold-soft) */
+  --gold-fg: #1a1405; /* text on gold backgrounds */
   --shadow: 0 1px 2px rgb(20 30 25 / 0.06), 0 8px 24px -8px rgb(20 30 25 / 0.12);
   color-scheme: light;
 }
@@ -32,6 +35,9 @@
   --gold: #d9ad5f;
   --gold-soft: #3a2f17;
   --danger: #ff7a6b;
+  --danger-solid: #b32d20;
+  --gold-ink: #e3b96a;
+  --gold-fg: #1a1405;
   --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px -8px rgb(0 0 0 / 0.5);
   color-scheme: dark;
 }
@@ -49,6 +55,9 @@
   --color-gold: var(--gold);
   --color-gold-soft: var(--gold-soft);
   --color-danger: var(--danger);
+  --color-danger-solid: var(--danger-solid);
+  --color-gold-ink: var(--gold-ink);
+  --color-gold-fg: var(--gold-fg);
   --font-sans: var(--font-latin), var(--font-arabic), system-ui, sans-serif;
   --font-display: var(--font-display-latin), var(--font-arabic), serif;
   --shadow-card: var(--shadow);

@@ -37,7 +37,7 @@ export default async function JournalIndex({ params, searchParams }: PageProps<"
           ))}
         </div>
       )}
-      {pages > 1 && <nav aria-label="Pagination" className="mt-10 flex justify-center gap-3 text-sm">{page > 1 && <Link href={`/${lang}/journal?page=${page - 1}`} className="rounded-full border border-line px-4 py-2 hover:border-brand">← {t.catalog.prev}</Link>}{page < pages && <Link href={`/${lang}/journal?page=${page + 1}`} className="rounded-full border border-line px-4 py-2 hover:border-brand">{t.catalog.next} →</Link>}</nav>}
+      {pages > 1 && <nav aria-label={t.catalog.pagination} className="mt-10 flex justify-center gap-3 text-sm">{page > 1 && <Link href={`/${lang}/journal?page=${page - 1}`} className="rounded-full border border-line px-4 py-2 hover:border-brand">← {t.catalog.prev}</Link>}{page < pages && <Link href={`/${lang}/journal?page=${page + 1}`} className="rounded-full border border-line px-4 py-2 hover:border-brand">{t.catalog.next} →</Link>}</nav>}
     </div>
   );
 }

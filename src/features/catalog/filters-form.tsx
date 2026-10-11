@@ -46,7 +46,7 @@ export function FiltersForm({ id, action, t, locale, f, facets, category, hidden
         <legend className={legend}>{t.catalog.rating}</legend>
         <div className="flex flex-col gap-1.5">
           {[4, 3, 2].map((r) => (
-            <label key={r} className="flex cursor-pointer items-center gap-2 text-sm"><input type="radio" name="rating" value={r} defaultChecked={f.rating === r} className="size-4 accent-[var(--brand)]" /><span className="text-gold">{"★".repeat(r)}</span> {t.catalog.andUp}</label>
+            <label key={r} className="flex cursor-pointer items-center gap-2 text-sm"><input type="radio" name="rating" value={r} defaultChecked={f.rating === r} className="size-4 accent-[var(--brand)]" /><span className="text-gold-ink">{"★".repeat(r)}</span> {t.catalog.andUp}</label>
           ))}
           <label className="flex cursor-pointer items-center gap-2 text-sm"><input type="radio" name="rating" value="" defaultChecked={!f.rating} className="size-4 accent-[var(--brand)]" />—</label>
         </div>

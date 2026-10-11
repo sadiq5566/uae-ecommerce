@@ -2,7 +2,8 @@
 import { useActionState, useEffect, useRef } from "react";
 import type { Dictionary } from "@/lib/dictionaries";
 import { Field, FormAlert, inputCls, SubmitButton } from "@/components/form-ui";
-import { EMIRATES, type FormState } from "@/features/auth/schemas";
+import type { FormState } from "@/features/auth/schemas";
+import { EMIRATES } from "@/lib/emirates";
 import { saveAddressAction } from "./actions";
 import type { AddressView } from "./service";
 

@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getDictionary } from "@/lib/dictionaries";
@@ -7,8 +6,10 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { safeNext } from "@/lib/auth/guard";
 import { AuthShell } from "@/features/auth/auth-shell";
 import { LoginForm } from "@/features/auth/forms";
+import { privatePage } from "@/lib/page-meta";
 
-export const metadata: Metadata = { robots: { index: false, follow: false } };
+
+export const generateMetadata = privatePage((t) => t.auth.loginTitle);
 
 export default async function LoginPage({ params, searchParams }: PageProps<"/[lang]/login">) {
   const { lang } = await params;

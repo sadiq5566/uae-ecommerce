@@ -20,7 +20,7 @@ export default async function MockPayPage({ params }: PageProps<"/[lang]/pay/moc
   return (
     <div className="mx-auto max-w-md px-4 py-14">
       <div className="rounded-3xl border-2 border-dashed border-gold bg-surface p-8 shadow-card">
-        <p role="alert" className="mb-5 rounded-xl bg-gold-soft px-4 py-3 text-sm font-bold text-gold">⚠ {t.pay.warning}</p>
+        <p role="alert" className="mb-5 rounded-xl bg-gold-soft px-4 py-3 text-sm font-bold text-gold-ink">⚠ {t.pay.warning}</p>
         <h1 className="font-display text-2xl font-bold">{t.pay.title}</h1>
         <p className="mt-2 text-sm text-muted" dir="ltr">{o.orderNumber}</p>
         <p className="mt-4 flex justify-between text-lg"><span>{t.pay.amount}</span><strong>{formatAED(o.totals.total, lang)}</strong></p>

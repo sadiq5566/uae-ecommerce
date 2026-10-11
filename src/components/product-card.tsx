@@ -15,7 +15,7 @@ export function ProductCard({ p, locale, t }: { p: ProductCardData; locale: Loca
         {p.image ? <Image src={p.image} alt="" fill sizes="(min-width:1024px) 25vw, 50vw" className="object-cover" /> : (
           <span aria-hidden className="text-7xl drop-shadow-lg transition-transform duration-500 group-hover:scale-125 group-hover:-rotate-6">{p.icon}</span>
         )}
-        {off > 0 && <span className="absolute start-3 top-3 rounded-full bg-danger px-2.5 py-1 text-xs font-bold text-white">-{off}%</span>}
+        {off > 0 && <span className="absolute start-3 top-3 rounded-full bg-danger-solid px-2.5 py-1 text-xs font-bold text-white">-{off}%</span>}
         {p.stock === 0 && <span className="absolute inset-x-0 bottom-0 bg-fg/80 py-1 text-center text-xs font-semibold text-bg">{t.catalog.outOfStock}</span>}
         <div className="absolute end-3 top-3 z-20"><WishlistButton productId={p.id} locale={locale} label={t.product.save} savedLabel={t.product.saved} loginLabel={t.product.loginToSave} /></div>
       </div>
