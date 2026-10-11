@@ -9,9 +9,43 @@ Source of truth: `PROJECT_SPEC.md`.
 - [x] Phase 3 — Identity & shopping (auth, addresses, wishlist, server-validated cart)
 - [x] Phase 4 — Checkout & orders (delivery, coupons, COD, payment adapter)
 - [x] Phase 5 — Admin
-- [ ] Phase 6 — i18n completion, a11y, polish
-- [ ] Phase 7 — Hardening & deployment
+- [x] Phase 6 — i18n completion, a11y, polish
+- [x] Phase 7 — Hardening & deployment
 
+## Phase 7 done
+- **Security review & hardening** (`docs/security.md`): security headers + production CSP (unit-tested module, verified live with no violations across storefront/account/admin), `__Host-` cookies in production, staff sessions 3 days, `noindex` + `no-store` on admin/API/account areas, server-action argument hardening, robots updated, `poweredByHeader` off.
+- **Operations:** `/api/health`, `instrumentation.ts` (boot-time config warnings, structured error logging hook), `db:indexes` + `db:migrate` scripts (production auto-indexing off), complete `.env.example`, env schema covers every variable, `docs/deployment.md` (environments, first deploy, cron, query inspection, monitoring, backups, rollback), final README.
+- Dependency audit: production dependencies 0 vulnerabilities; 5 dev-only advisories (linter's `braces`) documented, not shipped. `zod` patched.
+
+## Verified (Phase 7)
+`tsc`, `eslint`, `npm run build` pass; `npm test` = 193 tests in 14 files (5 consecutive green runs; new: security headers, cookie policy, session hardening, hostile-argument handling). Live checks on `next start`: headers on public/private/redirect responses, cache policy (home ISR 60 s, product/category/cart/account per-request or `no-store`, API `no-store`), `robots.txt`, health, cron/webhook auth (401/400/404/413), mock-pay page 404 in production, cookies (`__Host-session`, HttpOnly, Secure, SameSite=Lax), reflected-XSS probe escaped, query-operator injection probes (no 500s), dotfile/source exposure probes (404), open-redirect probes, CSP violation listener across 22 pages as customer/owner/guest (none).
+Not verified: a real payment gateway/webhook delivery, real email/SMS, object storage, load/soak testing, penetration testing by a third party, Atlas backup restore, behaviour behind your actual CDN/proxy.
+
+## Remaining blockers (need your decisions/accounts — none are code defects)
+1. Payment gateway adapter (+ Apple Pay/Google Pay enablement) — merchant account required.
+2. Email (and optional SMS) provider.
+3. Production image storage adapter (or CDN URLs via `IMAGE_HOSTS`).
+4. VAT treatment, shipping/returns/privacy/terms text (EN + AR) from the business.
+5. MFA/email verification for staff accounts is recommended before scale.
+## Phase 6 done
+- **Accessibility:** axe-core (WCAG 2.0/2.1/2.2 AA + best practice) found and I fixed: colour contrast (new `gold-ink` / `gold-fg` / `danger-solid` tokens, marquee), unnamed sort select, heading order, a `<dl>` containing non-term content, unlabeled file input, empty table header, non-focusable scrollable tables, small password toggle. Final: **0 violations** over storefront, account, checkout and all admin pages × EN/AR × light/dark × mobile/desktop. Keyboard: skip link focuses `<main>`, dialogs trap/return focus, search combobox pattern. Details: `docs/accessibility-i18n.md`.
+- **i18n/RTL:** remaining aria labels localised; localized `<title>` on all private pages; language switch keeps query/hash; RTL drawers now open from the reading-start side; bidi fixes ("4.3 / 5"), topbar separator; visual review of RTL + dark screenshots.
+- **UX:** search-as-you-type suggestions (accessible combobox, `/api/suggest`, rate-limited), product image gallery with thumbnails, change-password form (signs out other devices), localized error boundary with support reference, `global-error`, root/admin `not-found`, skeletons (only where they can't cause soft-404/redirect problems), header/newsletter reflow at large text.
+- **Performance (measured, mobile Lighthouse on the production build):** home 92–93 (EN/AR), product 93–94, category ≈ 83–90, login 96; a11y 100, best-practices 100, CLS 0. Changes: Arabic font trimmed + not preloaded, Zod removed from client bundles (emirates list split out), shared scroll-reveal observer.
+- Fixed along the way: loading boundaries made unknown product/category/article URLs and auth redirects return HTTP 200 → removed them where needed (verified 404/307 again).
+
+## Verified (Phase 6)
+`tsc`, `eslint`, `npm run build` pass; `npm test` = 180 tests (12 files; new: search suggestions + change-password against real MongoDB). Real-Chrome checks: axe sweeps (storefront 13 routes, account/checkout, 19 admin pages), keyboard/interaction script (23 checks), overflow sweep at 320/360/768/1024/1440 px in EN/AR for 17 routes (none), auth/cart regression (23/23), admin E2E regression on `next dev` (32 + 42 checks), Lighthouse runs listed above.
+Not verified: real screen readers (VoiceOver/NVDA/TalkBack), Safari/Firefox, real devices, user testing, text-only zoom ≥150 % at ≤320 px (some content wraps awkwardly), performance on the real host/CDN with real product photos.
+
+## Known issues / placeholders
+- Simulated mobile LCP ≈ 3.0–3.8 s locally; needs re-measuring with real images/CDN. Category pages are the heaviest (12 cards × interactive controls).
+- Admin remains English-only (by design). No live-region announcements for toasts beyond `role=status`.
+- Search suggestions use MongoDB text/regex (fine for thousands of products; use a search engine beyond that).
+- Everything listed under earlier "Known issues" about payments/email/storage still applies.
+
+## Next
+Phase 7 — hardening & deployment: security review of all flows (authz, injection, headers/CSP, cookies), dependency audit (`npm audit`), env validation in production, index/migration notes, production checklist (backups, monitoring, error reporting, rollback), final README/.env.example/docs pass, run full test/lint/type/build.
 ## Phase 5 done
 - Admin at `/admin` (English-only): role-filtered nav, server-side permission checks on every page/action/route handler, audit log for sensitive actions. Details: `docs/admin.md`.
 - Dashboard with UAE-time date ranges; products (bulk actions, full editor, image upload w/ magic-byte check, variants, specs, scheduled sales, slug redirects), categories (cycles/unsafe delete blocked), inventory ledger + adjustments.

@@ -1,27 +1,35 @@
-# Souq UAE — e-commerce platform
+# Souq UAE — multi-category e-commerce platform for the UAE
 
-Next.js 16 (App Router) · TypeScript · Tailwind 4 · MongoDB (Mongoose) · English/Arabic (RTL).
-Spec: `PROJECT_SPEC.md`. Progress: `IMPLEMENTATION_STATUS.md`.
+Storefront + admin dashboard in **English and Arabic (RTL)**, built with Next.js 16 (App Router), React 19, TypeScript (strict), Tailwind 4, MongoDB (Mongoose) and Zod. Specification: `PROJECT_SPEC.md` · build log and known gaps: `IMPLEMENTATION_STATUS.md`.
 
-## Run locally
+## What's included
+- **Storefront:** home (admin-managed hero banners), nested categories, product pages (variants, gallery, specs, reviews), search with suggestions, data-driven filters/sorting/pagination (URL-shareable), deals / new arrivals, wishlist, cart, checkout, accounts (profile, UAE address book, orders, tracking), journal/articles, editable policy pages, SEO (metadata, hreflang, JSON-LD, sitemap, robots), light/dark/system theme, accessible (axe-clean) and responsive.
+- **Commerce rules:** server-validated carts (guest → account merge), delivery zones/fees/free-delivery threshold, COD, coupons, optional VAT, atomic stock handling, idempotent orders, explicit order lifecycle, payment-provider abstraction with signed/idempotent webhooks, refunds recorded only when confirmed.
+- **Admin (`/admin`):** dashboard, products/categories/inventory, CSV import/export, orders & refunds, reviews moderation, promotions, delivery, settings, articles/pages/homepage, customers, staff roles, audit log — all permission-checked on the server.
+
+## Quick start (development)
 ```bash
-cp .env.example .env.local     # set MONGODB_URI (local mongod or Atlas)
 npm install
-npm run seed                   # demo catalogue into the dev database
-npm run dev                    # http://localhost:3000
+cp .env.example .env.local        # set MONGODB_URI (local mongod or Atlas)
+npm run seed -- --reset           # demo catalogue, content and logins (dev databases only)
+npm run dev                       # http://localhost:3000  ·  admin: /admin
 ```
-Scripts: `npm run build | lint | typecheck | test`.
+Demo logins (password printed by the seed script, **development only**): `owner@`, `catalog@`, `ops@`, `content@`, `customer@example.test`.
+Card payments in development use a clearly labelled **test-only mock provider** (`PAYMENT_PROVIDER=mock`); without it only cash on delivery is offered. Password-reset and order emails are printed to the server console in development — nothing is sent.
 
-## Structure
-`src/app/[lang]` routes · `src/components` shared UI · `src/features` feature modules · `src/lib` env/db/i18n · `src/messages` en/ar dictionaries · `tests` · `docs`.
+## Scripts
+| | |
+|---|---|
+| `npm run dev` / `build` / `start` | run / production build / serve |
+| `npm run typecheck` · `lint` · `test` | `tsc` · ESLint · Vitest (unit + real-MongoDB integration tests; DB tests skip if MongoDB is down) |
+| `npm run seed [-- --reset]` | dev-only demo data (refuses production / non-dev database names) |
+| `npm run db:indexes` · `db:migrate` | deploy-time index creation · forward-only migrations |
 
-## Notes
-- Locale is the first URL segment (`/en`, `/ar`); `src/proxy.ts` redirects bare URLs.
-- Theme: light/dark/system, stored in `localStorage`.
-- Requires MongoDB (local `mongod` or Atlas). `npm run seed -- --reset` wipes catalogue collections (dev DBs only).
-- Data model, indexes and search notes: `docs/data-model.md`. Auth/session/cart design: `docs/auth.md`.
-- Demo logins after `npm run seed`: `customer@example.test` / `owner@example.test` (password printed by the seed script; dev only).
-- Checkout, orders, payments, stock rules: `docs/checkout-orders-payments.md`. Dev card payments use a TEST-ONLY mock provider (`PAYMENT_PROVIDER=mock`); without it only cash on delivery is offered.
-- Admin (`/admin`), roles, CSV, content, reviews: `docs/admin.md`, `docs/csv-import.md`. Cron: `GET /api/cron/maintenance` (Bearer `CRON_SECRET`).
-- Accessibility, RTL/i18n, theming, performance notes: `docs/accessibility-i18n.md`.
-- Password-reset emails print to the server console in development (no mail provider configured).
+## Project layout
+`src/app` routes (`[lang]` storefront, `admin`, `api`) · `src/features/*` domain modules (catalog, cart, checkout, orders, reviews, content, admin…) · `src/components` shared UI · `src/lib` env, db, auth, payments, storage, i18n, security headers · `src/models` Mongoose schemas/indexes · `src/messages` en/ar dictionaries · `scripts` seed/indexes/migrations · `tests` · `docs`.
+
+## Documentation
+`docs/deployment.md` (go-live, environments, cron, backups, monitoring, rollback) · `docs/security.md` (controls, limitations, launch checklist) · `docs/auth.md` · `docs/data-model.md` · `docs/checkout-orders-payments.md` · `docs/admin.md` · `docs/csv-import.md` (columns, formats, examples) · `docs/accessibility-i18n.md`.
+
+## Before you go live — things only you can provide
+A MongoDB Atlas cluster, hosting/domain, a **payment gateway account** (cards/Apple Pay/Google Pay need a provider adapter — interface and webhook handling are ready, the provider integration is not), an email provider, production image storage, VAT/legal confirmation and real policy text. Details and status: `docs/deployment.md`, `IMPLEMENTATION_STATUS.md`.

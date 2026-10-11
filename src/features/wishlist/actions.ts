@@ -7,6 +7,6 @@ export type WishlistResult = { ok: boolean; ids?: string[]; added?: boolean; err
 export async function toggleWishlistAction(productId: string): Promise<WishlistResult> {
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: "auth" };
-  const r = await toggleWishlist(user.id, String(productId));
+  const r = await toggleWishlist(user.id, typeof productId === "string" ? productId : "");
   return "error" in r ? { ok: false, error: r.error } : { ok: true, ids: r.ids, added: r.added };
 }

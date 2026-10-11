@@ -8,7 +8,7 @@ import { Product } from "@/models/product";
 
 export const MAX_QTY = 10;
 export const MAX_LINES = 50;
-const GUEST_COOKIE = "cart_id";
+import { CART_COOKIE as GUEST_COOKIE, secureCookie } from "@/lib/auth/cookies";
 const GUEST_TTL_MS = 30 * 24 * 3600 * 1000;
 
 type L10n = { en: string; ar: string };
@@ -34,7 +34,7 @@ async function owner(create: boolean): Promise<{ user: string } | { guestId: str
   if (id && !/^[A-Za-z0-9_-]{20,64}$/.test(id)) id = undefined;
   if (!id && create) {
     id = randomBytes(24).toString("base64url");
-    jar.set(GUEST_COOKIE, id, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: GUEST_TTL_MS / 1000 });
+    jar.set(GUEST_COOKIE, id, { httpOnly: true, sameSite: "lax", secure: secureCookie, path: "/", maxAge: GUEST_TTL_MS / 1000 });
   }
   return id ? { guestId: id } : null;
 }

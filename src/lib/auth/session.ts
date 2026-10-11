@@ -7,19 +7,17 @@ import { Session } from "@/models/session";
 import { User } from "@/models/user";
 import type { Role } from "@/models/user";
 
-const COOKIE = "session";
-const MAX_AGE_S = 60 * 60 * 24 * 30;
+import { SESSION_COOKIE as COOKIE, secureCookie, ttlFor } from "./cookies";
 const sha = (s: string) => createHash("sha256").update(s).digest("hex");
 
 export type SessionUser = { id: string; email: string; name: string; phone?: string; role: Role; locale: "en" | "ar" };
 
 export async function createSession(userId: string) {
   await connectDb();
+  const maxAge = ttlFor((await User.findById(userId).select("role").lean())?.role); // staff sessions are shorter
   const token = randomBytes(32).toString("base64url");
-  await Session.create({ tokenHash: sha(token), user: userId, expiresAt: new Date(Date.now() + MAX_AGE_S * 1000) });
-  (await cookies()).set(COOKIE, token, {
-    httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: MAX_AGE_S,
-  });
+  await Session.create({ tokenHash: sha(token), user: userId, expiresAt: new Date(Date.now() + maxAge * 1000) });
+  (await cookies()).set(COOKIE, token, { httpOnly: true, secure: secureCookie, sameSite: "lax", path: "/", maxAge });
 }
 
 export async function destroySession() {

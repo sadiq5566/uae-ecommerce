@@ -65,10 +65,11 @@ export async function previewImportAction(_: PreviewState, fd: FormData): Promis
 export async function importBatchAction(kind: Kind, present: string[], batch: { line: number; data: Record<string, string> }[]): Promise<{ ok: boolean; error?: string; results: BatchResult[] }> {
   const user = await actor(perm(kind));
   if (!user) return { ok: false, error: "Forbidden", results: [] };
-  if (!Array.isArray(batch) || batch.length > 100) return { ok: false, error: "Batch too large", results: [] };
+  if (!Array.isArray(batch) || batch.length > 100 || !Array.isArray(present) || (kind !== "products" && kind !== "categories")) return { ok: false, error: "Invalid request", results: [] };
   const known = new Set(Object.keys(COLS[kind]));
-  const presentSet = new Set(present.filter((c) => known.has(c)));
-  const rows = batch.map((b) => Object.fromEntries(Object.entries(b.data ?? {}).filter(([k, v]) => known.has(k) && typeof v === "string").map(([k, v]) => [k, v.slice(0, 6000)])));
+  const presentSet = new Set(present.filter((c) => typeof c === "string" && known.has(c)));
+  if (batch.some((b) => !b || typeof b !== "object" || !Number.isInteger(b.line))) return { ok: false, error: "Invalid request", results: [] };
+  const rows = batch.map((b) => Object.fromEntries(Object.entries(b.data && typeof b.data === "object" ? b.data : {}).filter(([k, v]) => known.has(k) && typeof v === "string").map(([k, v]) => [k, v.slice(0, 6000)])));
   await connectDb();
   const results: BatchResult[] = [];
   const issues = kind === "products" ? validateProductRows(rows, await productCtx(rows, presentSet)) : validateCategoryRows(rows, await categoryCtx(presentSet));

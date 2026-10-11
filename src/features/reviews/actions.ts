@@ -39,10 +39,10 @@ export async function submitReviewAction(_: FormState, fd: FormData): Promise<Fo
   return { ok: true };
 }
 
-export async function toggleHelpfulAction(reviewId: string): Promise<{ ok: boolean; count?: number; helped?: boolean; error?: string }> {
+export async function toggleHelpfulAction(reviewId: unknown): Promise<{ ok: boolean; count?: number; helped?: boolean; error?: string }> {
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: "auth" };
-  if (!Types.ObjectId.isValid(reviewId)) return { ok: false, error: "not_found" };
+  if (typeof reviewId !== "string" || !Types.ObjectId.isValid(reviewId)) return { ok: false, error: "not_found" };
   if (!(await rateLimit(`helpful:${user.id}`, 60, 600)).ok) return { ok: false, error: "rate_limited" };
   await connectDb();
   const r = await Review.findOne({ _id: reviewId, status: "approved" }).select("user").lean();
@@ -60,10 +60,10 @@ export async function toggleHelpfulAction(reviewId: string): Promise<{ ok: boole
 }
 
 /** Customers can flag a review. Three distinct reports send an approved review back to the moderation queue automatically. */
-export async function reportReviewAction(reviewId: string, reason: string): Promise<{ ok: boolean; error?: string }> {
+export async function reportReviewAction(reviewId: unknown, reason: unknown): Promise<{ ok: boolean; error?: string }> {
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: "auth" };
-  if (!Types.ObjectId.isValid(reviewId)) return { ok: false, error: "not_found" };
+  if (typeof reviewId !== "string" || !Types.ObjectId.isValid(reviewId)) return { ok: false, error: "not_found" };
   if (!(await rateLimit(`report:${user.id}`, 20, 3600)).ok) return { ok: false, error: "rate_limited" };
   const why = (["spam", "offensive", "irrelevant", "other"] as const).find((r) => r === reason) ?? "other";
   await connectDb();

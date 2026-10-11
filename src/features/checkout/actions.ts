@@ -18,9 +18,11 @@ export type Quote = {
 const method = (v: unknown): PaymentMethod | null => (PAYMENT_METHODS as readonly string[]).includes(String(v)) ? (v as PaymentMethod) : null;
 
 /** Server-computed price breakdown for the checkout summary. Display only — placing the order recomputes it all. */
-export async function quoteAction(input: { addressId?: string; method: string; couponCode?: string }): Promise<Quote> {
+export async function quoteAction(raw: { addressId?: string; method: string; couponCode?: string }): Promise<Quote> {
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: "invalid" };
+  // Server actions are public endpoints: never assume the argument has the TypeScript shape.
+  const input = { addressId: typeof raw?.addressId === "string" ? raw.addressId : undefined, method: raw?.method, couponCode: typeof raw?.couponCode === "string" ? raw.couponCode.slice(0, 40) : undefined };
   const m = method(input.method);
   if (!m) return { ok: false, error: "method_unavailable" };
   if (input.couponCode?.trim()) {
@@ -37,7 +39,7 @@ export async function checkCouponAction(code: string): Promise<{ ok: boolean; er
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: "invalid" };
   if (!(await rateLimit(`coupon:${user.id}`, 20, 900)).ok) return { ok: false, error: "invalid" };
-  const v = await validateCoupon(String(code ?? "").slice(0, 40), user.id);
+  const v = await validateCoupon(typeof code === "string" ? code.slice(0, 40) : "", user.id);
   return "error" in v ? { ok: false, error: v.error } : { ok: true };
 }
 

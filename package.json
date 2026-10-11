@@ -10,7 +10,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "format": "prettier --write .",
-    "seed": "tsx --env-file=.env.local scripts/seed.ts"
+    "seed": "tsx --env-file=.env.local scripts/seed.ts",
+    "db:indexes": "tsx --env-file=.env.local scripts/indexes.ts",
+    "db:migrate": "tsx --env-file=.env.local scripts/migrate.ts"
   },
   "dependencies": {
     "clsx": "^2.1.1",
@@ -19,7 +21,7 @@
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "server-only": "^0.0.1",
-    "zod": "^4.6.5"
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "^4",

@@ -11,6 +11,9 @@ const schema = z.object({
   PAYMENT_PROVIDER: z.preprocess(blankToUndefined, z.enum(["mock"]).optional()), // add real provider ids here as adapters are written
   PAYMENT_WEBHOOK_SECRET: z.preprocess(blankToUndefined, z.string().min(16).optional()),
   CRON_SECRET: z.preprocess(blankToUndefined, z.string().min(16).optional()),
+  IMAGE_HOSTS: z.string().optional(), // comma-separated hostnames allowed for remote images
+  STORAGE_DRIVER: z.string().optional(), // "local" (dev only) or your own adapter id
+  MONGODB_AUTO_INDEX: z.enum(["true", "false"]).optional(),
 }).superRefine((e, ctx) => {
   if (e.PAYMENT_PROVIDER && !e.PAYMENT_WEBHOOK_SECRET) ctx.addIssue({ code: "custom", path: ["PAYMENT_WEBHOOK_SECRET"], message: "required when PAYMENT_PROVIDER is set" });
   if (e.PAYMENT_PROVIDER === "mock" && e.NODE_ENV === "production") ctx.addIssue({ code: "custom", path: ["PAYMENT_PROVIDER"], message: "the mock provider must not be used in production" });
