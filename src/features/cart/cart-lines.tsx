@@ -25,7 +25,7 @@ export function CartLines({ cart, locale, t }: { cart: CartView; locale: Locale;
     return null;
   };
   return (
-    <div className="grid min-w-0 gap-8 lg:grid-cols-[1fr_22rem]" aria-busy={pending}>
+    <div className="grid min-w-0 gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]" aria-busy={pending}>
       <ul className={`flex min-w-0 flex-col gap-4 transition-opacity ${pending ? "opacity-60" : ""}`}>
         {cart.lines.map((l) => {
           const n = note(l);

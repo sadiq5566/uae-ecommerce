@@ -35,7 +35,7 @@ export function Header({ locale, t, categories }: { locale: Locale; t: Dictionar
       <div className="bg-brand px-4 py-1.5 text-center text-xs font-medium text-brand-fg">
         {t.topbar.shipping}<span className="hidden sm:inline"> · {t.topbar.cod}</span>
       </div>
-      <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 sm:px-6">
+      <div className="mx-auto flex min-h-16 max-w-7xl flex-wrap items-center gap-x-3 gap-y-1 px-4 py-1 sm:px-6">
         <button onClick={() => drawer.current?.showModal()} aria-label={t.nav.menu} className="grid size-10 place-items-center rounded-full hover:bg-surface-2 lg:hidden">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 7h16M4 12h16M4 17h10" /></svg>
         </button>
@@ -49,7 +49,7 @@ export function Header({ locale, t, categories }: { locale: Locale; t: Dictionar
           ))}
         </nav>
         <SearchBox locale={locale} placeholder={t.nav.search} labels={{ results: t.nav.suggestions, category: t.nav.categoryTag }} className="mx-2 hidden min-w-0 flex-1 md:block" />
-        <div className="ms-auto flex items-center gap-2 md:ms-0">
+        <div className="ms-auto flex flex-wrap items-center justify-end gap-2 md:ms-0">
           <div className="hidden sm:block"><ThemeToggle labels={t.nav} /></div>
           <LangSwitcher locale={locale} label={t.nav.language} />
           <Link href={`/${locale}/wishlist`} aria-label={`${t.nav.wishlist} (${wishlist.length})`} className="relative hidden size-10 place-items-center rounded-full bg-surface-2 text-lg transition hover:bg-brand-soft sm:grid">♡{wishlist.length > 0 && <span key={wishlist.length} className="animate-pop absolute -end-1 -top-1 grid min-w-5 place-items-center rounded-full bg-danger-solid px-1 text-[11px] font-bold text-white">{wishlist.length}</span>}</Link>

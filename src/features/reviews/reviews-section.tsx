@@ -16,7 +16,7 @@ export async function ReviewsSection({ productId, slug, locale, t, sort, page }:
     <section id="reviews" className="mt-14 scroll-mt-32" aria-labelledby="reviews-h">
       <h2 id="reviews-h" className="font-display text-2xl font-bold">{t.reviews.title}</h2>
       {data.total === 0 ? <p className="mt-3 text-sm text-muted">{t.reviews.none}</p> : (
-        <div className="mt-5 grid gap-8 md:grid-cols-[14rem_1fr]">
+        <div className="mt-5 grid gap-8 md:grid-cols-[minmax(0,14rem)_minmax(0,1fr)]">
           <div>
             <p className="font-display text-5xl font-bold"><bdi dir="ltr">{data.avg.toFixed(1)}<span className="text-lg text-muted"> / 5</span></bdi></p>
             <p className="text-gold" aria-hidden>{"★".repeat(Math.round(data.avg))}{"☆".repeat(5 - Math.round(data.avg))}</p>

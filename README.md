@@ -23,4 +23,5 @@ Scripts: `npm run build | lint | typecheck | test`.
 - Demo logins after `npm run seed`: `customer@example.test` / `owner@example.test` (password printed by the seed script; dev only).
 - Checkout, orders, payments, stock rules: `docs/checkout-orders-payments.md`. Dev card payments use a TEST-ONLY mock provider (`PAYMENT_PROVIDER=mock`); without it only cash on delivery is offered.
 - Admin (`/admin`), roles, CSV, content, reviews: `docs/admin.md`, `docs/csv-import.md`. Cron: `GET /api/cron/maintenance` (Bearer `CRON_SECRET`).
+- Accessibility, RTL/i18n, theming, performance notes: `docs/accessibility-i18n.md`.
 - Password-reset emails print to the server console in development (no mail provider configured).

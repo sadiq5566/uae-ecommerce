@@ -25,7 +25,7 @@ export function Listing({ locale, t, title, subtitle, crumbs, path, f, data, cat
         {subtitle && <p className="mt-1 text-muted">{subtitle}</p>}
       </header>
       {children}
-      <div className="mt-8 grid gap-8 lg:grid-cols-[16rem_1fr]">
+      <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,16rem)_minmax(0,1fr)]">
         <aside className="hidden lg:block" aria-label={t.catalog.filters}><div className="sticky top-32 rounded-2xl border border-line bg-surface p-5">{form("filters-desktop")}</div></aside>
         <section aria-live="polite">
           <h2 className="sr-only">{fmt(t.catalog.results, { n: data.total })}</h2>

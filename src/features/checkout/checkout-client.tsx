@@ -52,7 +52,7 @@ export function CheckoutClient({ locale, t, addresses, methods, items, testMode 
   const quoteErr = quote && !quote.ok && !quote.error.startsWith("coupon") ? quote.error : undefined;
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[1fr_24rem]">
+    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,24rem)]">
       <div className="flex flex-col gap-8">
         <section aria-labelledby="addr-h">
           <h2 id="addr-h" className="mb-3 font-display text-xl font-bold">{t.checkout.deliverTo}</h2>
