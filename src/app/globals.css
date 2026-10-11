@@ -1,26 +1,98 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
+/* Design tokens — warm white / charcoal / emerald / sand-gold */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #fbf9f4;
+  --surface: #ffffff;
+  --surface-2: #f3efe6;
+  --fg: #1c1f1e;
+  --muted: #5f6663;
+  --line: #e6e0d2;
+  --brand: #0b6b57;
+  --brand-fg: #ffffff;
+  --brand-soft: #dff1ea;
+  --gold: #b88a3b;
+  --gold-soft: #f4e8cf;
+  --danger: #c0392b;
+  --shadow: 0 1px 2px rgb(20 30 25 / 0.06), 0 8px 24px -8px rgb(20 30 25 / 0.12);
+  color-scheme: light;
+}
+[data-theme="dark"] {
+  --bg: #0f1312;
+  --surface: #171c1b;
+  --surface-2: #1f2625;
+  --fg: #eef1ef;
+  --muted: #9aa5a1;
+  --line: #2a3331;
+  --brand: #2fb58f;
+  --brand-fg: #04201a;
+  --brand-soft: #123a30;
+  --gold: #d9ad5f;
+  --gold-soft: #3a2f17;
+  --danger: #ff7a6b;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px -8px rgb(0 0 0 / 0.5);
+  color-scheme: dark;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-brand: var(--brand);
+  --color-brand-fg: var(--brand-fg);
+  --color-brand-soft: var(--brand-soft);
+  --color-gold: var(--gold);
+  --color-gold-soft: var(--gold-soft);
+  --color-danger: var(--danger);
+  --font-sans: var(--font-latin), var(--font-arabic), system-ui, sans-serif;
+  --font-display: var(--font-display-latin), var(--font-arabic), serif;
+  --shadow-card: var(--shadow);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+html { scroll-behavior: smooth; }
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  transition: background-color 0.3s, color 0.3s;
+}
+:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; border-radius: 6px; }
+::selection { background: var(--brand); color: var(--brand-fg); }
+
+/* ---------- Animations ---------- */
+@keyframes float { 0%,100% { transform: translateY(0) rotate(var(--r,0deg)); } 50% { transform: translateY(-14px) rotate(var(--r,0deg)); } }
+@keyframes fade-up { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+@keyframes marquee { to { transform: translateX(calc(-50% * var(--dir, 1))); } }
+@keyframes shimmer { to { background-position: -200% 0; } }
+@keyframes pop { 0% { transform: scale(1); } 40% { transform: scale(1.35); } 100% { transform: scale(1); } }
+@keyframes slide-in { from { opacity: 0; transform: translateY(12px) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes blob { 0%,100% { border-radius: 42% 58% 60% 40% / 45% 45% 55% 55%; } 50% { border-radius: 60% 40% 45% 55% / 55% 60% 40% 45%; } }
+
+.animate-float { animation: float 6s ease-in-out infinite; }
+.animate-fade-up { animation: fade-up 0.7s cubic-bezier(.2,.7,.2,1) both; }
+.animate-pop { animation: pop 0.4s ease; }
+.animate-slide-in { animation: slide-in 0.3s ease both; }
+.animate-blob { animation: blob 14s ease-in-out infinite; }
+.animate-marquee { animation: marquee 40s linear infinite; }
+.skeleton {
+  background: linear-gradient(90deg, var(--surface-2) 25%, var(--line) 50%, var(--surface-2) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+/* Scroll reveal (see <Reveal>) */
+.reveal { opacity: 0; transform: translateY(28px); transition: opacity .7s ease, transform .7s cubic-bezier(.2,.7,.2,1); transition-delay: var(--d, 0ms); }
+.reveal.is-visible { opacity: 1; transform: none; }
+
+[dir="rtl"] .animate-marquee { --dir: -1; }
+[dir="rtl"] .flip-rtl { transform: scaleX(-1); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+  .reveal { opacity: 1; transform: none; }
 }

@@ -1,0 +1,65 @@
+import { Schema, model, models, type Model, type Types } from "mongoose";
+
+export const ORDER_STATUSES = ["pending_payment", "confirmed", "processing", "packed", "out_for_delivery", "delivered", "cancelled", "refund_pending", "refunded"] as const;
+export type OrderStatus = (typeof ORDER_STATUSES)[number];
+export const PAYMENT_METHODS = ["card", "apple_pay", "google_pay", "cod"] as const;
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+export const PAYMENT_STATUSES = ["pending", "paid", "failed", "cod_pending", "cod_collected", "refund_pending", "refunded"] as const;
+export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
+
+const i18n = { en: String, ar: String };
+
+// Everything on an order is a snapshot: later catalogue/address/settings edits never change history.
+const orderSchema = new Schema(
+  {
+    orderNumber: { type: String, required: true, unique: true },
+    user: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    email: { type: String, required: true },
+    locale: { type: String, enum: ["en", "ar"], default: "en" },
+    idempotencyKey: { type: String, required: true },
+    status: { type: String, enum: ORDER_STATUSES, required: true, index: true },
+    items: [{
+      _id: false, productId: Schema.Types.ObjectId, sku: String, name: i18n, variantLabel: i18n, icon: String,
+      qty: Number, unitPrice: Number, listPrice: Number, lineTotal: Number, couponShare: { type: Number, default: 0 },
+    }],
+    address: {
+      recipientName: String, phone: String, emirate: String, area: String, street: String, building: String, unit: String, landmark: String, instructions: String,
+    },
+    delivery: { zone: String, zoneName: i18n, estimate: i18n },
+    totals: {
+      listSubtotal: Number, itemDiscounts: Number, subtotal: Number, couponDiscount: Number, deliveryFee: Number, codFee: Number,
+      tax: Number, taxIncluded: Boolean, total: Number, currency: { type: String, default: "AED" },
+    },
+    coupon: { code: String, discount: Number },
+    payment: {
+      method: { type: String, enum: PAYMENT_METHODS, required: true },
+      status: { type: String, enum: PAYMENT_STATUSES, required: true },
+      provider: String, providerRef: String, amount: Number, paidAt: Date, failureReason: String,
+    },
+    stockReserved: { type: Boolean, default: false },
+    expiresAt: Date, // unpaid online-payment orders are cancelled and stock released after this
+    timeline: [{ _id: false, status: String, at: { type: Date, default: Date.now }, by: String, note: String }],
+  },
+  { timestamps: true },
+);
+orderSchema.index({ user: 1, idempotencyKey: 1 }, { unique: true }); // duplicate submissions can't create two orders
+orderSchema.index({ user: 1, createdAt: -1 });
+orderSchema.index({ status: 1, expiresAt: 1 });
+orderSchema.index({ "payment.providerRef": 1 }, { sparse: true });
+
+type L10n = { en: string; ar: string };
+// Explicit shape (Mongoose's inferred type makes every nested field optional/nullable, which is noisy for lean reads).
+export interface OrderDoc {
+  _id: Types.ObjectId;
+  orderNumber: string; user: Types.ObjectId; email: string; locale: "en" | "ar"; idempotencyKey: string; status: OrderStatus;
+  items: { productId: Types.ObjectId; sku: string; name: L10n; variantLabel?: L10n; icon?: string; qty: number; unitPrice: number; listPrice: number; lineTotal: number; couponShare: number }[];
+  address: { recipientName: string; phone: string; emirate: string; area: string; street?: string; building: string; unit?: string; landmark?: string; instructions?: string };
+  delivery: { zone: string; zoneName: L10n; estimate: L10n };
+  totals: { listSubtotal: number; itemDiscounts: number; subtotal: number; couponDiscount: number; deliveryFee: number; codFee: number; tax: number; taxIncluded: boolean; total: number; currency: string };
+  coupon?: { code: string; discount: number };
+  payment: { method: PaymentMethod; status: PaymentStatus; provider?: string; providerRef?: string; amount?: number; paidAt?: Date; failureReason?: string };
+  stockReserved: boolean; expiresAt?: Date | null;
+  timeline: { status: string; at: Date; by?: string; note?: string }[];
+  createdAt: Date; updatedAt: Date;
+}
+export const Order = ((models.Order as unknown as Model<OrderDoc>) ?? model<OrderDoc>("Order", orderSchema)) as Model<OrderDoc>;
