@@ -3,16 +3,17 @@ import { revalidatePath } from "next/cache";
 import { connectDb } from "@/lib/db";
 import { actor } from "@/lib/admin/guard";
 import { audit } from "@/lib/admin/audit";
-import { MAX_CSV_BYTES, MAX_CSV_ROWS, mapColumns, parseCsv, rowObject } from "@/lib/csv";
+import { MAX_CSV_BYTES, MAX_CSV_ROWS, mapColumns, parseCsv, parseJsonl, rowObject } from "@/lib/csv";
 import { Category } from "@/models/category";
 import { InventoryMovement } from "@/models/inventory-movement";
 import { Product } from "@/models/product";
 import { CATEGORY_COLUMNS, validateCategoryRows } from "./categories";
-import { PRODUCT_COLUMNS, validateProductRows, type ExistingProduct, type ProductCtx, type RowIssue } from "./products";
+import { groupVariantRows } from "./group";
+import { PRODUCT_COLUMNS, slugify, validateProductRows, type ExistingProduct, type ProductCtx, type RowIssue } from "./products";
 
 export type Kind = "products" | "categories";
 export type IssueLite = { line: number; sku: string; action: RowIssue["action"]; errors: string[] };
-export type PreviewState = { ok: false; error: string } | { ok: true; kind: Kind; unknown: string[]; present: string[]; rows: { line: number; data: Record<string, string> }[]; issues: IssueLite[] } | null;
+export type PreviewState = { ok: false; error: string } | { ok: true; kind: Kind; unknown: string[]; present: string[]; rows: { line: number; data: Record<string, string> }[]; issues: IssueLite[]; merged?: number; dupes?: string[] } | null;
 export type BatchResult = { line: number; sku: string; status: "created" | "updated" | "failed"; errors: string[] };
 
 const COLS = { products: PRODUCT_COLUMNS, categories: CATEGORY_COLUMNS } as const;
@@ -22,16 +23,19 @@ const lite = (i: RowIssue): IssueLite => ({ line: i.line, sku: i.sku, action: i.
 async function productCtx(rows: Record<string, string>[], present: Set<string>): Promise<ProductCtx> {
   await connectDb();
   const skus = rows.map((r) => (r.sku ?? "").toUpperCase()).filter(Boolean);
-  const slugs = rows.map((r) => (r.slug ?? "").toLowerCase()).filter(Boolean);
+  const slugs = rows.flatMap((r) => [(r.slug ?? "").toLowerCase(), slugify(r.name_en ?? "")]).filter(Boolean);
   const [cats, existing, slugClash] = await Promise.all([
-    Category.find({}, { slug: 1, attributes: 1 }).lean(),
+    Category.find({}, { slug: 1, name: 1, attributes: 1 }).lean(),
     Product.find({ sku: { $in: skus } }).select("sku slug price salePrice saleStartsAt saleEndsAt stock variants category").lean(),
     slugs.length ? Product.find({ slug: { $in: slugs } }).select("sku slug").lean() : [],
   ]);
   const bySku = new Map<string, ExistingProduct>(existing.map((p) => [p.sku, { id: String(p._id), sku: p.sku, slug: p.slug, price: p.price, salePrice: p.salePrice, saleStartsAt: p.saleStartsAt, saleEndsAt: p.saleEndsAt, stock: p.stock, hasVariants: (p.variants?.length ?? 0) > 0, categoryId: String(p.category) }]));
   return {
-    categories: new Map(cats.map((c) => [c.slug, { id: String(c._id), attrKeys: (c.attributes ?? []).map((a) => a.key) }])),
-    bySku, slugOwner: new Map(slugClash.map((p) => [p.slug, p.sku])), present,
+    categories: new Map([
+      ...cats.map((c) => [slugify(c.name?.en ?? ""), { id: String(c._id), attrKeys: (c.attributes ?? []).map((a) => a.key) }] as const).filter(([k]) => k),
+      ...cats.map((c) => [c.slug, { id: String(c._id), attrKeys: (c.attributes ?? []).map((a) => a.key) }] as const), // slugs win over name matches
+    ]),
+    bySku, slugOwner: new Map(slugClash.map((p) => [p.slug, p.sku])), present, createCategories: true,
   };
 }
 
@@ -46,19 +50,24 @@ export async function previewImportAction(_: PreviewState, fd: FormData): Promis
   const kind = String(fd.get("kind")) === "categories" ? "categories" : "products";
   if (!(await actor(perm(kind)))) return { ok: false, error: "You don't have permission to import." };
   const file = fd.get("file");
-  if (!(file instanceof File) || file.size === 0) return { ok: false, error: "Choose a CSV file." };
+  if (!(file instanceof File) || file.size === 0) return { ok: false, error: "Choose a CSV or JSONL file." };
   if (file.size > MAX_CSV_BYTES) return { ok: false, error: `File is too large (max ${MAX_CSV_BYTES / 1024 / 1024} MB).` };
-  if (!/\.csv$/i.test(file.name) && !/csv|text\/plain|excel/.test(file.type)) return { ok: false, error: "Please upload a .csv file." };
-  const parsed = parseCsv(await file.text(), { maxRows: MAX_CSV_ROWS });
+  const jsonl = /\.(jsonl|ndjson)$/i.test(file.name);
+  if (!jsonl && !/\.csv$/i.test(file.name) && !/csv|text\/plain|excel/.test(file.type)) return { ok: false, error: "Please upload a .csv or .jsonl file." };
+  const parsed = (jsonl ? parseJsonl : parseCsv)(await file.text(), { maxRows: MAX_CSV_ROWS });
+  const firstLine = jsonl ? 1 : 2; // CSV line 1 is the header; JSONL record numbers start at 1
   if (parsed.error) return { ok: false, error: parsed.error };
-  const { index, unknown, dupes, present } = mapColumns(parsed.headers, COLS[kind]);
-  if (dupes.length) return { ok: false, error: `Duplicate column(s): ${dupes.join(", ")}` };
+  const { index, alt, unknown, dupes, present } = mapColumns(parsed.headers, COLS[kind]);
   const key = kind === "products" ? "sku" : "slug";
   if (!present.has(key)) return { ok: false, error: `The file needs a "${key}" column (it identifies each row).` };
-  const rows = parsed.rows.map((r, i) => ({ line: i + 2, data: rowObject(r, index) }));
+  let rows = parsed.rows.map((r, i) => ({ line: i + firstLine, data: rowObject(r, index, alt) }));
+  let merged = 0;
+  if (kind === "products" && (present.has("color") || present.has("size"))) { const g = groupVariantRows(rows); rows = g.rows; merged = g.merged; if (merged) present.add("variants"); }
   const objs = rows.map((r) => r.data);
-  const issues = kind === "products" ? validateProductRows(objs, await productCtx(objs, present)) : validateCategoryRows(objs, await categoryCtx(present));
-  return { ok: true, kind, unknown, present: [...present], rows, issues: issues.map(lite) };
+  const checked = kind === "products" ? validateProductRows(objs, await productCtx(objs, present), firstLine) : validateCategoryRows(objs, await categoryCtx(present), firstLine);
+  // The validators number rows 1,2,3…; merged rows keep the line of their first source row, so re-attach the real line (the import step matches on it).
+  const issues = checked.map((i, idx) => ({ ...i, line: rows[idx].line }));
+  return { ok: true, kind, unknown, present: [...present], rows, issues: issues.map(lite), merged, dupes };
 }
 
 /** Step 2 (called in batches of ≤100 by the browser for progress): re-validates and applies the rows. Invalid rows are reported, never skipped silently. */
@@ -82,7 +91,13 @@ export async function importBatchAction(kind: Kind, present: string[], batch: { 
         const doc = iss.action === "update" ? await Product.findOne({ sku: iss.sku }) : new Product({ sku: iss.sku });
         if (!doc) { results.push({ line, sku: iss.sku, status: "failed", errors: ["product disappeared during import"] }); continue; }
         const oldSlug = doc.slug;
-        for (const [k, v] of Object.entries(iss.doc ?? {})) if (k !== "finalPrice") doc.set(k, v);
+        const fields = { ...(iss.doc ?? {}) } as Record<string, unknown>;
+        const nc = fields.newCategory as { slug: string; name: string } | undefined; delete fields.newCategory;
+        if (nc) { // unknown category in the file → create it (top-level, name reused for Arabic; edit later in admin)
+          const c = await Category.findOneAndUpdate({ slug: nc.slug }, { $setOnInsert: { slug: nc.slug, name: { en: nc.name, ar: nc.name }, active: true } }, { upsert: true, returnDocument: "after" });
+          fields.category = c._id;
+        }
+        for (const [k, v] of Object.entries(fields)) if (k !== "finalPrice") doc.set(k, v);
         if (iss.action === "update" && iss.doc?.slug && oldSlug && oldSlug !== iss.doc.slug) doc.slugHistory = [...new Set([...(doc.slugHistory ?? []), oldSlug])];
         if (iss.action === "create" && !doc.lowStockThreshold) doc.lowStockThreshold = 5;
         await doc.save();

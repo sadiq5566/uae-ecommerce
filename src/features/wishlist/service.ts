@@ -33,10 +33,14 @@ export async function getWishlistProducts(userId: string): Promise<ProductCardDa
   if (!ids.length) return [];
   const rows = (await Product.find({ _id: { $in: ids }, status: "published" }).lean()) as unknown as {
     _id: unknown; slug: string; sku: string; name: { en: string; ar: string }; price: number; finalPrice: number; icon: string; hue: number;
-    ratingAvg: number; ratingCount: number; stock: number; images?: { url: string }[]; brand?: string;
+    ratingAvg: number; ratingCount: number; stock: number; images?: { url: string }[]; brand?: string; variants?: { sku: string }[];
   }[];
+  // Drop saved products that were deleted/unpublished so the header count and the list always match (and never link to a missing page).
+  const live = new Set(rows.map((r) => String(r._id)));
+  const stale = ids.filter((id) => !live.has(id));
+  if (stale.length) await User.updateOne({ _id: userId }, { $pull: { wishlist: { $in: stale } } });
   const order = new Map(ids.map((id, i) => [id, i]));
   return rows
-    .map((p) => ({ id: String(p._id), slug: p.slug, sku: p.sku, name: p.name, price: p.price, finalPrice: p.finalPrice, icon: p.icon, hue: p.hue, ratingAvg: p.ratingAvg, ratingCount: p.ratingCount, stock: p.stock, image: p.images?.[0]?.url, brand: p.brand }))
+    .map((p) => ({ id: String(p._id), slug: p.slug, sku: p.sku, name: p.name, price: p.price, finalPrice: p.finalPrice, icon: p.icon, hue: p.hue, ratingAvg: p.ratingAvg, ratingCount: p.ratingCount, stock: p.stock, image: p.images?.[0]?.url, brand: p.brand, hasVariants: (p.variants?.length ?? 0) > 0 }))
     .sort((a, b) => (order.get(b.id) ?? 0) - (order.get(a.id) ?? 0)); // newest saved first
 }

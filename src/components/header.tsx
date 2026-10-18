@@ -8,8 +8,9 @@ import { useSession } from "./session-store";
 import { LangSwitcher } from "./lang-switcher";
 import { SearchBox } from "./search-box";
 import { ThemeToggle } from "./theme-toggle";
+import { OfferTicker } from "@/features/offers/ticker";
 
-export function Header({ locale, t, categories }: { locale: Locale; t: Dictionary; categories: CategoryView[] }) {
+export function Header({ locale, t, categories, offerLines }: { locale: Locale; t: Dictionary; categories: CategoryView[]; offerLines: { key: string; icon: string; text: string }[] }) {
   const [scrolled, setScrolled] = useState(false);
   const drawer = useRef<HTMLDialogElement>(null);
   const closeDrawer = () => drawer.current?.close();
@@ -25,6 +26,7 @@ export function Header({ locale, t, categories }: { locale: Locale; t: Dictionar
   const links = [
     { href: `/${locale}`, label: t.nav.home },
     { href: `/${locale}/deals`, label: t.nav.deals },
+    { href: `/${locale}/offers`, label: t.offers.page.title },
     { href: `/${locale}/new`, label: t.nav.newArrivals },
     { href: `/${locale}/journal`, label: t.nav.journal },
   ];
@@ -32,9 +34,9 @@ export function Header({ locale, t, categories }: { locale: Locale; t: Dictionar
   return (
     <header className={`sticky top-0 z-50 border-b transition-all duration-300 ${scrolled ? "border-line bg-bg/85 shadow-card backdrop-blur-lg" : "border-transparent bg-bg"}`}>
       <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:start-4 focus:top-2 focus:z-50 focus:rounded-lg focus:bg-brand focus:px-4 focus:py-2 focus:text-brand-fg">{t.nav.skip}</a>
-      <div className="bg-brand px-4 py-1.5 text-center text-xs font-medium text-brand-fg">
-        {t.topbar.shipping}<span className="hidden sm:inline"> · {t.topbar.cod}</span>
-      </div>
+      {offerLines.length > 0 ? <OfferTicker lines={offerLines} label={t.offers.ticker} /> : (
+        <div className="bg-brand px-4 py-1.5 text-center text-xs font-medium text-brand-fg">{t.topbar.shipping}<span className="hidden sm:inline"> · {t.topbar.cod}</span></div>
+      )}
       <div className="mx-auto flex min-h-16 max-w-7xl flex-wrap items-center gap-x-3 gap-y-1 px-4 py-1 sm:px-6">
         <button onClick={() => drawer.current?.showModal()} aria-label={t.nav.menu} className="grid size-10 place-items-center rounded-full hover:bg-surface-2 lg:hidden">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 7h16M4 12h16M4 17h10" /></svg>

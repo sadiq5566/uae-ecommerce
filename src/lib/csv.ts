@@ -35,6 +35,46 @@ export function parseCsv(input: string, opts: { maxRows?: number } = {}): Parsed
   return { headers, rows: data };
 }
 
+/** Flatten one JSON value to the same string form a CSV cell would hold (arrays → a|b, objects → k:v|k:v). */
+function jsonCell(v: unknown): string {
+  if (v === null || v === undefined) return "";
+  if (Array.isArray(v)) return v.map((x) => (x && typeof x === "object" && "url" in x ? String((x as { url: unknown }).url) : jsonCell(x))).join("|");
+  if (typeof v === "object") return Object.entries(v as Record<string, unknown>).map(([k, x]) => `${k}:${jsonCell(x)}`).join("|");
+  return String(v);
+}
+
+const VARIANT_KEYS = new Set(["variants"]);
+/** [{label|name|color, sku, stock|quantity, price, image}] → "Label~SKU~stock~price~image|…" (the CSV variants format). Plain strings are labels. */
+function variantsCell(v: unknown): string | null {
+  if (!Array.isArray(v)) return null;
+  return v.map((x) => {
+    if (x && typeof x === "object") {
+      const o = x as Record<string, unknown>;
+      return [o.label ?? o.name ?? o.color ?? o.colour, o.sku, o.stock ?? o.quantity, o.price, o.image ?? o.image_url].map((f) => (f == null ? "" : String(f))).join("~").replace(/~+$/, "");
+    }
+    return String(x);
+  }).join("|");
+}
+
+/** JSON Lines: one flat-or-simple JSON object per line. Yields the same shape as parseCsv; "line" numbers are record numbers (blank lines skipped). */
+export function parseJsonl(input: string, opts: { maxRows?: number } = {}): ParsedCsv {
+  const maxRows = opts.maxRows ?? MAX_CSV_ROWS;
+  const text = input.charCodeAt(0) === 0xfeff ? input.slice(1) : input;
+  if (text.includes("\u0000")) return { headers: [], rows: [], error: "File looks binary, not JSONL" };
+  const lines = text.split(/\r?\n/).filter((l) => l.trim() !== "");
+  if (lines.length === 0) return { headers: [], rows: [], error: "The file is empty" };
+  if (lines.length > maxRows) return { headers: [], rows: [], error: `Too many rows (max ${maxRows}). Split the file.` };
+  const objs: Record<string, unknown>[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    let o: unknown;
+    try { o = JSON.parse(lines[i]); } catch { return { headers: [], rows: [], error: `Record ${i + 1} is not valid JSON` }; }
+    if (!o || typeof o !== "object" || Array.isArray(o)) return { headers: [], rows: [], error: `Record ${i + 1} must be a JSON object` };
+    objs.push(o as Record<string, unknown>);
+  }
+  const headers = [...new Set(objs.flatMap((o) => Object.keys(o)))];
+  return { headers, rows: objs.map((o) => headers.map((h) => (VARIANT_KEYS.has(h.toLowerCase()) ? variantsCell(o[h]) : null) ?? jsonCell(o[h]))) };
+}
+
 /** Cells starting with these characters are interpreted as formulas by spreadsheet apps. */
 const FORMULA_START = /^[=+\-@\t\r]/;
 
@@ -54,17 +94,18 @@ export const toCsv = (headers: string[], rows: unknown[][]) => "﻿" + [headers,
 export function mapColumns(headers: string[], aliases: Record<string, string[]>) {
   const canon = new Map<string, string>();
   for (const [name, alts] of Object.entries(aliases)) for (const a of [name, ...alts]) canon.set(a.toLowerCase().replace(/[\s-]+/g, "_"), name);
-  const index: Record<string, number> = {}; const unknown: string[] = []; const dupes: string[] = [];
+  const index: Record<string, number> = {}; const unknown: string[] = []; const dupes: string[] = []; const alt: Record<string, number[]> = {};
   headers.forEach((h, i) => {
     const key = canon.get(h.toLowerCase().replace(/[\s-]+/g, "_"));
     if (!key) { if (h) unknown.push(h); return; }
-    if (key in index) dupes.push(h); else index[key] = i;
+    if (key in index) { dupes.push(h); (alt[key] ??= []).push(i); } else index[key] = i;
   });
-  return { index, unknown, dupes, present: new Set(Object.keys(index)) };
+  return { index, alt, unknown, dupes, present: new Set(Object.keys(index)) };
 }
 
-export function rowObject(row: string[], index: Record<string, number>): Record<string, string> {
+/** `alt` = further columns that map to the same field (e.g. both "category" and "category_slug"): the first non-empty cell wins. */
+export function rowObject(row: string[], index: Record<string, number>, alt: Record<string, number[]> = {}): Record<string, string> {
   const o: Record<string, string> = {};
-  for (const [k, i] of Object.entries(index)) o[k] = (row[i] ?? "").trim();
+  for (const [k, i] of Object.entries(index)) o[k] = [i, ...(alt[k] ?? [])].map((j) => (row[j] ?? "").trim()).find(Boolean) ?? "";
   return o;
 }

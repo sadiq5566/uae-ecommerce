@@ -1,3 +1,4 @@
+import { Thumb } from "@/components/thumb";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getDictionary } from "@/lib/dictionaries";
@@ -30,9 +31,12 @@ export default async function OrdersPage({ params }: PageProps<"/[lang]/account/
       {orders.map((o) => (
         <li key={o.id}>
           <Link href={`/${lang}/account/orders/${o.orderNumber}`} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-surface p-5 transition hover:-translate-y-0.5 hover:border-brand hover:shadow-card">
-            <div>
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="flex -space-x-3 rtl:space-x-reverse">{o.items.slice(0, 3).map((i) => <Thumb key={i.sku} src={i.image} icon={i.icon} size={44} className="ring-2 ring-surface" />)}</span>
+              <span className="min-w-0">
               <p className="font-semibold" dir="ltr">{o.orderNumber}</p>
               <p className="text-sm text-muted">{fmt(t.orders.placedOn, { d: date.format(new Date(o.createdAt)) })} · {o.items.reduce((a, i) => a + i.qty, 0)} {t.orders.items.toLowerCase()}</p>
+              </span>
             </div>
             <div className="flex items-center gap-4"><StatusBadge status={o.status} label={t.orders.status[o.status]} /><span className="font-bold">{formatAED(o.totals.total, lang)}</span></div>
           </Link>

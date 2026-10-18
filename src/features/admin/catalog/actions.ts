@@ -11,6 +11,7 @@ import { Category } from "@/models/category";
 import { InventoryMovement } from "@/models/inventory-movement";
 import { Product } from "@/models/product";
 import { categorySchema, productSchema, stockAdjustSchema } from "./schemas";
+import { parseProductFilters, productFilterQuery } from "./queries";
 
 const refresh = () => revalidatePath("/[lang]", "layout");
 
@@ -31,7 +32,7 @@ export async function saveProductAction(_: FormState, fd: FormData): Promise<For
   const attrs = Object.fromEntries(Object.entries(p.attrs).filter(([k, v]) => allowed.has(k) && v));
   const hasVariants = p.variants.length > 0;
   const stock = hasVariants ? p.variants.reduce((a, v) => a + v.stock, 0) : p.stock;
-  const variants = p.variants.map((v) => ({ sku: v.sku.toUpperCase(), label: v.label, stock: v.stock, price: v.price }));
+  const variants = p.variants.map((v) => ({ sku: v.sku.toUpperCase(), label: v.label, stock: v.stock, price: v.price, image: v.image, swatch: v.swatch }));
 
   // Variant SKUs must not collide with any other product's SKU / variant SKU.
   const clash = await Product.findOne({ _id: { $ne: p.id || new Types.ObjectId() }, $or: [{ sku: { $in: [p.sku.toUpperCase(), ...variants.map((v) => v.sku)] } }, { "variants.sku": { $in: [p.sku.toUpperCase(), ...variants.map((v) => v.sku)] } }] }).select("sku").lean();
@@ -78,22 +79,36 @@ export async function saveProductAction(_: FormState, fd: FormData): Promise<For
   redirect("/admin/products?saved=1");
 }
 
+const BULK_CAP = 10_000;
+
+/** Bulk change on selected products (`ids`) or on EVERY product matching the current list filters (`scope=filter`, rebuilt server-side from `filterQs`). */
 export async function bulkProductsAction(fd: FormData) {
   const user = await actor("products:write");
   if (!user) return;
-  const ids = fd.getAll("ids").map(String).filter((i) => Types.ObjectId.isValid(i)).slice(0, 200);
   const op = String(fd.get("op"));
-  if (!ids.length) return;
+  if (!["publish", "unpublish", "archive", "delete", "feature", "unfeature"].includes(op)) return;
   await connectDb();
+  const byFilter = String(fd.get("scope")) === "filter";
+  const filterQs = byFilter ? String(fd.get("filterQs") ?? "").slice(0, 2000) : "";
+  let ids: string[];
+  if (byFilter) {
+    const filter = await productFilterQuery(parseProductFilters(Object.fromEntries(new URLSearchParams(filterQs))));
+    ids = (await Product.find(filter).select("_id").limit(BULK_CAP).lean()).map((p) => String(p._id));
+  } else ids = fd.getAll("ids").map(String).filter((i) => Types.ObjectId.isValid(i)).slice(0, 1000);
+  if (!ids.length) return;
+  const detail = byFilter ? { count: ids.length, filter: filterQs } : { ids };
   if (op === "publish" || op === "unpublish" || op === "archive") {
     const status = op === "publish" ? "published" : op === "archive" ? "archived" : "draft";
     await Product.updateMany({ _id: { $in: ids } }, { status });
-    await audit(user, `product.bulk_${op}`, "product", undefined, `${op} ${ids.length} product(s)`, { ids });
-  } else if (op === "delete") {
+    await audit(user, `product.bulk_${op}`, "product", undefined, `${op} ${ids.length} product(s)${byFilter ? " (all matching filter)" : ""}`, detail);
+  } else if (op === "feature" || op === "unfeature") {
+    await Product.updateMany({ _id: { $in: ids } }, { featured: op === "feature" });
+    await audit(user, `product.bulk_${op}`, "product", undefined, `${op} ${ids.length} product(s)${byFilter ? " (all matching filter)" : ""}`, detail);
+  } else {
     // Only non-published products can be deleted; published ones must be unpublished/archived first (safety).
     const res = await Product.deleteMany({ _id: { $in: ids }, status: { $ne: "published" } });
-    await audit(user, "product.bulk_delete", "product", undefined, `Deleted ${res.deletedCount} product(s)`, { ids });
-  } else return;
+    await audit(user, "product.bulk_delete", "product", undefined, `Deleted ${res.deletedCount} of ${ids.length} selected product(s)${byFilter ? " (all matching filter)" : ""}`, detail);
+  }
   refresh(); revalidatePath("/admin/products");
 }
 

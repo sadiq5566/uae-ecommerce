@@ -10,7 +10,7 @@ type Item = { productId?: Types.ObjectId | string; sku?: string | null; qty?: nu
  * Atomically take stock for one line. The stock check is part of the update filter, so two buyers can never both
  * take the last unit. Returns false if there isn't enough.
  */
-async function take(sku: string, qty: number) {
+export async function take(sku: string, qty: number) {
   const res = await Product.updateOne(
     { status: "published", variants: { $elemMatch: { sku, stock: { $gte: qty } } }, stock: { $gte: qty } },
     { $inc: { "variants.$.stock": -qty, stock: -qty, soldCount: qty } },
@@ -20,7 +20,7 @@ async function take(sku: string, qty: number) {
   return plain.modifiedCount > 0;
 }
 
-async function give(sku: string, qty: number) {
+export async function give(sku: string, qty: number) {
   const res = await Product.updateOne({ "variants.sku": sku }, { $inc: { "variants.$.stock": qty, stock: qty, soldCount: -qty } });
   if (!res.modifiedCount) await Product.updateOne({ sku }, { $inc: { stock: qty, soldCount: -qty } });
 }

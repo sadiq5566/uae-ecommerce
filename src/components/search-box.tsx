@@ -1,9 +1,10 @@
 "use client";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import { formatAED, type Locale } from "@/lib/i18n";
 
-type Item = { type: "product" | "category"; slug: string; name: { en: string; ar: string }; icon: string; price?: number };
+type Item = { type: "product" | "category"; slug: string; name: { en: string; ar: string }; icon: string; price?: number; image?: string };
 
 /** Accessible search combobox (ARIA 1.2 list autocomplete): arrows move, Enter opens, Escape closes. */
 export function SearchBox({ locale, placeholder, labels, className = "", onNavigate }: { locale: Locale; placeholder: string; labels: { results: string; category: string }; className?: string; onNavigate?: () => void }) {
@@ -53,7 +54,7 @@ export function SearchBox({ locale, placeholder, labels, className = "", onNavig
             <li key={it.type + it.slug} id={`${id}-${i}`} role="option" aria-selected={i === active}
               onMouseDown={(e) => e.preventDefault()} onClick={() => go(hrefOf(it))} onMouseEnter={() => setActive(i)}
               className={`flex cursor-pointer items-center gap-3 px-4 py-2.5 text-sm ${i === active ? "bg-brand-soft" : ""}`}>
-              <span aria-hidden className="grid size-8 place-items-center rounded-lg bg-surface-2 text-lg">{it.icon}</span>
+              <span aria-hidden className="relative grid size-10 shrink-0 place-items-center overflow-hidden rounded-lg bg-surface-2 text-lg">{it.image ? <Image src={it.image} alt="" fill sizes="40px" className="object-cover" /> : it.icon}</span>
               <span className="min-w-0 flex-1 truncate">{it.name[locale]}{it.type === "category" && <span className="ms-2 rounded-full bg-surface-2 px-2 py-0.5 text-xs text-muted">{labels.category}</span>}</span>
               {it.price != null && <span className="shrink-0 font-semibold">{formatAED(it.price, locale)}</span>}
             </li>

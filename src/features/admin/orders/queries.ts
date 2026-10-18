@@ -1,18 +1,28 @@
 import "server-only";
 import { connectDb } from "@/lib/db";
 import { escapeRe } from "@/lib/admin/common";
+import { dayRange } from "@/lib/admin/list";
 import { Order, ORDER_STATUSES, PAYMENT_STATUSES } from "@/models/order";
 
-export async function listOrdersAdmin(q: { q?: string; status?: string; pay?: string; from?: string; to?: string; page: number }, size = 20) {
+export const ORDER_SORTS = { placed: "createdAt", total: "totals.total", status: "status", order: "orderNumber", customer: "address.recipientName", emirate: "address.emirate", payment: "payment.status" } as const;
+export type OrderFilters = { q: string; status: string; pay: string; method: string; emirate: string; source: string; guest: string; coupon: string; min: string; max: string; from: string; to: string };
+
+export async function listOrdersAdmin(f: OrderFilters, sort: keyof typeof ORDER_SORTS, dir: 1 | -1, page: number, size = 25) {
   await connectDb();
-  const f: Record<string, unknown> = {};
-  if (q.q) { const re = new RegExp(escapeRe(q.q.slice(0, 60)), "i"); f.$or = [{ orderNumber: re }, { email: re }, { "address.recipientName": re }, { "address.phone": re }]; }
-  if (q.status && (ORDER_STATUSES as readonly string[]).includes(q.status)) f.status = q.status;
-  if (q.pay && (PAYMENT_STATUSES as readonly string[]).includes(q.pay)) f["payment.status"] = q.pay;
-  const date = (s?: string) => (s && /^\d{4}-\d{2}-\d{2}$/.test(s) ? Date.parse(s) - 4 * 3600_000 : null);
-  const from = date(q.from), to = date(q.to);
-  if (from !== null || to !== null) f.createdAt = { ...(from !== null && { $gte: new Date(from) }), ...(to !== null && { $lte: new Date(to + 24 * 3600_000 - 1) }) };
-  const [rows, total] = await Promise.all([Order.find(f).sort({ createdAt: -1 }).skip((q.page - 1) * size).limit(size).lean(), Order.countDocuments(f)]);
+  const m: Record<string, unknown> = {};
+  if (f.q) { const re = new RegExp(escapeRe(f.q.slice(0, 60)), "i"); m.$or = [{ orderNumber: re }, { email: re }, { "address.recipientName": re }, { "address.phone": re }, { "items.sku": re }, { "items.name.en": re }]; }
+  if (f.status && (ORDER_STATUSES as readonly string[]).includes(f.status)) m.status = f.status;
+  if (f.pay && (PAYMENT_STATUSES as readonly string[]).includes(f.pay)) m["payment.status"] = f.pay;
+  if (f.method) m["payment.method"] = f.method;
+  if (f.emirate) m["address.emirate"] = f.emirate;
+  if (f.source) m.source = f.source;
+  if (f.guest === "guest") m.guest = true; else if (f.guest === "member") m.guest = { $ne: true };
+  if (f.coupon === "used") m["coupon.code"] = { $exists: true, $ne: null };
+  if (f.coupon === "none") m["coupon.code"] = { $in: [null, ""] };
+  if (f.min || f.max) m["totals.total"] = { ...(f.min ? { $gte: Number(f.min) } : {}), ...(f.max ? { $lte: Number(f.max) } : {}) };
+  const range = dayRange(f.from, f.to);
+  if (range) m.createdAt = range;
+  const [rows, total] = await Promise.all([Order.find(m).sort({ [ORDER_SORTS[sort]]: dir, _id: -1 }).skip((page - 1) * size).limit(size).lean(), Order.countDocuments(m)]);
   return { rows, total, pages: Math.max(1, Math.ceil(total / size)) };
 }
 

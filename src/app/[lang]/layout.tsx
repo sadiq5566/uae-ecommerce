@@ -9,6 +9,9 @@ import { Footer } from "@/components/footer";
 import { getNavCategories } from "@/features/catalog/service";
 import { ToastProvider } from "@/components/toast";
 import { SessionBootstrap } from "@/components/session-store";
+import { ScrollToAlert } from "@/components/scroll-to-alert";
+import { getPublicOffers, offerLines } from "@/features/offers/service";
+import { WelcomeModal } from "@/features/offers/welcome-modal";
 
 const latin = Inter({ subsets: ["latin"], variable: "--font-latin", display: "swap" });
 const display = Fraunces({ subsets: ["latin"], variable: "--font-display-latin", display: "swap" });
@@ -37,16 +40,25 @@ const themeScript = `try{var p=localStorage.getItem("theme")||"system";var d=p==
 export default async function RootLayout({ children, params }: LayoutProps<"/[lang]">) {
   const { lang } = await params;
   if (!isLocale(lang)) notFound();
-  const [t, categories] = await Promise.all([getDictionary(lang), getNavCategories()]);
+  const [t, categories, offers] = await Promise.all([getDictionary(lang), getNavCategories(), getPublicOffers()]);
+  const lines = offerLines(offers, t, lang);
   return (
-    <html lang={lang} dir={dirOf(lang)} suppressHydrationWarning className={`${latin.variable} ${display.variable} ${arabic.variable}`}>
+    <html lang={lang} dir={dirOf(lang)} data-scroll-behavior="smooth" suppressHydrationWarning className={`${latin.variable} ${display.variable} ${arabic.variable}`}>
       <head><script dangerouslySetInnerHTML={{ __html: themeScript }} /></head>
       <body className="flex min-h-dvh flex-col antialiased">
         <ToastProvider>
           <SessionBootstrap />
-          <Header locale={lang} t={t} categories={categories} />
+          <ScrollToAlert />
+          <Header locale={lang} t={t} categories={categories} offerLines={lines} />
           <main id="main" tabIndex={-1} className="flex-1 outline-none">{children}</main>
           <Footer locale={lang} t={t} categories={categories} />
+          {offers.modal.enabled && lines.length > 0 && (
+            <WelcomeModal
+              locale={lang} version={offers.modal.version} delaySeconds={offers.modal.delaySeconds} collectLeads={offers.modal.collectLeads} lines={lines}
+              title={offers.modal.title?.[lang]} body={offers.modal.body?.[lang]}
+              labels={{ ...t.offers.modal, errors: t.errors }}
+            />
+          )}
         </ToastProvider>
       </body>
     </html>

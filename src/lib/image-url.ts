@@ -10,3 +10,10 @@ export function isAllowedImageUrl(u: string) {
     return url.protocol === "https:" && imageHosts().includes(url.hostname.toLowerCase());
   } catch { return false; }
 }
+
+/** Substrings (case-insensitive, comma-separated in IMAGE_BLOCKLIST) of image URLs that must never be imported, e.g. "Screenshot_" for stray screenshots. */
+export function isBlockedImage(u: string) {
+  const words = (process.env.IMAGE_BLOCKLIST ?? "").split(",").map((w) => w.trim().toLowerCase()).filter(Boolean);
+  const low = u.toLowerCase();
+  return words.some((w) => low.includes(w));
+}

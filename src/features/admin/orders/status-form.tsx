@@ -10,14 +10,23 @@ function Msg({ s }: { s: FormState }) {
   return <>{s.ok && <p role="status" className="text-sm text-brand">✓ Done. {s.values?.message}</p>}{s.error && <p role="alert" className="text-sm text-danger">{s.error}</p>}</>;
 }
 
-export function StatusForm({ orderNumber, next }: { orderNumber: string; next: string[] }) {
+export function StatusForm({ orderNumber, next, status }: { orderNumber: string; next: string[]; status?: string }) {
   const [s, action, pending] = useActionState<FormState, FormData>(changeStatusAction, {});
-  if (next.length === 0) return <p className="text-sm text-muted">No further status changes are possible.</p>;
+  const options = next.filter((n) => n !== "refund_pending" && n !== "refunded"); // refunds have their own form below
+  if (options.length === 0) {
+    const refundable = next.includes("refund_pending");
+    return (
+      <p className="rounded-xl bg-surface-2 px-4 py-3 text-sm text-muted">
+        {status ? <>This order is <b className="text-fg">{label(status)}</b>. </> : null}
+        {refundable ? "There are no further status steps. If the customer needs their money back, use “Start refund” in the Refunds section below." : "This is a final status — there is nothing more to update."}
+      </p>
+    );
+  }
   return (
     <form action={action} className="flex flex-col gap-3">
       <input type="hidden" name="orderNumber" value={orderNumber} />
       <div className="flex flex-wrap gap-2">
-        <select name="to" aria-label="New status" className={`${inputCls} !w-auto`} defaultValue={next[0]}>{next.filter((n) => n !== "refund_pending" && n !== "refunded").map((n) => <option key={n} value={n}>{label(n)}</option>)}</select>
+        <select name="to" aria-label="New status" className={`${inputCls} !w-auto`} defaultValue={options[0]}>{options.map((n) => <option key={n} value={n}>{label(n)}</option>)}</select>
         <input name="note" aria-label="Note" maxLength={300} placeholder="Note (required for cancellation)" className={`${inputCls} min-w-56 flex-1`} />
         <button disabled={pending} className={btnPrimary}>{pending ? "Saving…" : "Update status"}</button>
       </div>

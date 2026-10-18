@@ -6,9 +6,8 @@ import { ReviewsSection } from "@/features/reviews/reviews-section";
 import { isLocale } from "@/lib/i18n";
 import { ProductCard } from "@/components/product-card";
 import { ViewTracker } from "@/components/view-tracker";
-import { Gallery } from "@/features/catalog/gallery";
 import { Breadcrumbs } from "@/features/catalog/breadcrumbs";
-import { ProductBuy } from "@/features/catalog/product-buy";
+import { ProductMain } from "@/features/catalog/product-main";
 import { alternatesFor } from "@/features/catalog/seo";
 import { findSlugRedirect, getCategories, getProductBySlug, getRelated } from "@/features/catalog/service";
 
@@ -45,6 +44,16 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
     ...(cat ? [{ label: cat.name[lang], href: `/${lang}/c/${cat.slug}` }] : []),
     { label: p.name[lang] },
   ];
+  // Always-present facts (so this column is never empty), then any attributes/specs the product has.
+  const details: [string, string][] = [
+    ...(p.brand ? [[t.catalog.brand, p.brand] as [string, string]] : []),
+    ...(cat ? [[t.catalog.category, cat.name[lang]] as [string, string]] : []),
+    [t.catalog.sku, p.sku],
+    ...(p.variants.length ? [[t.catalog.variant, p.variants.map((v) => v.label[lang]).join(" · ")] as [string, string]] : []),
+    [t.catalog.availability, p.stock > 0 ? t.catalog.inStock : t.catalog.outOfStock],
+    ...Object.entries(p.attrs).map(([k, v]) => [k.charAt(0).toUpperCase() + k.slice(1), v] as [string, string]),
+    ...p.specs.map((x) => [x.label[lang], x.value[lang]] as [string, string]),
+  ];
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
   // Structured data mirrors what is visible on the page. No aggregateRating until real reviews exist (Phase 5).
   const jsonLd = [
@@ -64,38 +73,24 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
       <ViewTracker id={p.id} />
       <Breadcrumbs label={t.catalog.breadcrumb} items={crumbs} />
-      <div className="mt-6 grid gap-10 lg:grid-cols-2">
-        <div className="animate-fade-up"><Gallery images={p.images} name={p.name[lang]} locale={lang} icon={p.icon} hue={p.hue} labels={{ thumb: t.catalog.thumb }} /></div>
-        <div className="animate-fade-up flex flex-col gap-6 [animation-delay:120ms]">
-          <div>
-            {p.brand && <p className="text-sm font-semibold text-brand">{p.brand}</p>}
-            <h1 className="mt-1 font-display text-3xl font-bold leading-tight sm:text-4xl">{p.name[lang]}</h1>
-            <p className="mt-2 text-sm text-muted">
-              {p.ratingCount > 0 ? <><span className="text-gold">★</span> {p.ratingAvg.toFixed(1)} ({p.ratingCount} {t.product.reviews}) · </> : null}
-              {t.catalog.sku}: {p.sku}
-            </p>
-          </div>
-          <ProductBuy p={p} locale={lang} t={t} />
-          <div className="rounded-2xl border border-line bg-surface p-4 text-sm">
-            <p className="font-semibold">🚚 {t.catalog.delivery}</p>
-            <p className="mt-1 text-muted">{t.catalog.deliveryInfo}</p>
-          </div>
+      <ProductMain p={p} locale={lang} t={t}>
+        <div className="rounded-2xl border border-line bg-surface p-4 text-sm">
+          <p className="font-semibold">🚚 {t.catalog.delivery}</p>
+          <p className="mt-1 text-muted">{t.catalog.deliveryInfo}</p>
         </div>
-      </div>
+      </ProductMain>
 
       <div className="mt-14 grid gap-10 lg:grid-cols-2">
         <section>
           <h2 className="font-display text-xl font-bold">{t.catalog.description}</h2>
           <p className="mt-3 leading-relaxed text-muted">{p.description[lang]}</p>
         </section>
-        {p.specs.length > 0 && (
-          <section>
-            <h2 className="font-display text-xl font-bold">{t.catalog.specs}</h2>
-            <dl className="mt-3 divide-y divide-line rounded-2xl border border-line bg-surface">
-              {p.specs.map((s, i) => <div key={i} className="flex justify-between gap-4 px-4 py-3 text-sm"><dt className="text-muted">{s.label[lang]}</dt><dd className="font-medium">{s.value[lang]}</dd></div>)}
-            </dl>
-          </section>
-        )}
+        <section>
+          <h2 className="font-display text-xl font-bold">{t.catalog.specs}</h2>
+          <dl className="mt-3 divide-y divide-line rounded-2xl border border-line bg-surface">
+            {details.map(([label, value], i) => <div key={i} className="flex justify-between gap-4 px-4 py-3 text-sm"><dt className="text-muted">{label}</dt><dd className="text-end font-medium">{value}</dd></div>)}
+          </dl>
+        </section>
       </div>
       <ReviewsSection productId={p.id} slug={p.slug} locale={lang} t={t} sort={rsort} page={rpage} />
       {related.length > 0 && (

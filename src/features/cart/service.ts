@@ -5,6 +5,7 @@ import { connectDb } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth/session";
 import { Cart } from "@/models/cart";
 import { Product } from "@/models/product";
+import { baseName } from "@/lib/variant-name";
 
 export const MAX_QTY = 10;
 export const MAX_LINES = 50;
@@ -20,9 +21,11 @@ export type CartLine = {
 };
 export type CartView = { lines: CartLine[]; itemCount: number; subtotal: number; hasIssues: boolean };
 
+const cleanName = (p: { name: L10n; variants?: { label: L10n }[] }): L10n => ({ en: baseName(p.name.en, (p.variants ?? []).map((v) => v.label.en)), ar: baseName(p.name.ar, (p.variants ?? []).map((v) => v.label.ar)) });
+
 type ProductRow = {
   _id: unknown; slug: string; sku: string; name: L10n; icon: string; hue: number; images?: { url: string }[];
-  price: number; finalPrice: number; stock: number; variants?: { sku: string; label: L10n; stock: number; price?: number }[];
+  price: number; finalPrice: number; stock: number; variants?: { sku: string; label: L10n; stock: number; price?: number; image?: string }[];
 };
 
 /** Who owns the cart right now. Pass create=true only from actions/route handlers (cookies are writable there). */
@@ -37,6 +40,12 @@ async function owner(create: boolean): Promise<{ user: string } | { guestId: str
     jar.set(GUEST_COOKIE, id, { httpOnly: true, sameSite: "lax", secure: secureCookie, path: "/", maxAge: GUEST_TTL_MS / 1000 });
   }
   return id ? { guestId: id } : null;
+}
+
+/** The anonymous cart cookie id, if any (read-only — safe in server components and actions). */
+export async function getGuestId() {
+  const id = (await cookies()).get(GUEST_COOKIE)?.value;
+  return id && /^[A-Za-z0-9_-]{20,64}$/.test(id) ? id : undefined;
 }
 
 async function resolve(skus: string[]) {
@@ -65,7 +74,7 @@ export function buildLines(items: { sku: string; qty: number; priceAtAdd: number
     const qty = clampQty(it.qty, stock);
     const status: LineStatus = stock === 0 ? "out_of_stock" : qty < it.qty ? "reduced" : "ok";
     return {
-      sku: it.sku, productId: String(p._id), slug: p.slug, name: p.name, variantLabel: v?.label, icon: p.icon, hue: p.hue, image: p.images?.[0]?.url,
+      sku: it.sku, productId: String(p._id), slug: p.slug, name: cleanName(p), variantLabel: v?.label, icon: p.icon, hue: p.hue, image: v?.image || p.images?.[0]?.url,
       unitPrice: unit, listPrice: p.price, priceAtAdd: it.priceAtAdd, priceChanged: Math.abs(unit - it.priceAtAdd) > 0.001,
       qty, requestedQty: it.qty, stock, status, lineTotal: Math.round(unit * qty * 100) / 100,
     };
@@ -89,6 +98,13 @@ export async function getCartView(): Promise<CartView> {
   const cart = await Cart.findOne(o).lean();
   const items = cart?.items ?? [];
   return summarize(buildLines(items, await resolve(items.map((i) => i.sku))));
+}
+
+/** A one-line "cart" for Buy now: same server-side prices and stock checks, but the real cart is untouched. */
+export async function getBuyNowView(sku: string, qty: number): Promise<CartView> {
+  await connectDb();
+  const q = Math.max(1, Math.min(MAX_QTY, Math.floor(qty) || 1));
+  return summarize(buildLines([{ sku, qty: q, priceAtAdd: 0 }], await resolve([sku])).map((l) => ({ ...l, priceChanged: false })));
 }
 
 export async function getCartCount() {

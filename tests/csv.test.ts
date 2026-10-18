@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { csvCell, mapColumns, parseCsv, rowObject, toCsv } from "@/lib/csv";
+import { csvCell, mapColumns, parseCsv, parseJsonl, rowObject, toCsv } from "@/lib/csv";
 import { PRODUCT_COLUMNS, validateProductRows, type ProductCtx } from "@/features/admin/csv/products";
 import { CATEGORY_COLUMNS, parseAttributes, validateCategoryRows } from "@/features/admin/csv/categories";
 
@@ -57,6 +57,8 @@ describe("column mapping", () => {
   });
   it("reports duplicate columns", () => {
     expect(mapColumns(["sku", "SKU"], PRODUCT_COLUMNS).dupes).toEqual(["SKU"]);
+    expect(mapColumns(["category", "category_slug"], PRODUCT_COLUMNS).alt).toEqual({ category_slug: [1] });
+    expect(rowObject(["", "watches"], { category_slug: 0 }, { category_slug: [1] }).category_slug).toBe("watches");
   });
 });
 
@@ -88,8 +90,12 @@ describe("product CSV validation", () => {
     expect(rows[2].errors.join()).toMatch(/duplicate slug/);
   });
   it("rejects a slug owned by another product", () => {
-    const c = ctx({ slugOwner: new Map([["phone", "OTHER-1"]]) });
-    expect(v([good], c)[0].errors.join()).toMatch(/already used by OTHER-1/);
+    const c = ctx({ slugOwner: new Map([["phone", "OTHER-1"]]) }, [...Object.keys(good), "slug"]);
+    expect(v([{ ...good, slug: "phone" }], c)[0].errors.join()).toMatch(/already used by OTHER-1/);
+    // a generated slug (no slug column) gets the SKU appended instead of failing
+    const auto = v([good], ctx({ slugOwner: new Map([["phone", "OTHER-1"]]) }))[0];
+    expect(auto.errors).toEqual([]);
+    expect(String(auto.doc?.slug)).toMatch(/^phone-/);
   });
   it("updates by SKU and only touches columns that have a value (no surprise overwrites)", () => {
     const existing = { id: "p1", sku: "AB-1", slug: "phone", price: 100, salePrice: null, stock: 5, hasVariants: false, categoryId: "c1" };
@@ -143,4 +149,67 @@ describe("category CSV validation", () => {
     expect(parseAttributes("a:A/ا|a:B/ب").ok).toBe(false);
   });
   it("has the expected column set", () => expect(Object.keys(CATEGORY_COLUMNS)).toContain("parent_slug"));
+});
+
+import { parseJsonl as _parseJsonl } from "../src/lib/csv";
+import { test as _t, expect as _e } from "vitest";
+_t("parseJsonl flattens arrays/objects like CSV cells", () => {
+  const r = _parseJsonl('{"sku":"A1","tags":["x","y"],"attributes":{"color":"red"},"price":10}\n\n{"sku":"A2","images":[{"url":"https://a/b.jpg"}]}\n');
+  _e(r.error).toBeUndefined();
+  _e(r.headers).toEqual(["sku", "tags", "attributes", "price", "images"]);
+  _e(r.rows[0]).toEqual(["A1", "x|y", "color:red", "10", ""]);
+  _e(r.rows[1][4]).toBe("https://a/b.jpg");
+  _e(_parseJsonl("{bad").error).toMatch(/not valid JSON/);
+});
+
+describe("scraped-file leniency", () => {
+  const ctx2: ProductCtx = { categories: new Map([["all-jewelry", { id: "c9", attrKeys: [] }]]), bySku: new Map(), slugOwner: new Map(), present: new Set(["sku", "name_en", "category_slug", "price", "old_price"]) };
+  it("falls back to name_en, matches category by name, maps old_price", () => {
+    const [i] = validateProductRows([{ sku: "502955574", name_en: "Earrings", category_slug: "All Jewelry", price: "239", old_price: "1099" }], ctx2);
+    expect(i.errors).toEqual([]);
+    expect(i.doc).toMatchObject({ "name.ar": "Earrings", category: "c9", price: 1099, salePrice: 239, finalPrice: 239 });
+  });
+});
+
+it("creates unknown categories when allowed", () => {
+  const c: ProductCtx = { categories: new Map(), bySku: new Map(), slugOwner: new Map(), present: new Set(["sku", "name_en", "category_slug", "price"]), createCategories: true };
+  const [i] = validateProductRows([{ sku: "W1", name_en: "Watch", category_slug: "Watches", price: "5" }], c);
+  expect(i.errors).toEqual([]);
+  expect(i.doc?.newCategory).toEqual({ slug: "watches", name: "Watches" });
+});
+
+describe("variants + stock_status", () => {
+  const base = (present: string[]): ProductCtx => ({ categories: new Map([["all", { id: "c1", attrKeys: [] }]]), bySku: new Map(), slugOwner: new Map(), present: new Set(present) });
+  it("imports colour variants with images and per-variant stock", () => {
+    const [i] = validateProductRows([{ sku: "P1", name_en: "Ring - Red", category_slug: "all", price: "100", stock_status: "In Stock", variants: "Red~~5~~https://cdn.example.com/r.png | Blue" }], base(["sku", "name_en", "category_slug", "price", "stock_status", "variants"]));
+    expect(i.errors).toEqual([]);
+    expect(i.doc?.variants).toEqual([
+      { sku: "P1-RED", label: { en: "Red", ar: "Red" }, stock: 5, image: "https://cdn.example.com/r.png" },
+      { sku: "P1-BLUE", label: { en: "Blue", ar: "Blue" }, stock: 20 },
+    ]);
+    expect(i.doc?.stock).toBe(25);
+  });
+  it("'In Stock' without a quantity is not out of stock; 'Out of Stock' is 0", () => {
+    const pr = ["sku", "name_en", "category_slug", "price", "stock_status"];
+    const rows = [{ sku: "A1", name_en: "A", category_slug: "all", price: "1", stock_status: "In Stock" }, { sku: "A2", name_en: "B", category_slug: "all", price: "1", stock_status: "Out of Stock" }];
+    const [a, b] = validateProductRows(rows, base(pr));
+    expect(a.doc?.stock).toBe(20); expect(b.doc?.stock).toBe(0);
+  });
+  it("JSONL variants array becomes the CSV variants cell", () => {
+    const r = parseJsonl('{"sku":"X","variants":[{"label":"Red","stock":3,"image":"https://a/b.png"},"Blue"]}');
+    expect(r.rows[0][r.headers.indexOf("variants")]).toBe("Red~~3~~https://a/b.png|Blue");
+  });
+});
+
+import { groupVariantRows } from "@/features/admin/csv/group";
+describe("groupVariantRows", () => {
+  const mk = (line: number, sku: string, name: string, color: string, size = "") => ({ line, data: { sku, name_en: name, category_slug: "watches", brand: "", color, size, price: "420", image_urls: `https://cdn.example.com/${sku}.png | https://cdn.example.com/${sku}-2.png`, stock: "" } });
+  it("merges same-name rows into one product with a variant per colour", () => {
+    const { rows, merged } = groupVariantRows([mk(2, "W1", "Royal Oak – Gold", "Gold"), mk(3, "W2", "Royal Oak – Silver", "Silver"), mk(4, "X1", "Other", "Black")]);
+    expect(merged).toBe(2);
+    expect(rows).toHaveLength(2);
+    expect(rows[0].data).toMatchObject({ sku: "W1-P", name_en: "Royal Oak", variants: "Gold~W1~~~https://cdn.example.com/W1.png|Silver~W2~~~https://cdn.example.com/W2.png" });
+    expect(rows[0].data.image_urls.split("|")).toHaveLength(4);
+    expect(rows[1].data.sku).toBe("X1");
+  });
 });

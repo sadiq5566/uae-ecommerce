@@ -23,7 +23,7 @@ export default async function EditCoupon({ params }: PageProps<"/admin/promotion
   const skus = async (ids: Types.ObjectId[]) => (ids.length ? (await Product.find({ _id: { $in: ids } }, { sku: 1 }).lean()).map((p) => p.sku).join(", ") : "");
   const data: CouponFormData = {
     id: String(c._id), code: c.code, desc: { en: c.description?.en ?? "", ar: c.description?.ar ?? "" }, type: c.type, value: c.value, maxDiscount: c.maxDiscount ?? null, minSubtotal: c.minSubtotal ?? 0,
-    startsAt: local(c.startsAt), endsAt: local(c.endsAt), active: c.active, usageLimit: c.usageLimit ?? null, usedCount: c.usedCount, perCustomerLimit: c.perCustomerLimit ?? 1, stackWithSale: c.stackWithSale,
+    startsAt: local(c.startsAt), endsAt: local(c.endsAt), active: c.active, isPublic: c.public ?? false, usageLimit: c.usageLimit ?? null, usedCount: c.usedCount, perCustomerLimit: c.perCustomerLimit ?? 1, stackWithSale: c.stackWithSale,
     productSkus: await skus(c.products ?? []), excludeSkus: await skus(c.excludeProducts ?? []), categories: (c.categories ?? []).map(String), excludeCategories: (c.excludeCategories ?? []).map(String),
   };
   const cats = (await categoryOptions()).map((x) => ({ id: x.id, name: x.name }));

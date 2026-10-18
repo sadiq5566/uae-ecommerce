@@ -16,6 +16,7 @@ const themeScript = `try{var p=localStorage.getItem("theme")||"system";var d=p==
 const NAV: (NavItem & { perm: Permission })[] = [
   { href: "/admin", label: "Dashboard", icon: "📊", perm: "dashboard:read" },
   { href: "/admin/orders", label: "Orders", icon: "📦", perm: "orders:read" },
+  { href: "/admin/returns", label: "Returns", icon: "↩️", perm: "orders:read" },
   { href: "/admin/products", label: "Products", icon: "🏷️", perm: "products:write" },
   { href: "/admin/categories", label: "Categories", icon: "🗂️", perm: "categories:write" },
   { href: "/admin/inventory", label: "Inventory", icon: "📉", perm: "inventory:write" },
@@ -27,6 +28,7 @@ const NAV: (NavItem & { perm: Permission })[] = [
   { href: "/admin/pages", label: "Pages", icon: "📄", perm: "articles:write" },
   { href: "/admin/homepage", label: "Homepage", icon: "🏠", perm: "homepage:write" },
   { href: "/admin/customers", label: "Customers", icon: "👥", perm: "customers:read" },
+  { href: "/admin/marketing", label: "Marketing & leads", icon: "📣", perm: "customers:read" },
   { href: "/admin/users", label: "Staff & roles", icon: "🔑", perm: "users:manage" },
   { href: "/admin/settings", label: "Settings", icon: "⚙️", perm: "settings:write" },
   { href: "/admin/audit", label: "Audit log", icon: "🧾", perm: "audit:read" },
@@ -37,7 +39,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   // Defence in depth: every page and action still checks its own permission on the server.
   const items = user && isStaff(user.role) ? NAV.filter((n) => can(user.role, n.perm)) : [];
   return (
-    <html lang="en" dir="ltr" suppressHydrationWarning className={`${latin.variable} ${display.variable}`}>
+    <html lang="en" dir="ltr" data-scroll-behavior="smooth" suppressHydrationWarning className={`${latin.variable} ${display.variable}`}>
       <head><script dangerouslySetInnerHTML={{ __html: themeScript }} /></head>
       <body className="min-h-dvh antialiased">
         <ToastProvider>

@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 import Link from "next/link";
 import { useTransition } from "react";
 import { setCartCount } from "@/components/session-store";
@@ -9,7 +10,7 @@ import { formatAED, type Locale } from "@/lib/i18n";
 import { removeFromCartAction, setQtyAction } from "./actions";
 import type { CartLine, CartView } from "./service";
 
-export function CartLines({ cart, locale, t }: { cart: CartView; locale: Locale; t: Dictionary }) {
+export function CartLines({ cart, locale, t, progress }: { cart: CartView; locale: Locale; t: Dictionary; progress?: React.ReactNode }) {
   const [pending, start] = useTransition();
   const toast = useToast();
   const run = (fn: () => ReturnType<typeof setQtyAction>) => start(async () => {
@@ -26,12 +27,14 @@ export function CartLines({ cart, locale, t }: { cart: CartView; locale: Locale;
   };
   return (
     <div className="grid min-w-0 gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]" aria-busy={pending}>
+      <div className="flex min-w-0 flex-col gap-4">
+      {progress}
       <ul className={`flex min-w-0 flex-col gap-4 transition-opacity ${pending ? "opacity-60" : ""}`}>
         {cart.lines.map((l) => {
           const n = note(l);
           return (
             <li key={l.sku} className="animate-slide-in flex min-w-0 gap-3 rounded-2xl sm:gap-4 border border-line bg-surface p-4">
-              <div className="grid size-20 shrink-0 place-items-center rounded-xl text-3xl sm:size-24 sm:text-4xl" style={{ background: `linear-gradient(135deg, hsl(${l.hue} 70% 92%), hsl(${l.hue} 60% 82%))` }} aria-hidden>{l.icon}</div>
+              <div className="relative grid size-20 shrink-0 place-items-center overflow-hidden rounded-xl text-3xl sm:size-24 sm:text-4xl" style={{ background: `linear-gradient(135deg, hsl(${l.hue} 70% 92%), hsl(${l.hue} 60% 82%))` }} aria-hidden>{l.image ? <Image src={l.image} alt="" fill sizes="96px" className="object-cover" /> : l.icon}</div>
               <div className="flex min-w-0 flex-1 flex-col gap-1">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -56,6 +59,7 @@ export function CartLines({ cart, locale, t }: { cart: CartView; locale: Locale;
           );
         })}
       </ul>
+      </div>
       <aside className="h-fit rounded-2xl border border-line bg-surface p-6 lg:sticky lg:top-32">
         <p className="flex justify-between text-sm text-muted"><span>{fmt(t.cart.items, { n: cart.itemCount })}</span></p>
         <p className="mt-3 flex items-baseline justify-between"><span className="font-semibold">{t.cart.subtotal}</span><span className="text-2xl font-bold">{formatAED(cart.subtotal, locale)}</span></p>

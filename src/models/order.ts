@@ -13,13 +13,17 @@ const i18n = { en: String, ar: String };
 const orderSchema = new Schema(
   {
     orderNumber: { type: String, required: true, unique: true },
-    user: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
-    email: { type: String, required: true },
+    // Guest orders (no account) have no user; they're found by order number + phone, or by the secret trackToken in the link.
+    user: { type: Schema.Types.ObjectId, ref: "User", index: true },
+    guest: { type: Boolean, default: false },
+    trackToken: { type: String, index: true },
+    email: { type: String, trim: true, lowercase: true },
+    source: { type: String, enum: ["cart", "buy_now"], default: "cart" },
     locale: { type: String, enum: ["en", "ar"], default: "en" },
     idempotencyKey: { type: String, required: true },
     status: { type: String, enum: ORDER_STATUSES, required: true, index: true },
     items: [{
-      _id: false, productId: Schema.Types.ObjectId, sku: String, name: i18n, variantLabel: i18n, icon: String,
+      _id: false, productId: Schema.Types.ObjectId, sku: String, name: i18n, variantLabel: i18n, icon: String, image: String,
       qty: Number, unitPrice: Number, listPrice: Number, lineTotal: Number, couponShare: { type: Number, default: 0 },
     }],
     address: {
@@ -27,10 +31,11 @@ const orderSchema = new Schema(
     },
     delivery: { zone: String, zoneName: i18n, estimate: i18n },
     totals: {
-      listSubtotal: Number, itemDiscounts: Number, subtotal: Number, couponDiscount: Number, deliveryFee: Number, codFee: Number,
+      listSubtotal: Number, itemDiscounts: Number, subtotal: Number, couponDiscount: Number, offerDiscount: { type: Number, default: 0 }, deliveryFee: Number, codFee: Number,
       tax: Number, taxIncluded: Boolean, total: Number, currency: { type: String, default: "AED" },
     },
     coupon: { code: String, discount: Number },
+    offer: { kind: String, percent: Number, discount: Number }, // automatic offer applied (tier / first_order)
     payment: {
       method: { type: String, enum: PAYMENT_METHODS, required: true },
       status: { type: String, enum: PAYMENT_STATUSES, required: true },
@@ -51,12 +56,13 @@ type L10n = { en: string; ar: string };
 // Explicit shape (Mongoose's inferred type makes every nested field optional/nullable, which is noisy for lean reads).
 export interface OrderDoc {
   _id: Types.ObjectId;
-  orderNumber: string; user: Types.ObjectId; email: string; locale: "en" | "ar"; idempotencyKey: string; status: OrderStatus;
-  items: { productId: Types.ObjectId; sku: string; name: L10n; variantLabel?: L10n; icon?: string; qty: number; unitPrice: number; listPrice: number; lineTotal: number; couponShare: number }[];
+  orderNumber: string; user?: Types.ObjectId | null; guest?: boolean; trackToken?: string; email?: string | null; source?: "cart" | "buy_now"; locale: "en" | "ar"; idempotencyKey: string; status: OrderStatus;
+  items: { productId: Types.ObjectId; sku: string; name: L10n; variantLabel?: L10n; icon?: string; image?: string; qty: number; unitPrice: number; listPrice: number; lineTotal: number; couponShare: number }[];
   address: { recipientName: string; phone: string; emirate: string; area: string; street?: string; building: string; unit?: string; landmark?: string; instructions?: string };
   delivery: { zone: string; zoneName: L10n; estimate: L10n };
-  totals: { listSubtotal: number; itemDiscounts: number; subtotal: number; couponDiscount: number; deliveryFee: number; codFee: number; tax: number; taxIncluded: boolean; total: number; currency: string };
+  totals: { listSubtotal: number; itemDiscounts: number; subtotal: number; couponDiscount: number; offerDiscount?: number; deliveryFee: number; codFee: number; tax: number; taxIncluded: boolean; total: number; currency: string };
   coupon?: { code: string; discount: number };
+  offer?: { kind: "tier" | "first_order"; percent?: number; discount: number };
   payment: { method: PaymentMethod; status: PaymentStatus; provider?: string; providerRef?: string; amount?: number; paidAt?: Date; failureReason?: string };
   stockReserved: boolean; expiresAt?: Date | null;
   timeline: { status: string; at: Date; by?: string; note?: string }[];

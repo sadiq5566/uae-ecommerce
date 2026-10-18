@@ -18,5 +18,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const { articles, pages } = await getSitemapContent();
     dynamic.push(...articles.map((a) => entry(`/journal/${a.slug}`, a.updatedAt)), ...pages.map((p) => entry(`/${p}`)));
   } catch { /* DB unavailable: still serve static entries */ }
-  return [entry(""), entry("/deals"), entry("/new"), entry("/journal"), ...dynamic];
+  return [entry(""), entry("/deals"), entry("/offers"), entry("/new"), entry("/journal"), ...dynamic];
 }

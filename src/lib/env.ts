@@ -12,6 +12,7 @@ const schema = z.object({
   PAYMENT_WEBHOOK_SECRET: z.preprocess(blankToUndefined, z.string().min(16).optional()),
   CRON_SECRET: z.preprocess(blankToUndefined, z.string().min(16).optional()),
   IMAGE_HOSTS: z.string().optional(), // comma-separated hostnames allowed for remote images
+  IMAGE_BLOCKLIST: z.string().optional(), // comma-separated URL substrings that are never imported (e.g. "Screenshot_")
   STORAGE_DRIVER: z.string().optional(), // "local" (dev only) or your own adapter id
   MONGODB_AUTO_INDEX: z.enum(["true", "false"]).optional(),
 }).superRefine((e, ctx) => {

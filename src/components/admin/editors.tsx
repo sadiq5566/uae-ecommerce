@@ -54,7 +54,7 @@ export function ImagesEditor({ name = "images", initial, max = 10, single, onUrl
   );
 }
 
-export type VariantItem = { sku: string; label: L; stock: number | string; price?: number | string | null };
+export type VariantItem = { sku: string; label: L; stock: number | string; price?: number | string | null; image?: string; swatch?: string };
 export function VariantsEditor({ initial, onCount }: { initial: VariantItem[]; onCount?: (n: number) => void }) {
   const [items, setItems] = useState<VariantItem[]>(initial);
   const update = (next: VariantItem[]) => { setItems(next); onCount?.(next.length); };
@@ -70,6 +70,8 @@ export function VariantsEditor({ initial, onCount }: { initial: VariantItem[]; o
           <input aria-label="Label (Arabic)" dir="rtl" placeholder="التسمية" value={v.label.ar} onChange={(e) => set(i, { label: { ...v.label, ar: e.target.value } })} className={inputCls} />
           <input aria-label="Variant stock" type="number" min={0} placeholder="Stock" value={v.stock} onChange={(e) => set(i, { stock: e.target.value })} className={inputCls} />
           <div className="flex gap-1.5"><input aria-label="Variant price (optional)" type="number" min={0} step="0.01" placeholder="Price?" value={v.price ?? ""} onChange={(e) => set(i, { price: e.target.value })} className={inputCls} /><button type="button" aria-label="Remove variant" className={`${mini} text-danger`} onClick={() => update(items.filter((_, k) => k !== i))}>✕</button></div>
+          <input aria-label="Variant image URL (shown when this option is selected)" placeholder="Image URL for this option (optional)" value={v.image ?? ""} onChange={(e) => set(i, { image: e.target.value })} className={`${inputCls} sm:col-span-4`} />
+          <label className="flex items-center gap-2 text-sm sm:col-span-2">Colour<input aria-label="Swatch colour" type="color" value={/^#[0-9a-fA-F]{6}$/.test(v.swatch ?? "") ? v.swatch : "#cccccc"} onChange={(e) => set(i, { swatch: e.target.value })} className="h-9 w-12 cursor-pointer rounded border border-line" />{v.swatch && <button type="button" className={mini} onClick={() => set(i, { swatch: "" })}>none</button>}</label>
         </div>
       ))}
       <button type="button" className={`${mini} self-start`} onClick={() => update([...items, { sku: "", label: { en: "", ar: "" }, stock: 0 }])}>+ Add variant</button>

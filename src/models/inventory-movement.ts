@@ -6,7 +6,7 @@ const schema = new Schema(
     product: { type: Schema.Types.ObjectId, ref: "Product", required: true, index: true },
     sku: { type: String, required: true },
     delta: { type: Number, required: true },
-    reason: { type: String, enum: ["order_placed", "order_cancelled", "order_expired", "manual_adjustment", "restock", "correction"], required: true },
+    reason: { type: String, enum: ["order_placed", "order_cancelled", "order_expired", "manual_adjustment", "restock", "correction", "return_restock", "exchange_dispatched"], required: true },
     order: { type: Schema.Types.ObjectId, ref: "Order" },
     actor: { type: Schema.Types.ObjectId, ref: "User" },
     note: String,

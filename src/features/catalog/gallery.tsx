@@ -5,8 +5,14 @@ import { useState } from "react";
 type Img = { url: string; alt?: { en?: string; ar?: string } };
 
 /** Main image + keyboard-accessible thumbnails. Falls back to the placeholder visual when there are no images. */
-export function Gallery({ images, name, locale, icon, hue, labels }: { images: Img[]; name: string; locale: "en" | "ar"; icon: string; hue: number; labels: { thumb: string } }) {
+export function Gallery({ images, name, locale, icon, hue, labels, selectedUrl }: { images: Img[]; name: string; locale: "en" | "ar"; icon: string; hue: number; labels: { thumb: string }; selectedUrl?: string }) {
   const [i, setI] = useState(0);
+  const [seen, setSeen] = useState(selectedUrl);
+  if (seen !== selectedUrl) { // picking an option (e.g. a colour) jumps to that option's picture
+    setSeen(selectedUrl);
+    const k = images.findIndex((x) => x.url === selectedUrl);
+    if (k >= 0) setI(k);
+  }
   const cur = images[i];
   return (
     <div>

@@ -2,6 +2,9 @@
 
 Source of truth: `PROJECT_SPEC.md`.
 
+## Growth update (offers, guest checkout, tracking, returns, leads)
+Automatic offers (free delivery ≥ AED 200, 10 % at ≥ AED 500, 10 % first order — one discount per order), welcome popup + infinite offer ticker, cart progress, public Offers page, guest checkout + Buy now, public order tracking (order no. + phone), 7-day free returns (store-credit coupon or free exchange) with admin flow, lead capture + Marketing page. Details and limits: `docs/growth-features.md`. Verified: tsc, eslint, build, 224 tests (new: offers pricing, guest/buy-now/first-order/tracking/returns on real MongoDB) and a real-Chrome run of the whole customer + admin journey (EN/AR, desktop/mobile).
+
 ## Phase checklist
 - [x] Phase 0 — Inspect & plan (empty repo → Next.js 16.4, React 19, Tailwind 4, npm)
 - [x] Phase 1 — Foundation (see below)

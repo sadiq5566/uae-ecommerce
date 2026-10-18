@@ -11,6 +11,8 @@
     "test": "vitest run",
     "format": "prettier --write .",
     "seed": "tsx --env-file=.env.local scripts/seed.ts",
+    "clean-images": "tsx --env-file=.env.local scripts/clean-images.ts",
+    "remove-images": "tsx --env-file=.env.local scripts/remove-images.ts",
     "db:indexes": "tsx --env-file=.env.local scripts/indexes.ts",
     "db:migrate": "tsx --env-file=.env.local scripts/migrate.ts"
   },

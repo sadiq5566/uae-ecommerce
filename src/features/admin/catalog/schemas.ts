@@ -27,7 +27,7 @@ export const productSchema = z.object({
   icon: z.string().trim().max(8).optional().transform((v) => v || "📦"),
   hue: z.coerce.number().int().min(0).max(360).default(160),
   images: json(z.array(z.object({ url: imageUrl, alt: l10n })).max(10, "At most 10 images"), []),
-  variants: json(z.array(z.object({ sku: z.string().trim().min(2, "Variant SKU required").max(50).regex(/^[A-Za-z0-9._-]+$/, "Variant SKU: letters, numbers . _ -"), label: l10nReq, stock: int("Variant stock"), price: z.preprocess((v) => (v === "" || v == null ? undefined : v), money("Variant price").optional()) })).max(30, "At most 30 variants"), []),
+  variants: json(z.array(z.object({ sku: z.string().trim().min(2, "Variant SKU required").max(50).regex(/^[A-Za-z0-9._-]+$/, "Variant SKU: letters, numbers . _ -"), label: l10nReq, stock: int("Variant stock"), price: z.preprocess((v) => (v === "" || v == null ? undefined : v), money("Variant price").optional()), image: z.preprocess((v) => (v === "" || v == null ? undefined : v), imageUrl.optional()), swatch: z.preprocess((v) => (v === "" || v == null ? undefined : v), z.string().trim().regex(/^#[0-9a-fA-F]{6}$/, "Swatch must be a hex colour like #c0392b").optional()) })).max(30, "At most 30 variants"), []),
   specs: json(z.array(z.object({ label: l10nReq, value: l10nReq })).max(30, "At most 30 specifications"), []),
   attrs: json(z.record(z.string().max(30), z.string().trim().max(60)), {}),
   seoTitle_en: text(70), seoTitle_ar: text(70), seoDesc_en: text(160), seoDesc_ar: text(160),

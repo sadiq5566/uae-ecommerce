@@ -16,7 +16,7 @@ export function Footer({ locale, t, categories }: { locale: Locale; t: Dictionar
             <h2 className="font-display text-2xl font-bold">{t.newsletter.title}</h2>
             <p className="mt-1 text-sm opacity-70">{t.newsletter.subtitle}</p>
           </div>
-          <NewsletterForm t={t.newsletter} />
+          <NewsletterForm t={t.newsletter} locale={locale} />
         </Reveal>
         <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
           <div className="col-span-2 md:col-span-1">
@@ -27,6 +27,7 @@ export function Footer({ locale, t, categories }: { locale: Locale; t: Dictionar
             <ul className={col}>{categories.filter((c) => !c.parent).slice(0, 5).map((c) => <li key={c.slug}><Link href={`/${locale}/c/${c.slug}`}>{c.name[locale]}</Link></li>)}</ul></div>
           <div><p className={h}>{t.footer.help}</p>
             <ul className={col}>
+              <li><Link href={`/${locale}/track`}>{t.nav.track}</Link></li>
               <li><Link href={`/${locale}/contact`}>{t.footer.contact}</Link></li>
               <li><Link href={`/${locale}/faq`}>{t.footer.faq}</Link></li>
               <li><Link href={`/${locale}/delivery`}>{t.footer.shipping}</Link></li>

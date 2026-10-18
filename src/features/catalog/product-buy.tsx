@@ -1,4 +1,6 @@
 "use client";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useTransition } from "react";
 import { addToCartAction } from "@/features/cart/actions";
@@ -11,9 +13,9 @@ import type { Dictionary } from "@/lib/dictionaries";
 import type { ProductDetail } from "./service";
 
 /** Price/stock display and add-to-cart. Display-only: the server recomputes everything at checkout (Phase 4). */
-export function ProductBuy({ p, locale, t }: { p: ProductDetail; locale: Locale; t: Dictionary }) {
+export function ProductBuy({ p, locale, t, vi, setVi }: { p: ProductDetail; locale: Locale; t: Dictionary; vi: number; setVi: (i: number) => void }) {
   const toast = useToast();
-  const [vi, setVi] = useState(0);
+  const router = useRouter();
   const [qty, setQty] = useState(1);
   const [pulse, setPulse] = useState(0);
   const [pending, start] = useTransition();
@@ -37,11 +39,13 @@ export function ProductBuy({ p, locale, t }: { p: ProductDetail; locale: Locale;
       </div>
       {p.variants.length > 0 && (
         <fieldset>
-          <legend className="mb-2 text-sm font-semibold">{t.catalog.variant}</legend>
+          <legend className="mb-2 text-sm font-semibold">{t.catalog.variant}: <span className="font-normal text-muted">{v?.label[locale]}</span></legend>
           <div className="flex flex-wrap gap-2">
             {p.variants.map((x, i) => (
-              <label key={x.sku} className={`cursor-pointer rounded-xl border px-4 py-2 text-sm font-medium transition has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-brand ${i === vi ? "border-brand bg-brand-soft text-brand" : "border-line hover:border-brand"} ${x.stock === 0 ? "opacity-50" : ""}`}>
-                <input type="radio" name="variant" className="sr-only" checked={i === vi} onChange={() => setVi(i)} />{x.label[locale]}
+              <label key={x.sku} title={x.label[locale]} className={`cursor-pointer rounded-xl border text-sm font-medium transition has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-brand ${x.image ? "grid w-20 gap-1 p-1 text-center text-xs" : "px-4 py-2"} ${i === vi ? "border-brand bg-brand-soft text-brand ring-2 ring-brand" : "border-line hover:border-brand"} ${x.stock === 0 ? "opacity-50" : ""}`}>
+                <input type="radio" name="variant" className="sr-only" checked={i === vi} onChange={() => setVi(i)} />
+                {x.image && <span className="relative block aspect-square overflow-hidden rounded-lg"><Image src={x.image} alt="" fill sizes="80px" className="object-cover" /></span>}
+                <span className="inline-flex items-center justify-center gap-1.5">{!x.image && x.swatch && <span aria-hidden className="size-4 rounded-full border border-line" style={{ background: x.swatch }} />}<span className="line-clamp-1">{x.label[locale]}</span></span>
               </label>
             ))}
           </div>
@@ -64,6 +68,11 @@ export function ProductBuy({ p, locale, t }: { p: ProductDetail; locale: Locale;
         >
           <span key={pulse} className={pulse ? "animate-pop inline-block" : "inline-block"}>🛒</span> {stock === 0 ? t.catalog.outOfStock : t.product.addToCart}
         </button>
+        <button
+          type="button" disabled={stock === 0 || pending}
+          onClick={() => router.push(`/${locale}/checkout?buy=${encodeURIComponent(v?.sku ?? p.sku)}&qty=${q}`)}
+          className="min-w-40 flex-1 rounded-xl border-2 border-brand px-6 py-3.5 font-semibold text-brand transition hover:bg-brand-soft active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+        >⚡ {t.product.buyNow}</button>
         <WishlistButton productId={p.id} locale={locale} label={t.product.save} savedLabel={t.product.saved} loginLabel={t.product.loginToSave} className="!size-12 border border-line" />
       </div>
     </div>

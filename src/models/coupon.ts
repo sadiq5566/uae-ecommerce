@@ -11,6 +11,7 @@ const couponSchema = new Schema(
     startsAt: Date,
     endsAt: Date,
     active: { type: Boolean, default: true },
+    public: { type: Boolean, default: false }, // listed on the storefront Offers page with a copy button
     usageLimit: { type: Number, min: 1 }, // total redemptions; unset = unlimited
     usedCount: { type: Number, default: 0, min: 0 },
     perCustomerLimit: { type: Number, default: 1, min: 1 },

@@ -12,7 +12,7 @@ const Banner = ({ s }: { s: FormState }) => (
 const Save = ({ pending, children }: { pending: boolean; children: React.ReactNode }) => <div className="sticky bottom-3 z-10 flex gap-3 rounded-2xl border border-line bg-surface/95 p-3 shadow-card backdrop-blur"><button disabled={pending} className={btnPrimary}>{pending ? "Saving…" : children}</button></div>;
 
 export type CouponFormData = {
-  id?: string; code: string; desc: { en: string; ar: string }; type: string; value: number; maxDiscount?: number | null; minSubtotal: number; startsAt: string; endsAt: string; active: boolean;
+  id?: string; code: string; desc: { en: string; ar: string }; type: string; value: number; maxDiscount?: number | null; minSubtotal: number; startsAt: string; endsAt: string; active: boolean; isPublic?: boolean;
   usageLimit?: number | null; usedCount?: number; perCustomerLimit: number; stackWithSale: boolean; productSkus: string; excludeSkus: string; categories: string[]; excludeCategories: string[];
 };
 const EMPTY_COUPON: CouponFormData = { code: "", desc: { en: "", ar: "" }, type: "percent", value: 10, minSubtotal: 0, startsAt: "", endsAt: "", active: true, perCustomerLimit: 1, stackWithSale: false, productSkus: "", excludeSkus: "", categories: [], excludeCategories: [] };
@@ -33,7 +33,7 @@ export function CouponForm({ coupon, categories }: { coupon?: CouponFormData; ca
           <TF s={s} name="value" label="Value" type="number" step="0.01" min={0} defaultValue={c.value} required />
           <TF s={s} name="maxDiscount" label="Max discount (AED, percent only)" type="number" step="0.01" min={0} defaultValue={c.maxDiscount ?? ""} />
           <TF s={s} name="minSubtotal" label="Minimum eligible subtotal (AED)" type="number" step="0.01" min={0} defaultValue={c.minSubtotal} />
-          <div className="flex items-end"><CB s={s} name="active" label="Active" defaultChecked={c.active} /></div>
+          <div className="flex flex-col justify-end gap-2"><CB s={s} name="active" label="Active" defaultChecked={c.active} /><CB s={s} name="isPublic" label="Advertise on the Offers page" defaultChecked={c.isPublic} /></div>
           <TF s={s} name="desc_en" label="Description (EN)" defaultValue={c.desc.en} /><TF s={s} name="desc_ar" label="Description (AR)" defaultValue={c.desc.ar} dir="rtl" />
         </div>
       </Card>
@@ -74,7 +74,9 @@ export function ZoneForm({ zone, emirates, onDone }: { zone?: ZoneData; emirates
   );
 }
 
-export type SettingsData = { storeName: { en: string; ar: string }; minOrder: number; freeDeliveryThreshold: number; baseDeliveryFee: number; codEnabled: boolean; codFee: number; codMaxOrder: number; taxEnabled: boolean; taxRate: number; taxInclusive: boolean; pendingPaymentMinutes: number; supportEmail?: string; supportPhone?: string; logo?: string };
+export type SettingsData = { storeName: { en: string; ar: string }; minOrder: number; freeDeliveryThreshold: number; baseDeliveryFee: number; codEnabled: boolean; codFee: number; codMaxOrder: number; taxEnabled: boolean; taxRate: number; taxInclusive: boolean; pendingPaymentMinutes: number; supportEmail?: string; supportPhone?: string; logo?: string;
+  tier: { enabled: boolean; min: number; percent: number; max?: number }; first: { enabled: boolean; percent: number; max?: number };
+  modal: { enabled: boolean; delay: number; version: string; leads: boolean; title: { en: string; ar: string }; body: { en: string; ar: string } }; returnWindowDays: number };
 
 export function SettingsForm({ d }: { d: SettingsData }) {
   const [s, action, pending] = useActionState<FormState, FormData>(saveSettingsAction, {});
@@ -90,6 +92,19 @@ export function SettingsForm({ d }: { d: SettingsData }) {
       <Card title="Delivery rules (store-wide)">
         <div className="grid gap-4 sm:grid-cols-3"><TF s={s} name="minOrder" label="Minimum order (AED)" type="number" step="0.01" min={0} defaultValue={d.minOrder} /><TF s={s} name="freeDeliveryThreshold" label="Free delivery from (AED)" type="number" step="0.01" min={0} defaultValue={d.freeDeliveryThreshold} hint="0 = never free" /><TF s={s} name="baseDeliveryFee" label="Fallback delivery fee (AED)" type="number" step="0.01" min={0} defaultValue={d.baseDeliveryFee} /></div>
         <p className="mt-3 text-xs text-muted">Fees per emirate live under Delivery → zones. A zone can override the free-delivery threshold.</p>
+      </Card>
+      <Card title="Automatic offers (no code needed)">
+        <p className="mb-3 text-xs text-muted">Only one discount applies per order: the biggest of the coupon, the spend discount and the first-order discount. Free delivery uses the threshold above. These also feed the top ticker, the welcome popup and the cart progress bar.</p>
+        <div className="grid gap-4 sm:grid-cols-4"><div className="flex items-end"><CB s={s} name="tierEnabled" label="Spend discount" defaultChecked={d.tier.enabled} /></div><TF s={s} name="tierMin" label="When spending (AED)" type="number" step="0.01" min={0} defaultValue={d.tier.min} /><TF s={s} name="tierPercent" label="Percent off (%)" type="number" step="0.01" min={0} max={100} defaultValue={d.tier.percent} /><TF s={s} name="tierMax" label="Max discount (AED)" type="number" step="0.01" min={0} defaultValue={d.tier.max} hint="Blank = no cap" /></div>
+        <div className="mt-4 grid gap-4 sm:grid-cols-4"><div className="flex items-end"><CB s={s} name="firstEnabled" label="First-order discount" defaultChecked={d.first.enabled} /></div><TF s={s} name="firstPercent" label="Percent off (%)" type="number" step="0.01" min={0} max={100} defaultValue={d.first.percent} /><TF s={s} name="firstMax" label="Max discount (AED)" type="number" step="0.01" min={0} defaultValue={d.first.max} hint="Blank = no cap" /></div>
+        <p className="mt-2 text-xs text-muted">First order = no earlier non-cancelled order under the same account, phone number or email (so guests can&apos;t reuse it by changing name).</p>
+      </Card>
+      <Card title="Welcome popup & lead capture">
+        <div className="grid gap-4 sm:grid-cols-4"><div className="flex items-end"><CB s={s} name="modalEnabled" label="Show welcome popup" defaultChecked={d.modal.enabled} /></div><TF s={s} name="modalDelay" label="Delay (seconds)" type="number" min={0} max={60} defaultValue={d.modal.delay} /><TF s={s} name="modalVersion" label="Campaign version" defaultValue={d.modal.version} hint="Change it to show the popup again to everyone." /><div className="flex items-end"><CB s={s} name="modalLeads" label="Ask for email / phone" defaultChecked={d.modal.leads} /></div></div>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2"><TF s={s} name="modalTitle_en" label="Headline (EN, optional)" defaultValue={d.modal.title.en} /><TF s={s} name="modalTitle_ar" label="Headline (AR, optional)" defaultValue={d.modal.title.ar} dir="rtl" /><TF s={s} name="modalBody_en" label="Sub-text (EN, optional)" defaultValue={d.modal.body.en} /><TF s={s} name="modalBody_ar" label="Sub-text (AR, optional)" defaultValue={d.modal.body.ar} dir="rtl" /></div>
+      </Card>
+      <Card title="Returns & exchanges">
+        <div className="grid gap-4 sm:grid-cols-3"><TF s={s} name="returnWindowDays" label="Free-return window (days after delivery)" type="number" min={0} max={90} defaultValue={d.returnWindowDays} hint="0 = returns off. Customers get store credit or a free exchange." /></div>
       </Card>
       <Card title="Cash on delivery">
         <div className="grid gap-4 sm:grid-cols-3"><div className="flex items-end"><CB s={s} name="codEnabled" label="Offer cash on delivery" defaultChecked={d.codEnabled} /></div><TF s={s} name="codFee" label="COD fee (AED)" type="number" step="0.01" min={0} defaultValue={d.codFee} /><TF s={s} name="codMaxOrder" label="Max COD order (AED)" type="number" step="0.01" min={0} defaultValue={d.codMaxOrder} hint="0 = no limit" /></div>

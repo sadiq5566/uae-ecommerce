@@ -17,18 +17,19 @@ export type CategoryView = {
 export type ProductCardData = {
   id: string; slug: string; sku: string; name: L10n; price: number; finalPrice: number;
   icon: string; hue: number; ratingAvg: number; ratingCount: number; stock: number; image?: string; brand?: string;
+  hasVariants?: boolean; // has style/colour options: can only be added to the cart from its page, after choosing one
 };
 
 export type ProductDetail = ProductCardData & {
   description: Partial<L10n>; category: string; attrs: Record<string, string>;
-  variants: { sku: string; label: L10n; stock: number; price: number }[];
+  variants: { sku: string; label: L10n; stock: number; price: number; image?: string; swatch?: string }[];
   specs: { label: L10n; value: L10n }[]; lowStockThreshold: number; images: { url: string; alt?: Partial<L10n> }[];
   seo?: { title?: Partial<L10n>; description?: Partial<L10n> };
 };
 
 // Shapes of the lean() documents we read; Mongoose's inferred lean types don't model Map fields well.
-type CardRow = { _id: unknown; slug: string; sku: string; name: L10n; price: number; finalPrice: number; icon: string; hue: number; ratingAvg: number; ratingCount: number; stock: number; images?: { url: string; alt?: Partial<L10n> }[]; brand?: string };
-type DetailRow = CardRow & { description: Partial<L10n>; category: unknown; attrs?: Record<string, string>; variants?: { sku: string; label: L10n; stock: number; price?: number }[]; specs?: { label: L10n; value: L10n }[]; lowStockThreshold: number; seo?: ProductDetail["seo"] };
+type CardRow = { _id: unknown; slug: string; sku: string; name: L10n; price: number; finalPrice: number; icon: string; hue: number; ratingAvg: number; ratingCount: number; stock: number; images?: { url: string; alt?: Partial<L10n> }[]; brand?: string; variants?: { sku: string }[] };
+type DetailRow = Omit<CardRow, "variants"> & { description: Partial<L10n>; category: unknown; attrs?: Record<string, string>; variants?: { sku: string; label: L10n; stock: number; price?: number; image?: string; swatch?: string }[]; specs?: { label: L10n; value: L10n }[]; lowStockThreshold: number; seo?: ProductDetail["seo"] };
 type CatRow = { _id: unknown; slug: string; name: L10n; description?: Partial<L10n>; parent?: unknown; icon: string; hue: number; attributes?: CategoryView["attributes"]; seo?: CategoryView["seo"] };
 type Bucket = { _id: string; count: number };
 
@@ -166,7 +167,7 @@ export async function getProductBySlug(slug: string) {
   if (!p) return null;
   const detail: ProductDetail = {
     ...card(p), description: p.description, category: String(p.category), attrs: p.attrs ?? {},
-    variants: (p.variants ?? []).map((v) => ({ sku: v.sku, label: v.label, stock: v.stock, price: v.price ?? p.finalPrice })),
+    variants: (p.variants ?? []).map((v) => ({ sku: v.sku, label: v.label, stock: v.stock, price: v.price ?? p.finalPrice, image: v.image || undefined, swatch: v.swatch || undefined })),
     specs: p.specs ?? [], lowStockThreshold: p.lowStockThreshold, images: (p.images ?? []).map((i) => ({ url: i.url, alt: i.alt })), seo: p.seo,
   };
   return clean(detail);
@@ -206,7 +207,7 @@ export async function findSlugRedirect(kind: "product" | "category", slug: strin
   return c?.slug ?? null;
 }
 
-export type Suggestion = { type: "product" | "category"; slug: string; name: L10n; icon: string; price?: number };
+export type Suggestion = { type: "product" | "category"; slug: string; name: L10n; icon: string; price?: number; image?: string };
 
 /**
  * Lightweight autocomplete: whole-word text search first (indexed), then a prefix match on name/brand/SKU. Bounded, projection-only.
@@ -218,7 +219,7 @@ export async function suggest(q: string, limit = 6): Promise<Suggestion[]> {
   await connectDb();
   const base = { status: "published" } as const;
   const proj = { slug: 1, name: 1, icon: 1, finalPrice: 1, images: 1 } as const;
-  let rows = (await Product.find({ ...base, $text: { $search: term } }, proj).sort({ soldCount: -1 }).limit(limit).lean()) as unknown as { slug: string; name: L10n; icon: string; finalPrice: number }[];
+  let rows = (await Product.find({ ...base, $text: { $search: term } }, proj).sort({ soldCount: -1 }).limit(limit).lean()) as unknown as { slug: string; name: L10n; icon: string; finalPrice: number; images?: { url?: string }[] }[];
   if (rows.length < limit) {
     const re = new RegExp(`(^|\\s)${escapeRe(term)}`, "i");
     const more = (await Product.find({ ...base, slug: { $nin: rows.map((r) => r.slug) }, $or: [{ "name.en": re }, { "name.ar": re }, { brand: re }, { sku: new RegExp(`^${escapeRe(term)}`, "i") }] }, proj).sort({ soldCount: -1 }).limit(limit - rows.length).lean()) as unknown as typeof rows;
@@ -227,6 +228,13 @@ export async function suggest(q: string, limit = 6): Promise<Suggestion[]> {
   const cats = (await getCategories()).filter((c) => c.name.en.toLowerCase().includes(term.toLowerCase()) || c.name.ar.includes(term)).slice(0, 2);
   return [
     ...cats.map((c) => ({ type: "category" as const, slug: c.slug, name: c.name, icon: c.icon })),
-    ...rows.map((r) => ({ type: "product" as const, slug: r.slug, name: r.name, icon: r.icon, price: r.finalPrice })),
+    ...rows.map((r) => ({ type: "product" as const, slug: r.slug, name: r.name, icon: r.icon, price: r.finalPrice, image: r.images?.[0]?.url || undefined })),
   ].slice(0, limit);
 }
+
+/** Published product count per category id (used to show only categories that actually have products). */
+export const getCategoryCounts = cache(async (): Promise<Record<string, number>> => {
+  await connectDb();
+  const rows = await Product.aggregate<{ _id: unknown; n: number }>([{ $match: { status: "published" } }, { $group: { _id: "$category", n: { $sum: 1 } } }]);
+  return Object.fromEntries(rows.map((r) => [String(r._id), r.n]));
+});

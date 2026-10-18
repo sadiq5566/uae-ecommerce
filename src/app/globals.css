@@ -105,3 +105,9 @@ body {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
   .reveal { opacity: 1; transform: none; }
 }
+
+/* Offer ticker: static, wrapping list for people who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .ticker-track { width: auto !important; flex-wrap: wrap; justify-content: center; }
+  .ticker-track > [aria-hidden="true"] { display: none; }
+}

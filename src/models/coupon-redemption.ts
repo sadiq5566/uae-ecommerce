@@ -3,13 +3,15 @@ import { Schema, model, models, type InferSchemaType, type Model } from "mongoos
 const schema = new Schema(
   {
     coupon: { type: Schema.Types.ObjectId, ref: "Coupon", required: true },
-    user: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    user: { type: Schema.Types.ObjectId, ref: "User" },
+    phone: { type: String }, // guest redemptions are limited per phone number
     order: { type: Schema.Types.ObjectId, ref: "Order", required: true },
     amount: { type: Number, required: true },
   },
   { timestamps: true },
 );
 schema.index({ coupon: 1, user: 1 });
+schema.index({ coupon: 1, phone: 1 }, { sparse: true });
 schema.index({ order: 1 }, { unique: true });
 
 export type CouponRedemptionDoc = InferSchemaType<typeof schema>;

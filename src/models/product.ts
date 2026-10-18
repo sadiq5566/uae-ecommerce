@@ -19,7 +19,7 @@ const productSchema = new Schema(
     finalPrice: { type: Number, required: true, min: 0 },
     stock: { type: Number, default: 0, min: 0 },
     lowStockThreshold: { type: Number, default: 5 },
-    variants: [{ _id: false, sku: { type: String, required: true, uppercase: true }, label: i18n, stock: { type: Number, default: 0, min: 0 }, price: { type: Number, min: 0 } }],
+    variants: [{ _id: false, sku: { type: String, required: true, uppercase: true }, label: i18n, stock: { type: Number, default: 0, min: 0 }, price: { type: Number, min: 0 }, image: String, swatch: String }],
     attrs: { type: Map, of: String, default: {} },
     specs: [{ _id: false, label: i18n, value: i18n }],
     tags: [String],

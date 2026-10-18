@@ -151,6 +151,22 @@ describe.skipIf(!up)("admin (real MongoDB)", () => {
       await A.catalog.bulkProductsAction(fd({ op: "archive", ids: [String(ps[1]._id)] }));
       expect((await M.Product.findOne())!.status).toBe("archived");
     });
+
+    it("bulk action on 'all matching the filter' reaches products on every page and nothing outside the filter", async () => {
+      await as("catalog_manager");
+      await M.Product.create(Array.from({ length: 30 }, (_, i) => ({ slug: `w-${i}`, sku: `W-${i}`, name: L(`Watch ${i}`), brand: "Amara", category: cat, price: 10 + i, stock: i % 2 ? 0 : 5, status: "draft" as const })));
+      await M.Product.create({ slug: "other", sku: "O-1", name: L("Other"), brand: "Else", category: cat, price: 10, stock: 5, status: "draft" });
+      // filter: brand=Amara & out of stock → 15 products, more than any page size here
+      await A.catalog.bulkProductsAction(fd({ op: "publish", scope: "filter", filterQs: "brand=Amara&stock=out" }));
+      expect(await M.Product.countDocuments({ status: "published" })).toBe(15);
+      expect(await M.Product.countDocuments({ status: "published", stock: { $ne: 0 } })).toBe(0);
+      expect((await M.Product.findOne({ sku: "O-1" }))!.status).toBe("draft");
+      // price range + sort/per params are understood; unknown values fall back to defaults
+      const q = await import("@/features/admin/catalog/queries");
+      const r = await q.listProductsAdmin(q.parseProductFilters({ min: "20", max: "25", sort: "price_desc", per: "12", status: "bogus" }), 1);
+      expect(r.rows.map((x) => x.sku)).toEqual(["W-15", "W-14", "W-13", "W-12", "W-11", "W-10"]);
+      expect(r.total).toBe(6);
+    });
   });
 
   describe("categories", () => {
@@ -247,6 +263,23 @@ describe.skipIf(!up)("admin (real MongoDB)", () => {
   });
 
   describe("CSV import", () => {
+    it("colour/size rows merged into fewer products: every valid product is imported (line numbers stay aligned)", async () => {
+      await as("catalog_manager");
+      const lines = ["sku,name_en,category_slug,price,color"];
+      for (let g = 0; g < 6; g++) for (const c of ["Red", "Blue", "Green"]) lines.push(`G${g}-${c[0]},Item ${g},phones,10,${c}`);
+      lines.push("SOLO-1,Solo,phones,5,"); // not merged
+      const f = new FormData(); f.set("kind", "products"); f.set("file", new File([lines.join("\n")], "x.csv", { type: "text/csv" }));
+      const pv = await A.csv.previewImportAction(null, f);
+      if (!pv?.ok) throw new Error("preview failed");
+      expect(pv.rows).toHaveLength(7); // 18 rows → 6 products + 1 single
+      const rowLines = new Set(pv.rows.map((r) => r.line));
+      expect(pv.issues.every((i) => rowLines.has(i.line))).toBe(true);
+      const ok = new Set(pv.issues.filter((i) => i.action !== "error").map((i) => i.line));
+      const res = await A.csv.importBatchAction("products", pv.present, pv.rows.filter((r) => ok.has(r.line)));
+      expect(res.results.filter((r) => r.status === "created")).toHaveLength(7);
+      expect(await M.Product.countDocuments()).toBe(7);
+    });
+
     it("creates/updates in batches, reports bad rows, never overwrites unspecified fields, logs stock changes", async () => {
       await as("catalog_manager");
       const present = ["sku", "name_en", "name_ar", "category_slug", "price", "stock", "attributes"];
@@ -256,7 +289,8 @@ describe.skipIf(!up)("admin (real MongoDB)", () => {
         { line: 3, data: row({ sku: "csv-2", name_en: "Bad", name_ar: "س", category_slug: "nope", price: "abc" }) },
       ]);
       expect(res.results.map((r) => r.status)).toEqual(["created", "failed"]);
-      expect(res.results[1].errors.join()).toMatch(/unknown category_slug/);
+      expect(res.results[1].errors.join()).toMatch(/price must be a number/); // unknown categories are auto-created, so the bad price is what rejects the row
+      expect(await M.Category.findOne({ slug: "nope" })).toBeNull(); // ...and a rejected row creates nothing
       const p = (await M.Product.findOne({ sku: "CSV-1" }).lean())!;
       expect(p).toMatchObject({ status: "draft", stock: 4, finalPrice: 50, slug: "hyperlink-x" });
       expect(p.name?.en).toBe("=HYPERLINK(\"x\")"); // stored verbatim, never evaluated
@@ -308,10 +342,13 @@ describe.skipIf(!up)("admin (real MongoDB)", () => {
       expect((await A.commerce.saveZoneAction({}, fd({ ...z, key: "two", emirates: ["sharjah"] }))).fieldErrors?.emirates).toMatch(/already covered/);
       expect((await A.commerce.saveZoneAction({}, fd({ ...z, key: "three", emirates: [] }))).fieldErrors?.emirates).toBeTruthy();
       await as("owner");
-      const s = { storeName_en: "Shop", storeName_ar: "متجر", minOrder: "50", freeDeliveryThreshold: "200", baseDeliveryFee: "15", codFee: "5", codMaxOrder: "0", taxRate: "5", pendingPaymentMinutes: "30", codEnabled: "on" };
+      const s = { storeName_en: "Shop", storeName_ar: "متجر", minOrder: "50", freeDeliveryThreshold: "200", baseDeliveryFee: "15", codFee: "5", codMaxOrder: "0", taxRate: "5", pendingPaymentMinutes: "30", codEnabled: "on",
+        tierEnabled: "on", tierMin: "500", tierPercent: "10", tierMax: "", firstEnabled: "on", firstPercent: "10", firstMax: "", modalEnabled: "on", modalDelay: "2", modalVersion: "2", modalLeads: "on",
+        modalTitle_en: "", modalTitle_ar: "", modalBody_en: "", modalBody_ar: "", returnWindowDays: "7" };
       expect(await A.commerce.saveSettingsAction({}, fd({ ...s, supportEmail: "bad" }))).toMatchObject({ fieldErrors: { supportEmail: expect.any(String) } });
       expect(await A.commerce.saveSettingsAction({}, fd({ ...s, taxEnabled: "on" }))).toMatchObject({ ok: true });
-      expect((await M.Settings.findOne({ key: "store" }).lean())).toMatchObject({ codFee: 5, tax: { enabled: true, rate: 0.05 } });
+      expect((await M.Settings.findOne({ key: "store" }).lean())).toMatchObject({ codFee: 5, tax: { enabled: true, rate: 0.05 }, offers: { tier: { enabled: true, minSubtotal: 500, percent: 10 }, modal: { version: "2" } }, returnWindowDays: 7 });
+      expect(await A.commerce.saveSettingsAction({}, fd({ ...s, tierPercent: "150" }))).toMatchObject({ fieldErrors: { tierPercent: expect.any(String) } });
       expect(await M.AuditLog.countDocuments({ action: "settings.update" })).toBe(1);
     });
   });

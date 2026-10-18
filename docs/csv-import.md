@@ -43,3 +43,14 @@ EX-1001,1899,40
 slug,parent_slug,name_en,name_ar,attributes
 smartwatches,electronics,Smartwatches,ساعات ذكية,color:Colour/اللون|size:Size/المقاس
 ```
+
+## Colours / options (variants) and stock status
+
+- `variants` column: options separated by `|`, each as `Label~SKU~stock~price~imageUrl`. Only the label is required.
+  Example: `Red~~5~~https://cdn.example.com/red.png|Blue~BLUE-1~0~~https://cdn.example.com/blue.png`
+  - SKU empty → `<product sku>-<label>`; stock empty → 20 if `stock_status` is In Stock, otherwise 0; price empty → product price.
+  - On the product page each option shows its own picture, and the title/SKU follow the selected option. The cart and order keep the chosen option.
+  - A trailing ` - Red` in `name_en` is stripped from the displayed name so the title doesn't show a stale colour.
+  - JSONL: `"variants": [{"label":"Red","stock":5,"image":"https://…"}, "Blue"]`.
+- `stock_status` (alias `availability`): `In Stock` / `Out of Stock`. Used when there is no numeric `stock`: In Stock → 20 units (never lowers existing stock above 0), Out of Stock → 0.
+- Unknown `category_slug` values are created automatically as top-level categories (Arabic name = English name).

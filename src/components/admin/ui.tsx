@@ -33,11 +33,11 @@ export const Pill = ({ tone = "grey", children }: { tone?: keyof typeof tones; c
   <span className={`inline-block whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold ${tones[tone]}`}>{children}</span>
 );
 
-export function Table({ head, children, empty, label = "Data table" }: { head: string[]; children: ReactNode; empty?: string; label?: string }) {
+export function Table({ head, children, empty, label = "Data table" }: { head: ReactNode[]; children: ReactNode; empty?: string; label?: string }) {
   return (
     <div className="overflow-x-auto rounded-2xl border border-line bg-surface" tabIndex={0} role="region" aria-label={label}>
       <table className="w-full min-w-[40rem] text-sm">
-        <thead className="border-b border-line bg-surface-2 text-start text-xs uppercase tracking-wide text-muted"><tr>{head.map((h, i) => <th key={h + i} className="px-4 py-3 text-start font-semibold">{h || <span className="sr-only">Select</span>}</th>)}</tr></thead>
+        <thead className="border-b border-line bg-surface-2 text-start text-xs uppercase tracking-wide text-muted"><tr>{head.map((h, i) => <th key={i} className="px-4 py-3 text-start font-semibold">{h || <span className="sr-only">Select</span>}</th>)}</tr></thead>
         <tbody className="divide-y divide-line [&_td]:px-4 [&_td]:py-3 [&_td]:align-middle">{children}</tbody>
       </table>
       {empty && <p className="px-4 py-10 text-center text-sm text-muted">{empty}</p>}

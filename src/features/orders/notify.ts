@@ -31,7 +31,7 @@ export async function notifyOrder(order: Pick<OrderDoc, "orderNumber" | "email" 
     const msg = kind === "confirmation" ? c.confirmation(order.orderNumber, formatAED(order.totals?.total ?? 0, l))
       : kind === "payment_failed" ? c.payment_failed(order.orderNumber)
       : c.status(order.orderNumber, c.status_names[order.status] ?? order.status);
-    await getMailer().send({ to: order.email, subject: msg.subject, text: msg.text });
+    if (order.email) await getMailer().send({ to: order.email, subject: msg.subject, text: msg.text });
     if (order.address?.phone) await devSms.send(order.address.phone, msg.text);
   } catch (e) {
     console.warn("[notify] failed:", (e as Error).message);

@@ -27,7 +27,9 @@ export function ProductCard({ p, locale, t }: { p: ProductCardData; locale: Loca
           {off > 0 && <s className="text-xs text-muted">{formatAED(p.price, locale)}</s>}
         </p>
         <div className="relative z-10">
-          {p.stock > 0 ? <AddToCart sku={p.sku} label={t.product.addToCart} doneLabel={t.product.added} errors={t.errors} /> : <p className="rounded-xl bg-surface-2 py-2.5 text-center text-sm font-medium text-muted">{t.catalog.outOfStock}</p>}
+          {p.stock <= 0 ? <p className="rounded-xl bg-surface-2 py-2.5 text-center text-sm font-medium text-muted">{t.catalog.outOfStock}</p>
+            : p.hasVariants ? <Link href={href} className="block w-full rounded-xl border border-brand px-4 py-2.5 text-center text-sm font-semibold text-brand transition hover:bg-brand-soft active:scale-95">{t.product.chooseOptions}</Link>
+            : <AddToCart sku={p.sku} label={t.product.addToCart} doneLabel={t.product.added} errors={t.errors} />}
         </div>
       </div>
     </article>

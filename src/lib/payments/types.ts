@@ -23,7 +23,7 @@ export interface PaymentProvider {
   methods: readonly Exclude<PaymentMethod, "cod">[];
   testOnly: boolean;
   /** Create a hosted payment session; the customer is redirected to `redirectUrl`. */
-  createPayment(input: { orderNumber: string; amount: number; currency: string; method: PaymentMethod; returnUrl: string; email: string }): Promise<{ redirectUrl: string; providerRef: string }>;
+  createPayment(input: { orderNumber: string; amount: number; currency: string; method: PaymentMethod; returnUrl: string; email?: string }): Promise<{ redirectUrl: string; providerRef: string }>;
   /** Verify the signature of a raw webhook request and parse it. Return null when invalid. */
   verifyWebhook(rawBody: string, headers: Headers): PaymentEvent | null;
   /** Ask the provider's server API for the truth about a payment (used for reconciliation). Optional. */

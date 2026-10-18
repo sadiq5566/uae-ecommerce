@@ -54,7 +54,8 @@ describe.skipIf(!up)("orders (real MongoDB)", () => {
   beforeEach(async () => {
     for (const c of await mongoose.connection.db!.collections()) await c.deleteMany({});
     cat = (await Category.create({ slug: "c", name: L("C") }))._id;
-    await Settings.create({ key: "store", minOrder: 50, freeDeliveryThreshold: 200, codFee: 0 });
+    // Automatic offers are off here so the pre-existing pricing expectations stay exact; offers have their own tests below.
+    await Settings.create({ key: "store", minOrder: 50, freeDeliveryThreshold: 200, codFee: 0, offers: { tier: { enabled: false }, firstOrder: { enabled: false } } });
     await DeliveryZone.create({ key: "metro", name: L("Metro"), emirates: ["dubai", "sharjah"], fee: 15, estimate: L("1-2 days") });
   });
 

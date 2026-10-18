@@ -34,7 +34,7 @@ export async function saveCouponAction(_: FormState, fd: FormData): Promise<Form
   const exc = await skuToId(c.excludeSkus, "excludeSkus"); if ("err" in exc) return fail({ [exc.field]: exc.err }, fd);
   const doc = {
     description: { en: c.desc_en, ar: c.desc_ar }, type: c.type, value: c.value, maxDiscount: c.type === "percent" ? c.maxDiscount : undefined, minSubtotal: c.minSubtotal,
-    startsAt: c.startsAt, endsAt: c.endsAt, active: c.active, usageLimit: c.usageLimit, perCustomerLimit: c.perCustomerLimit, stackWithSale: c.stackWithSale,
+    startsAt: c.startsAt, endsAt: c.endsAt, active: c.active, public: c.isPublic, usageLimit: c.usageLimit, perCustomerLimit: c.perCustomerLimit, stackWithSale: c.stackWithSale,
     products: inc.ids, categories: c.categories, excludeProducts: exc.ids, excludeCategories: c.excludeCategories,
   };
   try {
@@ -118,6 +118,11 @@ export async function saveSettingsAction(_: FormState, fd: FormData): Promise<Fo
     storeName: { en: s.storeName_en, ar: s.storeName_ar }, minOrder: s.minOrder, freeDeliveryThreshold: s.freeDeliveryThreshold, baseDeliveryFee: s.baseDeliveryFee,
     codEnabled: s.codEnabled, codFee: s.codFee, codMaxOrder: s.codMaxOrder,
     "tax.enabled": s.taxEnabled, "tax.rate": s.taxRate / 100, "tax.pricesIncludeTax": s.taxInclusive,
+    "offers.tier.enabled": s.tierEnabled, "offers.tier.minSubtotal": s.tierMin, "offers.tier.percent": s.tierPercent, "offers.tier.maxDiscount": s.tierMax ?? null,
+    "offers.firstOrder.enabled": s.firstEnabled, "offers.firstOrder.percent": s.firstPercent, "offers.firstOrder.maxDiscount": s.firstMax ?? null,
+    "offers.modal.enabled": s.modalEnabled, "offers.modal.delaySeconds": s.modalDelay, "offers.modal.version": s.modalVersion, "offers.modal.collectLeads": s.modalLeads,
+    "offers.modal.title": { en: s.modalTitle_en || null, ar: s.modalTitle_ar || null }, "offers.modal.body": { en: s.modalBody_en || null, ar: s.modalBody_ar || null },
+    returnWindowDays: s.returnWindowDays,
     pendingPaymentMinutes: s.pendingPaymentMinutes, supportEmail: s.supportEmail, supportPhone: s.supportPhone, logo: s.logo,
   } }, { upsert: true });
   await audit(user, "settings.update", "settings", "store", "Updated store settings", {
