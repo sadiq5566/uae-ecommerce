@@ -11,10 +11,10 @@ export function Footer({ locale, t, categories }: { locale: Locale; t: Dictionar
   return (
     <footer className="mt-24 border-t border-line bg-surface-2">
       <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
-        <Reveal className="mb-12 flex flex-col items-start justify-between gap-6 rounded-3xl bg-fg p-8 text-bg md:flex-row md:items-center">
+        <Reveal className="mb-12 flex flex-col items-start justify-between gap-6 rounded-3xl border border-line bg-surface-2 p-8 text-fg md:flex-row md:items-center">
           <div>
             <h2 className="font-display text-2xl font-bold">{t.newsletter.title}</h2>
-            <p className="mt-1 text-sm opacity-70">{t.newsletter.subtitle}</p>
+            <p className="mt-1 text-sm text-muted">{t.newsletter.subtitle}</p>
           </div>
           <NewsletterForm t={t.newsletter} locale={locale} />
         </Reveal>

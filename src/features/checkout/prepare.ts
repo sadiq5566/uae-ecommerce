@@ -2,7 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { Types } from "mongoose";
 import { connectDb } from "@/lib/db";
-import { getProvider } from "@/lib/payments";
+import { getProviders } from "@/lib/payments";
 import { Address } from "@/models/address";
 import { Cart } from "@/models/cart";
 import { Coupon, type CouponDoc } from "@/models/coupon";
@@ -20,7 +20,7 @@ type L10n = { en: string; ar: string };
 
 export type CheckoutError =
   | "empty_cart" | "cart_issues" | "no_address" | "below_minimum" | "method_unavailable" | "cod_limit"
-  | "coupon_invalid" | "coupon_expired" | "coupon_used_up" | "coupon_customer_limit" | "coupon_min_subtotal" | "coupon_not_eligible"
+  | "email_required" | "coupon_invalid" | "coupon_expired" | "coupon_used_up" | "coupon_customer_limit" | "coupon_min_subtotal" | "coupon_not_eligible"
   | "no_zone" | "total_changed" | "out_of_stock" | "invalid";
 
 export type LineMeta = { sku: string; productId: string; name: L10n; variantLabel?: L10n; icon: string; image?: string };
@@ -46,9 +46,8 @@ export const getSettings = cache(async () => {
 export async function availableMethods(): Promise<PaymentMethod[]> {
   const s = await getSettings();
   const out: PaymentMethod[] = [];
-  const provider = getProvider();
-  if (provider) out.push(...provider.methods);
-  if (s.codEnabled) out.push("cod");
+  if (s.codEnabled) out.push("cod"); // cash on delivery first (default), online methods after
+  for (const p of getProviders()) out.push(...p.methods); // card (Stripe) first, then Tabby
   return out;
 }
 

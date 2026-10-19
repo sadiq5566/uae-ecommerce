@@ -13,7 +13,7 @@ export function AddToCart({ sku, label, doneLabel, errors }: { sku: string; labe
       disabled={pending}
       onClick={() => start(async () => {
         const r = await addToCartAction(sku, 1);
-        setCartCount(r.count);
+        if (r.ok || r.error !== "invalid") setCartCount(r.count); // a rejected request must not zero the badge
         if (r.ok) { toast(doneLabel); setPulse((p) => p + 1); } else toast(errors[r.error ?? "generic"] ?? errors.generic, "error");
       })}
       className="w-full rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-brand-fg transition hover:brightness-110 active:scale-95 disabled:opacity-60"

@@ -2,7 +2,7 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import { Types } from "mongoose";
 import { connectDb } from "@/lib/db";
-import { getProvider } from "@/lib/payments";
+import { getProviderById, getProviderForMethod } from "@/lib/payments";
 import { Cart } from "@/models/cart";
 import { Coupon } from "@/models/coupon";
 import { CouponRedemption } from "@/models/coupon-redemption";
@@ -49,14 +49,16 @@ export async function placeOrder(input: PlaceInput): Promise<PlaceResult> {
   if (input.expectedTotal != null && toFils(input.expectedTotal) !== toFils(p.totals.total)) return { ok: false, error: "total_changed", total: p.totals.total };
 
   const online = p.method !== "cod";
-  const provider = online ? getProvider() : null;
+  const provider = online ? getProviderForMethod(p.method) : null;
   if (online && !provider) return { ok: false, error: "method_unavailable" };
+  if (p.method === "tabby" && !input.email?.trim()) return { ok: false, error: "email_required" }; // Tabby needs a contact email
 
   const t = p.totals;
   const now = new Date();
   const doc: Partial<OrderDoc> & Record<string, unknown> = {
     ...(input.userId ? { user: new Types.ObjectId(input.userId) } : {}), guest, trackToken, source: p.source,
     email: input.email?.trim().toLowerCase() || undefined, locale: input.locale, idempotencyKey: input.idempotencyKey,
+    ...(online && guest && p.source === "cart" && input.guestId ? { cartGuestId: input.guestId } : {}),
     status: online ? "pending_payment" : "confirmed",
     items: p.lines.map((l, i) => ({
       productId: new Types.ObjectId(l.productId), sku: l.sku, name: p.meta[i].name, variantLabel: p.meta[i].variantLabel, icon: p.meta[i].icon, image: p.meta[i].image,
@@ -122,7 +124,8 @@ export async function placeOrder(input: PlaceInput): Promise<PlaceResult> {
 
   // Remember the contact for the merchant's customer list (no marketing consent is implied by ordering).
   captureLead({ email: input.email, phone: p.address.phone, name: p.address.recipientName, source: "checkout", locale: input.locale, consent: false }).catch(() => {});
-  if (p.source === "cart") await Cart.updateOne(input.userId ? { user: input.userId } : { guestId: input.guestId }, { $set: { items: [] } });
+  // Online payment: keep the cart until the payment actually succeeds (payment-events empties it), so abandoning the payment page loses nothing.
+  if (p.source === "cart" && !online) await Cart.updateOne(input.userId ? { user: input.userId } : { guestId: input.guestId }, { $set: { items: [] } });
 
   if (!online) {
     await notifyOrder(order, "confirmation");
@@ -139,11 +142,17 @@ export async function startPaymentFor(orderNumber: string, returnBase: string, u
   if (!order) return { ok: false, error: "invalid" };
   if (order.status !== "pending_payment" || order.payment.method === "cod") return { ok: true, orderNumber };
   if (order.expiresAt && order.expiresAt < new Date()) return { ok: false, error: "invalid" };
-  const provider = getProvider();
+  const provider = getProviderById(order.payment.provider) ?? getProviderForMethod(order.payment.method);
   if (!provider) return { ok: true, orderNumber, paymentError: true };
+  const a = order.address;
+  const buyer = {
+    name: a.recipientName, phone: a.phone, email: order.email ?? undefined, city: a.emirate, lang: order.locale,
+    address: [a.unit, a.building, a.street, a.area].filter(Boolean).join(", "),
+    items: order.items.map((i) => ({ title: i.name.en, quantity: i.qty, unitPrice: i.lineTotal / i.qty, category: "General" })),
+  };
   try {
     const res = await provider.createPayment({
-      orderNumber, amount: order.totals.total ?? 0, currency: "AED", method: order.payment.method, email: order.email ?? undefined,
+      orderNumber, amount: order.totals.total ?? 0, currency: "AED", method: order.payment.method, email: order.email ?? undefined, buyer,
       returnUrl: order.guest ? `${returnBase}/${order.locale}/track/${orderNumber}?k=${order.trackToken}` : `${returnBase}/${order.locale}/account/orders/${orderNumber}`,
     });
     await Order.updateOne({ _id: order._id }, { $set: { "payment.providerRef": res.providerRef, "payment.provider": provider.id, "payment.status": "pending" } });

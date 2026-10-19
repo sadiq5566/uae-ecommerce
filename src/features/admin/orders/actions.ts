@@ -4,7 +4,7 @@ import { FORBIDDEN, actor } from "@/lib/admin/guard";
 import { audit } from "@/lib/admin/audit";
 import { can } from "@/lib/auth/permissions";
 import { connectDb } from "@/lib/db";
-import { getProvider } from "@/lib/payments";
+import { getProviderById } from "@/lib/payments";
 import { updateOrderStatus } from "@/features/orders/lifecycle";
 import { canTransition } from "@/features/orders/status";
 import type { FormState } from "@/features/auth/schemas";
@@ -40,7 +40,7 @@ export async function requestRefundAction(_: FormState, fd: FormData): Promise<F
   const r = await updateOrderStatus({ orderNumber: number, to: "refund_pending", actor: user.id, note: n });
   if (!r.ok) return { error: ERR[r.error] ?? "Couldn't start the refund." };
   let msg = "Refund started. It stays 'refund pending' until the payment provider confirms.";
-  const provider = getProvider();
+  const provider = getProviderById(order.payment.provider);
   if (order.payment.method !== "cod" && order.payment.providerRef && provider?.refund) {
     const res = await provider.refund({ providerRef: order.payment.providerRef, amount: order.totals.total }).catch(() => ({ accepted: false }));
     await Order.updateOne({ orderNumber: number }, { $push: { timeline: { status: "refund_pending", at: new Date(), by: "system", note: res.accepted ? "Refund request accepted by provider — awaiting confirmation" : "Provider did not accept the refund request — process it in the gateway dashboard" } } });

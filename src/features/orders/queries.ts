@@ -4,13 +4,13 @@ import { connectDb } from "@/lib/db";
 import { Order, type OrderDoc } from "@/models/order";
 import { Product } from "@/models/product";
 
-export type OrderView = Omit<OrderDoc, "user" | "_id" | "items" | "timeline" | "idempotencyKey" | "stockReserved" | "trackToken"> & {
+export type OrderView = Omit<OrderDoc, "user" | "_id" | "items" | "timeline" | "idempotencyKey" | "stockReserved" | "trackToken" | "cartGuestId"> & {
   id: string; items: (Omit<OrderDoc["items"][number], "productId"> & { productId: string })[]; timeline: OrderDoc["timeline"];
 };
 
 const view = (o: OrderDoc): OrderView => {
-  const { user: _u, _id, idempotencyKey: _k, stockReserved: _s, trackToken: _t, items, ...rest } = o;
-  void _u; void _k; void _s; void _t;
+  const { user: _u, _id, idempotencyKey: _k, stockReserved: _s, trackToken: _t, cartGuestId: _c, items, ...rest } = o;
+  void _u; void _k; void _s; void _t; void _c;
   return JSON.parse(JSON.stringify({ ...rest, id: String(_id), items: items.map((i) => ({ ...i, productId: String(i.productId) })) }));
 };
 

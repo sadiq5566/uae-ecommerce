@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useActionState, useCallback, useEffect, useRef, useState, useTransition } from "react";
-import { setCartCount } from "@/components/session-store";
+import { refreshSession } from "@/components/session-store";
 import { SubmitButton, inputCls } from "@/components/form-ui";
 import type { Dictionary } from "@/lib/dictionaries";
 import { fmt } from "@/lib/format";
@@ -15,7 +15,7 @@ import type { PublicCoupon } from "@/features/offers/service";
 import type { AddressView } from "@/features/account/service";
 import { placeOrderAction, quoteAction, type PlaceState, type Quote } from "./actions";
 
-type Method = "card" | "apple_pay" | "google_pay" | "cod";
+type Method = "card" | "apple_pay" | "google_pay" | "tabby" | "cod";
 type Item = { sku: string; name: string; variant?: string; qty: number; icon: string; hue: number; image?: string; unitPrice: number; listPrice: number; lineTotal: number };
 
 type Guest = Record<"recipientName" | "phone" | "email" | "emirate" | "area" | "street" | "building" | "unit" | "landmark" | "instructions", string>;
@@ -62,7 +62,7 @@ export function CheckoutClient({ locale, t, addresses, methods, items, testMode,
 
   // The server may have cleared the cart on success; keep the header badge honest.
   useEffect(() => { if (state.total !== undefined) router.refresh(); }, [state.total, router]);
-  useEffect(() => () => setCartCount(0), []);
+  useEffect(() => () => { refreshSession(); }, []); // re-read the real count (online payments keep the cart until paid)
 
   const err = (code?: string) => (code ? fmt(er[code] ?? er.generic, { min: "" }) : undefined);
   const q = quote?.ok ? quote : null;
@@ -129,7 +129,7 @@ export function CheckoutClient({ locale, t, addresses, methods, items, testMode,
             <div className="grid gap-4 sm:grid-cols-2">
               {gf("recipientName", t.address.recipient, { required: true, auto: "name" })}
               {gf("phone", t.address.phone, { type: "tel", required: true, auto: "tel", ph: "050 123 4567" })}
-              {guest && gf("email", t.checkout.email, { type: "email", auto: "email", span: true, hint: t.checkout.emailHint })}
+              {guest && gf("email", t.checkout.email, { type: "email", auto: "email", span: true, required: method === "tabby", hint: t.checkout.emailHint })}
               <div>
                 <label htmlFor="g-emirate" className="mb-1.5 block text-sm font-medium">{t.address.emirate}</label>
                 <select id="g-emirate" name="emirate" form="checkout-form" value={g.emirate} onChange={set("emirate")} required aria-invalid={!!fe.emirate} className={inputCls}>
@@ -139,11 +139,16 @@ export function CheckoutClient({ locale, t, addresses, methods, items, testMode,
                 {fe.emirate && <p role="alert" className="mt-1.5 text-sm text-danger">{er[fe.emirate] ?? er.generic}</p>}
               </div>
               {gf("area", t.address.area, { required: true })}
-              {gf("street", t.address.street)}
               {gf("building", t.address.building, { required: true })}
-              {gf("unit", t.address.unit)}
-              {gf("landmark", t.address.landmark)}
-              {gf("instructions", t.address.instructions, { span: true })}
+              <details className="sm:col-span-2" open={!!(fe.street || fe.unit || fe.landmark || fe.instructions)}>
+                <summary className="cursor-pointer text-sm font-semibold text-brand">+ {t.checkout.moreDetails}</summary>
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  {gf("street", t.address.street)}
+                  {gf("unit", t.address.unit)}
+                  {gf("landmark", t.address.landmark)}
+                  {gf("instructions", t.address.instructions, { span: true })}
+                </div>
+              </details>
             </div>
           </section>
         ) : (
@@ -184,8 +189,9 @@ export function CheckoutClient({ locale, t, addresses, methods, items, testMode,
           {testMode && method && method !== "cod" && <p className="mt-2 inline-block rounded-full bg-gold-soft px-3 py-1 text-xs font-bold text-gold-ink">⚠ {t.checkout.testMode}</p>}
         </section>
 
-        <section aria-labelledby="cp-h">
-          <h2 id="cp-h" className="mb-3 font-display text-xl font-bold">{t.checkout.coupon}</h2>
+        <details aria-labelledby="cp-h" open={!!applied || coupons.length > 0}>
+          <summary id="cp-h" className="cursor-pointer font-display text-xl font-bold">{t.checkout.coupon}</summary>
+          <div className="mt-3">
           {applied ? (
             <p className="flex items-center justify-between rounded-xl bg-brand-soft px-4 py-3 text-sm text-brand">
               <span>✓ {fmt(t.checkout.couponApplied, { code: applied })}</span>
@@ -214,7 +220,8 @@ export function CheckoutClient({ locale, t, addresses, methods, items, testMode,
               )}
             </div>
           )}
-        </section>
+          </div>
+        </details>
       </div>
 
       <aside className="h-fit rounded-2xl border border-line bg-surface p-6 lg:sticky lg:top-32" aria-label={t.checkout.summary}>

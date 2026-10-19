@@ -10,6 +10,7 @@ import { getNavCategories } from "@/features/catalog/service";
 import { ToastProvider } from "@/components/toast";
 import { SessionBootstrap } from "@/components/session-store";
 import { ScrollToAlert } from "@/components/scroll-to-alert";
+import { ScrollToTop } from "@/components/scroll-to-top";
 import { getPublicOffers, offerLines } from "@/features/offers/service";
 import { WelcomeModal } from "@/features/offers/welcome-modal";
 
@@ -49,6 +50,7 @@ export default async function RootLayout({ children, params }: LayoutProps<"/[la
         <ToastProvider>
           <SessionBootstrap />
           <ScrollToAlert />
+          <ScrollToTop />
           <Header locale={lang} t={t} categories={categories} offerLines={lines} />
           <main id="main" tabIndex={-1} className="flex-1 outline-none">{children}</main>
           <Footer locale={lang} t={t} categories={categories} />

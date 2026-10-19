@@ -13,10 +13,13 @@
     "seed": "tsx --env-file=.env.local scripts/seed.ts",
     "clean-images": "tsx --env-file=.env.local scripts/clean-images.ts",
     "remove-images": "tsx --env-file=.env.local scripts/remove-images.ts",
+    "tabby:webhook": "tsx --env-file=.env.local scripts/tabby-webhook.ts",
     "db:indexes": "tsx --env-file=.env.local scripts/indexes.ts",
     "db:migrate": "tsx --env-file=.env.local scripts/migrate.ts"
   },
   "dependencies": {
+    "@stripe/react-stripe-js": "^7.0.0",
+    "@stripe/stripe-js": "^10.1.0",
     "clsx": "^2.1.1",
     "mongoose": "^9.11.1",
     "next": "16.4.0",

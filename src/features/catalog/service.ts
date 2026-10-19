@@ -1,5 +1,6 @@
 import "server-only";
 import { cache } from "react";
+import { cachedFor } from "@/lib/cross-request-cache";
 import { Types, type QueryFilter } from "mongoose";
 import { connectDb } from "@/lib/db";
 import { Category } from "@/models/category";
@@ -41,6 +42,7 @@ function card(p: CardRow): ProductCardData {
     id: String(p._id), slug: p.slug, sku: p.sku, name: p.name, price: p.price, finalPrice: p.finalPrice,
     icon: p.icon, hue: p.hue, ratingAvg: p.ratingAvg, ratingCount: p.ratingCount, stock: p.stock,
     image: p.images?.[0]?.url, brand: p.brand,
+    hasVariants: (p.variants?.length ?? 0) > 0, // variant products can only be added from their page, after choosing an option
   };
 }
 const catView = (c: CatRow): CategoryView => ({
@@ -48,11 +50,13 @@ const catView = (c: CatRow): CategoryView => ({
   icon: c.icon, hue: c.hue, attributes: c.attributes ?? [], seo: c.seo,
 });
 
-export const getCategories = cache(async (): Promise<CategoryView[]> => {
+// Cached across requests (60 s) so navigating between pages doesn't re-query the menu every time.
+const loadCategories = cachedFor("categories", 60, async (): Promise<CategoryView[]> => {
   await connectDb();
   const rows = await Category.find({ active: true }).sort({ order: 1 }).lean();
   return clean((rows as unknown as CatRow[]).map(catView));
 });
+export const getCategories = cache(loadCategories);
 
 /** Nav must survive a DB outage: degrade to an empty menu rather than failing every page. */
 export async function getNavCategories() {
@@ -109,27 +113,10 @@ const SORT = {
 
 export type Facets = { brands: { value: string; count: number }[]; price: { min: number; max: number }; attrs: Record<string, { value: string; count: number }[]> };
 
-export async function listProducts(scope: Scope, f: Filters, allowedAttrs: string[] = []) {
-  await connectDb();
-  let regex = false;
-  let base = baseMatch(scope, f.q);
-  let match = applyFilters(base, f, allowedAttrs);
-  const run = async () => {
-    const useText = !!f.q && !regex;
-    const sort = useText && f.sort === "relevance" ? { score: { $meta: "textScore" }, _id: 1 as const } : SORT[f.sort];
-    const q = Product.find(match, useText ? { score: { $meta: "textScore" } } : undefined)
-      .sort(sort as Record<string, 1 | -1 | { $meta: "textScore" }>).skip((f.page - 1) * PAGE_SIZE).limit(PAGE_SIZE).lean();
-    return Promise.all([q as unknown as Promise<CardRow[]>, Product.countDocuments(match)]);
-  };
-  let [rows, total] = await run();
-  if (f.q && total === 0) { // partial-word fallback: text search only matches whole tokens
-    regex = true;
-    base = baseMatch(scope, f.q, true);
-    match = applyFilters(base, f, allowedAttrs);
-    [rows, total] = await run();
-  }
+/** Only what a product card shows (first image only) — avoids loading descriptions, specs and every gallery image per row. */
+const CARD_PROJECTION = { slug: 1, sku: 1, name: 1, price: 1, finalPrice: 1, icon: 1, hue: 1, ratingAvg: 1, ratingCount: 1, stock: 1, brand: 1, "variants.sku": 1, images: { $slice: 1 } };
 
-  // Facets are computed on the scope+query (not the other filters) so options don't vanish as you filter.
+async function computeFacets(base: QueryFilter<ProductDoc>, allowedAttrs: string[]): Promise<Facets> {
   const facetKeys = allowedAttrs.slice(0, 6);
   const [agg] = await Product.aggregate([
     { $match: base },
@@ -141,11 +128,37 @@ export async function listProducts(scope: Scope, f: Filters, allowedAttrs: strin
       ]])),
     } },
   ]);
-  const facets: Facets = {
+  return {
     brands: ((agg?.brands ?? []) as Bucket[]).map((b) => ({ value: b._id, count: b.count })),
     price: { min: Math.floor(agg?.price?.[0]?.min ?? 0), max: Math.ceil(agg?.price?.[0]?.max ?? 0) },
     attrs: Object.fromEntries(facetKeys.map((k) => [k, ((agg?.[`a_${k}`] ?? []) as Bucket[]).map((b) => ({ value: b._id, count: b.count }))])),
   };
+}
+
+export async function listProducts(scope: Scope, f: Filters, allowedAttrs: string[] = []) {
+  await connectDb();
+  let regex = false;
+  let base = baseMatch(scope, f.q);
+  let match = applyFilters(base, f, allowedAttrs);
+  const run = async () => {
+    const useText = !!f.q && !regex;
+    const sort = useText && f.sort === "relevance" ? { score: { $meta: "textScore" }, _id: 1 as const } : SORT[f.sort];
+    const q = Product.find(match, useText ? { ...CARD_PROJECTION, score: { $meta: "textScore" } } : CARD_PROJECTION)
+      .sort(sort as Record<string, 1 | -1 | { $meta: "textScore" }>).skip((f.page - 1) * PAGE_SIZE).limit(PAGE_SIZE).lean();
+    return Promise.all([q as unknown as Promise<CardRow[]>, Product.countDocuments(match)]);
+  };
+  // Facets depend only on scope+query, so they run alongside the product page instead of after it.
+  let facetsP = computeFacets(base, allowedAttrs);
+  let [rows, total] = await run();
+  if (f.q && total === 0) { // partial-word fallback: text search only matches whole tokens
+    regex = true;
+    base = baseMatch(scope, f.q, true);
+    match = applyFilters(base, f, allowedAttrs);
+    facetsP = computeFacets(base, allowedAttrs);
+    [rows, total] = await run();
+  }
+
+  const facets = await facetsP;
   return { items: rows.map(card), total, pages: Math.max(1, Math.ceil(total / PAGE_SIZE)), facets };
 }
 
@@ -158,7 +171,7 @@ export async function getCollection(kind: "featured" | "deals" | "new" | "popula
   if (kind === "deals") { filter.$expr = { $lt: ["$finalPrice", "$price"] }; sort = { soldCount: -1 }; }
   if (kind === "popular") sort = { soldCount: -1 };
   if (kind === "viewed") sort = { viewCount: -1 };
-  return ((await Product.find(filter).sort(sort).limit(limit).lean()) as unknown as CardRow[]).map(card);
+  return ((await Product.find(filter, CARD_PROJECTION).sort(sort).limit(limit).lean()) as unknown as CardRow[]).map(card);
 }
 
 export async function getProductBySlug(slug: string) {

@@ -16,7 +16,7 @@ export function NewsletterForm({ t, locale = "en" }: { t: { email: string; subsc
         <input
           name="email" type="email" autoComplete="email" placeholder={t.email} aria-label={t.email}
           aria-invalid={error} aria-describedby={error ? "nl-err" : undefined}
-          className="min-w-40 flex-1 rounded-xl border border-line bg-surface px-4 py-3 text-sm outline-none focus:border-brand"
+          className="min-w-40 flex-1 rounded-xl border border-line bg-surface px-4 py-3 text-sm text-fg placeholder:text-muted outline-none focus:border-brand"
         />
         <button disabled={pending} className="rounded-xl bg-gold px-5 py-3 text-sm font-semibold text-gold-fg transition hover:brightness-110 active:scale-95 disabled:opacity-60">{t.subscribe}</button>
       </div>

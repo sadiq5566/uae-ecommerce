@@ -197,6 +197,7 @@
     "no_address": "Please enter your delivery details.",
     "below_minimum": "The minimum order value has not been reached.",
     "method_unavailable": "This payment method is not available.",
+    "email_required": "Please enter your email address — Tabby needs it for your payment plan.",
     "cod_limit": "Cash on delivery isn't available for orders this large. Please choose another payment method.",
     "coupon_invalid": "This coupon code isn't valid.",
     "coupon_expired": "This coupon has expired or isn't active yet.",
@@ -316,6 +317,7 @@
     "deliverTo": "Delivery address",
     "addAddress": "Add a new address",
     "noAddress": "Add a delivery address to continue.",
+    "moreDetails": "More delivery details (optional)",
     "payment": "Payment method",
     "coupon": "Coupon code",
     "couponApply": "Apply",
@@ -361,13 +363,15 @@
       "cod": "Cash on delivery",
       "card": "Credit / debit card",
       "apple_pay": "Apple Pay",
-      "google_pay": "Google Pay"
+      "google_pay": "Google Pay",
+      "tabby": "Tabby — Pay in 4"
     },
     "methodNotes": {
       "cod": "Pay in cash when your order arrives.",
       "card": "Pay securely online.",
       "apple_pay": "Pay with Apple Pay.",
-      "google_pay": "Pay with Google Pay."
+      "google_pay": "Pay with Google Pay.",
+      "tabby": "Split into 4 interest-free payments. No fees when you pay on time."
     },
     "testMode": "TEST MODE — no real payment is taken",
     "emptyCart": "Your cart is empty",
@@ -438,7 +442,14 @@
     "amount": "Amount",
     "succeed": "Simulate successful payment",
     "fail": "Simulate failed payment",
-    "cancel": "Cancel payment"
+    "cancel": "Cancel payment",
+    "secureTitle": "Secure card payment",
+    "payNow": "Pay {amount}",
+    "processing": "Processing",
+    "secureNote": "Your card details are encrypted and handled by Stripe. We never see or store them.",
+    "failed": "The payment could not be completed. Please check your details or try another card.",
+    "backToOrder": "Back to order",
+    "summary": "Order summary"
   },
   "heroNav": {
     "prev": "Previous slide",

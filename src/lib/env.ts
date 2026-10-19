@@ -8,15 +8,23 @@ const schema = z.object({
   NEXT_PUBLIC_SITE_URL: z.url().default("http://localhost:3000"),
   MONGODB_URI: z.string().min(1, "MONGODB_URI is required"),
   MONGODB_DB: z.string().min(1).default("souq_uae_dev"),
-  PAYMENT_PROVIDER: z.preprocess(blankToUndefined, z.enum(["mock"]).optional()), // add real provider ids here as adapters are written
+  PAYMENT_PROVIDER: z.preprocess(blankToUndefined, z.enum(["mock", "stripe"]).optional()), // add real provider ids here as adapters are written
   PAYMENT_WEBHOOK_SECRET: z.preprocess(blankToUndefined, z.string().min(16).optional()),
+  STRIPE_PUBLISHABLE_KEY: z.preprocess(blankToUndefined, z.string().min(1).optional()),
+  STRIPE_SECRET_KEY: z.preprocess(blankToUndefined, z.string().min(1).optional()),
+  STRIPE_WEBHOOK_SECRET: z.preprocess(blankToUndefined, z.string().min(1).optional()),
+  TABBY_SECRET_KEY: z.preprocess(blankToUndefined, z.string().min(1).optional()),
+  TABBY_MERCHANT_CODE: z.preprocess(blankToUndefined, z.string().min(1).optional()),
+  TABBY_WEBHOOK_SECRET: z.preprocess(blankToUndefined, z.string().min(16).optional()),
   CRON_SECRET: z.preprocess(blankToUndefined, z.string().min(16).optional()),
   IMAGE_HOSTS: z.string().optional(), // comma-separated hostnames allowed for remote images
   IMAGE_BLOCKLIST: z.string().optional(), // comma-separated URL substrings that are never imported (e.g. "Screenshot_")
   STORAGE_DRIVER: z.string().optional(), // "local" (dev only) or your own adapter id
   MONGODB_AUTO_INDEX: z.enum(["true", "false"]).optional(),
 }).superRefine((e, ctx) => {
-  if (e.PAYMENT_PROVIDER && !e.PAYMENT_WEBHOOK_SECRET) ctx.addIssue({ code: "custom", path: ["PAYMENT_WEBHOOK_SECRET"], message: "required when PAYMENT_PROVIDER is set" });
+  if (e.PAYMENT_PROVIDER === "mock" && !e.PAYMENT_WEBHOOK_SECRET) ctx.addIssue({ code: "custom", path: ["PAYMENT_WEBHOOK_SECRET"], message: "required when PAYMENT_PROVIDER is set" });
+  if (e.PAYMENT_PROVIDER === "stripe") for (const k of ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "STRIPE_PUBLISHABLE_KEY"] as const) if (!e[k]) ctx.addIssue({ code: "custom", path: [k], message: "required when PAYMENT_PROVIDER=stripe" });
+  if (e.TABBY_SECRET_KEY || e.TABBY_MERCHANT_CODE || e.TABBY_WEBHOOK_SECRET) for (const k of ["TABBY_SECRET_KEY", "TABBY_MERCHANT_CODE", "TABBY_WEBHOOK_SECRET"] as const) if (!e[k]) ctx.addIssue({ code: "custom", path: [k], message: "all three TABBY_* variables are needed together" });
   if (e.PAYMENT_PROVIDER === "mock" && e.NODE_ENV === "production") ctx.addIssue({ code: "custom", path: ["PAYMENT_PROVIDER"], message: "the mock provider must not be used in production" });
 });
 

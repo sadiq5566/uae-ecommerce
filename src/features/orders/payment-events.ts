@@ -1,7 +1,8 @@
 import "server-only";
 import { connectDb } from "@/lib/db";
-import { getProvider } from "@/lib/payments";
+import { getProvider, getProviderById } from "@/lib/payments";
 import type { PaymentEvent, PaymentProvider } from "@/lib/payments/types";
+import { Cart } from "@/models/cart";
 import { Order } from "@/models/order";
 import { WebhookEvent } from "@/models/webhook-event";
 import { toFils } from "@/features/checkout/money";
@@ -44,6 +45,7 @@ export async function processPaymentEvent(providerId: string, e: PaymentEvent): 
       if (claimed) {
         const r = await updateOrderStatus({ orderNumber: order.orderNumber, to: "confirmed", actor: "payment", note: `Payment confirmed (${providerId})`, notify: false });
         if (r.ok) await notifyOrder(r.order, "confirmation");
+        if (order.source === "cart") await Cart.updateOne(order.user ? { user: order.user } : order.cartGuestId ? { guestId: order.cartGuestId } : { _id: null }, { $set: { items: [] } });
       }
     } else if (order.status === "cancelled") {
       // Paid after the order was cancelled/expired: record the money and queue a refund instead of fulfilling.
@@ -71,11 +73,15 @@ export async function processPaymentEvent(providerId: string, e: PaymentEvent): 
 }
 
 /** Verify + process a raw webhook request. Shared by the real route and the mock pay page. */
-export async function handleWebhook(rawBody: string, headers: Headers): Promise<{ status: number; body: string }> {
-  const provider: PaymentProvider | null = getProvider();
+export async function handleWebhook(rawBody: string, headers: Headers, providerId?: string): Promise<{ status: number; body: string }> {
+  const provider: PaymentProvider | null = providerId ? getProviderById(providerId) : getProvider();
   if (!provider) return { status: 404, body: "no payment provider" };
-  const event = provider.verifyWebhook(rawBody, headers);
+  let event = provider.verifyWebhook(rawBody, headers);
   if (!event) return { status: 400, body: "invalid signature" }; // log nothing from the body: it is untrusted
+  if (provider.confirmEvent) {
+    try { event = await provider.confirmEvent(event); } catch { return { status: 503, body: "confirmation failed" }; } // non-2xx: the provider retries
+    if (!event) return { status: 400, body: "not confirmed" };
+  }
   const result = await processPaymentEvent(provider.id, event);
   return { status: 200, body: result };
 }

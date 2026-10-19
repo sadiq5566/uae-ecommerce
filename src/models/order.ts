@@ -2,7 +2,7 @@ import { Schema, model, models, type Model, type Types } from "mongoose";
 
 export const ORDER_STATUSES = ["pending_payment", "confirmed", "processing", "packed", "out_for_delivery", "delivered", "cancelled", "refund_pending", "refunded"] as const;
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
-export const PAYMENT_METHODS = ["card", "apple_pay", "google_pay", "cod"] as const;
+export const PAYMENT_METHODS = ["card", "apple_pay", "google_pay", "tabby", "cod"] as const;
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 export const PAYMENT_STATUSES = ["pending", "paid", "failed", "cod_pending", "cod_collected", "refund_pending", "refunded"] as const;
 export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
@@ -16,6 +16,8 @@ const orderSchema = new Schema(
     // Guest orders (no account) have no user; they're found by order number + phone, or by the secret trackToken in the link.
     user: { type: Schema.Types.ObjectId, ref: "User", index: true },
     guest: { type: Boolean, default: false },
+    // Guest cart to empty once an online payment succeeds (the cart is kept while payment is pending).
+    cartGuestId: String,
     trackToken: { type: String, index: true },
     email: { type: String, trim: true, lowercase: true },
     source: { type: String, enum: ["cart", "buy_now"], default: "cart" },
@@ -56,7 +58,7 @@ type L10n = { en: string; ar: string };
 // Explicit shape (Mongoose's inferred type makes every nested field optional/nullable, which is noisy for lean reads).
 export interface OrderDoc {
   _id: Types.ObjectId;
-  orderNumber: string; user?: Types.ObjectId | null; guest?: boolean; trackToken?: string; email?: string | null; source?: "cart" | "buy_now"; locale: "en" | "ar"; idempotencyKey: string; status: OrderStatus;
+  orderNumber: string; user?: Types.ObjectId | null; guest?: boolean; cartGuestId?: string; trackToken?: string; email?: string | null; source?: "cart" | "buy_now"; locale: "en" | "ar"; idempotencyKey: string; status: OrderStatus;
   items: { productId: Types.ObjectId; sku: string; name: L10n; variantLabel?: L10n; icon?: string; image?: string; qty: number; unitPrice: number; listPrice: number; lineTotal: number; couponShare: number }[];
   address: { recipientName: string; phone: string; emirate: string; area: string; street?: string; building: string; unit?: string; landmark?: string; instructions?: string };
   delivery: { zone: string; zoneName: L10n; estimate: L10n };

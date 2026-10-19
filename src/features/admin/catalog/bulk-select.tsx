@@ -17,8 +17,10 @@ export function BulkForm({ total, pageIds, filterQs, children }: { total: number
   const [allMatching, setAllMatching] = useState(false);
   const [busy, setBusy] = useState(false);
   const pageKey = pageIds.join(",");
-  // A different page / filter / sort shows different rows: start from a clean selection.
-  useEffect(() => { setSelected(new Set()); setAllMatching(false); }, [pageKey, filterQs]);
+  // A different page / filter / sort shows different rows: start from a clean selection (reset during render, not in an effect).
+  const resetKey = `${pageKey}|${filterQs}`;
+  const [seenKey, setSeenKey] = useState(resetKey);
+  if (seenKey !== resetKey) { setSeenKey(resetKey); setSelected(new Set()); setAllMatching(false); }
 
   const ctx = useMemo<Ctx>(() => ({
     selected, allMatching,

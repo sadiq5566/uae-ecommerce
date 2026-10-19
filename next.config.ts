@@ -19,7 +19,7 @@ const nextConfig: NextConfig = {
   },
   async headers() {
     return [
-      { source: "/:path*", headers: securityHeaders({ production: process.env.NODE_ENV === "production", imageHosts }) },
+      { source: "/:path*", headers: securityHeaders({ production: process.env.NODE_ENV === "production", imageHosts, stripe: process.env.PAYMENT_PROVIDER === "stripe" }) },
       // Admin, API and account areas: never indexed, never cached by shared caches.
       { source: "/admin/:path*", headers: privateHeaders },
       { source: "/api/:path*", headers: privateHeaders },
