@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import { notFound } from "next/navigation";
 import { IBM_Plex_Sans_Arabic, Inter, Fraunces } from "next/font/google";
 import "../globals.css";
@@ -41,6 +42,8 @@ const themeScript = `try{var p=localStorage.getItem("theme")||"system";var d=p==
 export default async function RootLayout({ children, params }: LayoutProps<"/[lang]">) {
   const { lang } = await params;
   if (!isLocale(lang)) notFound();
+  // Locale chrome loads live MongoDB data, so defer it until a real request.
+  await connection();
   const [t, categories, offers] = await Promise.all([getDictionary(lang), getNavCategories(), getPublicOffers()]);
   const lines = offerLines(offers, t, lang);
   return (

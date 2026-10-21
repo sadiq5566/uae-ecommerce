@@ -5,6 +5,7 @@ import { isLocale } from "@/lib/i18n";
 import { requireUser } from "@/lib/auth/guard";
 import { logoutAction } from "@/features/auth/actions";
 
+export const dynamic = "force-dynamic";
 export const metadata = { robots: { index: false, follow: false } };
 
 export default async function AccountLayout({ children, params }: LayoutProps<"/[lang]/account">) {
