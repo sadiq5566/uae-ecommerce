@@ -27,7 +27,7 @@ All DB commands read `MONGODB_URI` / `MONGODB_DB` from `.env.local` (local: `mon
 | `npm run db:indexes` | create/verify all indexes (run on every deploy) |
 | `npm run db:indexes -- --sync` | also DROP indexes that are no longer in the schema |
 | `npm run db:migrate` | run pending forward-only migrations in `scripts/migrations/` |
-
+  
 Demo logins after seeding (development only): `owner@example.test`, `catalog@example.test`, `ops@example.test`, `content@example.test`, `customer@example.test` — password `Demo-Pass-2026!`.
 
 ## Product images
