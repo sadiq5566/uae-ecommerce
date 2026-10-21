@@ -4,7 +4,7 @@ import { Schema, model, models, type Model } from "mongoose";
 const settingsSchema = new Schema(
   {
     key: { type: String, default: "store", unique: true },
-    storeName: { en: { type: String, default: "Souq UAE" }, ar: { type: String, default: "سوق الإمارات" } },
+    storeName: { en: { type: String, default: "Rayana Collection" }, ar: { type: String, default: "مجموعة ريانا" } },
     currency: { type: String, default: "AED" },
     // Money rules. All amounts are AED; calculations run in integer fils and round half up.
     minOrder: { type: Number, default: 50, min: 0 },

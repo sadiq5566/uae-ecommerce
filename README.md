@@ -1,4 +1,4 @@
-# Souq UAE — multi-category e-commerce platform for the UAE
+# Rayana Collection — multi-category e-commerce platform for the UAE
 
 Storefront + admin dashboard in **English and Arabic (RTL)**, built with Next.js 16 (App Router), React 19, TypeScript (strict), Tailwind 4, MongoDB (Mongoose) and Zod. Specification: `PROJECT_SPEC.md` · build log and known gaps: `IMPLEMENTATION_STATUS.md`.
 

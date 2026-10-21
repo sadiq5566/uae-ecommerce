@@ -1,111 +1,137 @@
-// Removes the source store's corner logo ("AMARA WATCHES") from remote product images and re-hosts the cleaned copy in public/uploads.
-// Usage:  npm run clean-images            (dry run: reports what it would do)
-//         npm run clean-images -- --apply (writes cleaned files + updates products)
-// Only edits images whose logo sits on a plain, uniform background in the bottom-right corner; anything else is skipped and reported.
-// Development storage only (public/uploads). For production, upload the cleaned files to your real image storage.
+// Removes the source store's corner watermark from remote product images and re-hosts the cleaned copies in MongoDB (served at /api/images/<id>).
+//
+//   npm run clean-images                      dry run: downloads and analyses, writes nothing, changes nothing
+//   npm run clean-images -- --limit=5         same, but only the first 5 products (quick test)
+//   npm run clean-images -- --preview         also saves the cleaned files to scripts/clean-images.preview/ so you can look at them (DB untouched)
+//   npm run clean-images -- --apply           stores cleaned images in MongoDB (served at /api/images/<id>) and updates the products
+//   npm run clean-images -- --apply --public  same, but saves the files to public/uploads/ (served at /uploads/<id>.webp) instead of MongoDB
+//   npm run clean-images -- --apply --limit=20
+//
+// How it cleans (see scripts/remove-watermark.py): watermarks are detected on the plain background wherever they are (any corner / edge / middle, any text or logo) and painted out. Pictures without a plain background are left as they are.
+// Only URLs matching WATERMARK_URL_MATCH are touched. wristgallerydubai.shop images get the top-right "WG" logo reversed (scripts/remove-wg-logo.py); images cleaned by an earlier run from that host are re-cleaned from the original URL. Re-running is safe.
 import { createHash } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
+import { spawn } from "node:child_process";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import mongoose from "mongoose";
-import sharp from "sharp";
-import { Product } from "../src/models/product";
-import { isAllowedImageUrl } from "../src/lib/image-url";
+import { Product as ProductModel, ImageDoc } from "../lib/models";
+import { WATERMARK, removeWatermark, type CleanResult } from "./watermark";
 
-const uri = process.env.MONGODB_URI;
-const dbName = process.env.MONGODB_DB ?? "souq_uae_dev";
-const apply = process.argv.includes("--apply");
+const CONFIG = {
+  /** Only image URLs matching this regex are cleaned. Override in .env.local. */
+  urlMatch: new RegExp(process.env.WATERMARK_URL_MATCH ?? String.raw`amaraswatches\.shop|wristgallerydubai\.shop|lunecollection\.shop|cdn\.shopify\.com`, "i"),
+  concurrency: Number(process.env.WATERMARK_CONCURRENCY ?? 6),
+  /** Images from these hosts carry the semi-transparent "WG" logo (top-right) -> removed with scripts/remove-wg-logo.py instead of the corner painter. */
+  wgMatch: new RegExp(process.env.WG_URL_MATCH ?? String.raw`wristgallerydubai\.shop`, "i"),
+  python: process.env.PYTHON ?? "python",
+  maxBytes: 15 * 1024 * 1024,
+  uploadsDir: path.join(process.cwd(), "public", "uploads"),
+  previewDir: path.join(process.cwd(), "scripts", "clean-images.preview"),
+  mapFile: path.join(process.cwd(), "scripts", "clean-images.map.json"),
+};
 
-// Where to look for the logo (fractions of the image) and how big it may be before we assume it's not a logo.
-const SEARCH = { x0: 0.68, x1: 1, y0: 0.88, y1: 1 };
-const MAX_BOX = { w: 0.4, h: 0.14 };
-const TOLERANCE = 14; // per-channel difference from the background that counts as "ink"
-const PAD = 8;
+const args = process.argv.slice(2);
+const apply = args.includes("--apply");
+const preview = args.includes("--preview");
+const toPublic = args.includes("--public");
+const limit = Number(args.find((a) => a.startsWith("--limit="))?.split("=")[1]) || 0;
 
-type Result = { status: "cleaned"; buf: Buffer } | { status: "no-logo" } | { status: "skipped"; why: string };
-
-async function clean(input: Buffer): Promise<Result> {
-  const { data, info } = await sharp(input).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
-  const { width: W, height: H } = info;
-  const at = (x: number, y: number) => (y * W + x) * 4;
-  const sx0 = Math.floor(W * SEARCH.x0), sx1 = W - 1, sy0 = Math.floor(H * SEARCH.y0), sy1 = H - 1;
-
-  // Background = median colour of the search strip's outer edge (right/bottom border rows), which is empty in these photos.
-  const sample: number[][] = [[], [], []];
-  for (let x = sx0; x <= sx1; x += 3) for (const y of [sy1, sy1 - 1, sy1 - 2, sy0]) for (let c = 0; c < 3; c++) sample[c].push(data[at(x, y) + c]);
-  for (let y = sy0; y <= sy1; y += 3) for (const x of [sx1, sx1 - 1, sx1 - 2]) for (let c = 0; c < 3; c++) sample[c].push(data[at(x, y) + c]);
-  const med = sample.map((s) => s.sort((a, b) => a - b)[s.length >> 1]);
-  const spread = sample.map((s) => s[Math.floor(s.length * 0.9)] - s[Math.floor(s.length * 0.1)]);
-  if (Math.max(...spread) > 18) return { status: "skipped", why: "background around the logo isn't uniform" };
-
-  let minX = W, minY = H, maxX = -1, maxY = -1, ink = 0;
-  for (let y = sy0; y <= sy1; y++) for (let x = sx0; x <= sx1; x++) {
-    const i = at(x, y);
-    if (Math.abs(data[i] - med[0]) > TOLERANCE || Math.abs(data[i + 1] - med[1]) > TOLERANCE || Math.abs(data[i + 2] - med[2]) > TOLERANCE) {
-      ink++; if (x < minX) minX = x; if (x > maxX) maxX = x; if (y < minY) minY = y; if (y > maxY) maxY = y;
-    }
-  }
-  if (ink < 40) return { status: "no-logo" };
-  if (maxX - minX > W * MAX_BOX.w || maxY - minY > H * MAX_BOX.h) return { status: "skipped", why: "marked area is too large to be just the logo" };
-  // The ink must not touch the edges of the search strip's top/left (that would mean the picture's subject runs into it).
-  if (minX <= sx0 + 1 || minY <= sy0 + 1) return { status: "skipped", why: "marked area touches the search boundary (subject nearby)" };
-
-  const x0 = Math.max(0, minX - PAD), x1 = Math.min(W - 1, maxX + PAD), y0 = Math.max(0, minY - PAD), y1 = Math.min(H - 1, maxY + PAD);
-  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) { const i = at(x, y); data[i] = med[0]; data[i + 1] = med[1]; data[i + 2] = med[2]; }
-  return { status: "cleaned", buf: await sharp(data, { raw: { width: W, height: H, channels: 4 } }).png({ compressionLevel: 9 }).toBuffer() };
-}
+type Doc = { _id: unknown; images?: string[] };
 
 async function download(url: string) {
   const res = await fetch(url, { signal: AbortSignal.timeout(30_000) });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const buf = Buffer.from(await res.arrayBuffer());
-  if (buf.length > 15 * 1024 * 1024) throw new Error("file too large");
+  if (buf.length > CONFIG.maxBytes) throw new Error("file too large");
   return buf;
 }
 
+/** Reverses the WG logo overlay (top-right) with the Python/OpenCV script; image bytes in, cleaned webp out. */
+function removeWgLogo(input: Buffer): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const py = spawn(CONFIG.python, ["-I", path.join(process.cwd(), "scripts", "remove-wg-logo.py"), "--stdio"]);
+    const out: Buffer[] = [];
+    let err = "";
+    py.stdout.on("data", (d) => out.push(d));
+    py.stderr.on("data", (d) => (err += d));
+    py.on("error", (e) => reject(new Error(`cannot run ${CONFIG.python}: ${e.message} (need python + opencv-python + numpy)`)));
+    py.on("close", (code) => (code === 0 && out.length ? resolve(Buffer.concat(out)) : reject(new Error(`remove-wg-logo.py exit ${code}: ${err.trim().split("\n").pop()}`))));
+    py.stdin.on("error", () => {});
+    py.stdin.end(input);
+  });
+}
+
+/** Runs `fn` over `items` with at most `n` in flight. */
+async function pool<T>(items: T[], n: number, fn: (item: T) => Promise<void>) {
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.min(n, items.length) }, async () => {
+    while (next < items.length) await fn(items[next++]);
+  }));
+}
+
 async function main() {
-  if (!uri) throw new Error("MONGODB_URI must be set");
-  await mongoose.connect(uri, { dbName, autoIndex: false });
-  const outDir = path.join(process.cwd(), "public", "uploads");
-  if (apply) await mkdir(outDir, { recursive: true });
+  const uri = process.env.MONGODB_URI;
+  if (!uri) throw new Error("MONGODB_URI must be set (.env.local)");
+  await mongoose.connect(uri);
 
-  const products = await Product.find({ $or: [{ "images.url": /^https:/ }, { "variants.image": /^https:/ }] }).lean();
-  const cache = new Map<string, string | null>(); // remote url → new /uploads url (null = leave as is)
-  const map: Record<string, string> = {};
-  const tally = { cleaned: 0, noLogo: 0, skipped: 0, failed: 0 };
+  // Images already replaced by an earlier run (/uploads/.., /api/images/..) that came from a WG-logo host are re-cleaned from the original URL.
+  const prevMap: Record<string, string> = await readFile(CONFIG.mapFile, "utf8").then((t) => JSON.parse(t), () => ({}));
+  const source = new Map(Object.entries(prevMap).filter(([orig]) => CONFIG.wgMatch.test(orig)).map(([orig, cleaned]) => [cleaned, orig]));
+  const srcOf = (u: string) => source.get(u) ?? u;
 
-  async function resolve(url: string): Promise<string> {
-    if (!url.startsWith("https://") || !isAllowedImageUrl(url)) return url;
-    if (cache.has(url)) return cache.get(url) ?? url;
-    let out: string | null = null;
+  const found = ProductModel.find({ images: /^(https?:|\/uploads\/|\/api\/images\/)/ }).sort({ createdAt: 1 });
+  const products = (await (limit ? found.limit(limit) : found).lean()) as unknown as Doc[];
+
+  const wanted = (u?: string) => !!u && /^https?:/.test(u) && CONFIG.urlMatch.test(u);
+  const urls = [...new Set(products.flatMap((p) => p.images ?? []).map(srcOf).filter(wanted))];
+  console.log(`${products.length} product(s), ${urls.length} image(s) to check${apply ? " (APPLY)" : preview ? " (PREVIEW)" : " (DRY RUN)"}\n`);
+  if (preview) await mkdir(CONFIG.previewDir, { recursive: true });
+  if (apply && toPublic) await mkdir(CONFIG.uploadsDir, { recursive: true });
+
+  const map: Record<string, string> = {}; // remote url -> /api/images/<id>
+  const tally = { painted: 0, cropped: 0, noLogo: 0, skipped: 0, failed: 0 };
+  let done = 0;
+
+  await pool(urls, CONFIG.concurrency, async (url) => {
+    // deterministic id (24 hex) so re-running never stores the same image twice
+    const id = createHash("sha256").update(url).digest("hex").slice(0, 24);
     try {
-      const r = await clean(await download(url));
+      const raw = await download(url);
+      const r: CleanResult = CONFIG.wgMatch.test(url) ? { status: "cleaned", method: "painted", buf: await removeWgLogo(raw) } : await removeWatermark(raw, WATERMARK);
       if (r.status === "cleaned") {
-        const name = `${createHash("sha256").update(url).digest("hex").slice(0, 24)}.png`;
-        if (apply) await writeFile(path.join(outDir, name), r.buf);
-        out = `/uploads/${name}`; map[url] = out; tally.cleaned++;
+        if (apply && toPublic) await writeFile(path.join(CONFIG.uploadsDir, `${id}.webp`), r.buf);
+        else if (apply) await ImageDoc.updateOne({ _id: id }, { $set: { data: r.buf, contentType: "image/webp", size: r.buf.length } }, { upsert: true });
+        else if (preview) await writeFile(path.join(CONFIG.previewDir, `${id}.webp`), r.buf);
+        map[url] = toPublic ? `/uploads/${id}.webp` : `/api/images/${id}`;
+        if (r.method === "painted") tally.painted++;
+        else tally.cropped++;
       } else if (r.status === "no-logo") tally.noLogo++;
-      else { tally.skipped++; console.log(`  skipped: ${r.why} — ${url.slice(0, 90)}`); }
-    } catch (e) { tally.failed++; console.log(`  failed: ${(e as Error).message} — ${url.slice(0, 90)}`); }
-    cache.set(url, out);
-    return out ?? url;
-  }
+      else { tally.skipped++; console.log(`  skipped: ${r.why} - ${url.slice(0, 100)}`); }
+    } catch (e) {
+      tally.failed++;
+      console.log(`  failed: ${(e as Error).message} - ${url.slice(0, 100)}`);
+    }
+    if (++done % 25 === 0 || done === urls.length) console.log(`  ${done}/${urls.length}`);
+  });
 
   let updated = 0;
   for (const p of products) {
-    const images = [];
-    for (const im of p.images ?? []) images.push({ ...im, url: await resolve(im.url ?? "") });
-    const variants = [];
-    for (const v of p.variants ?? []) variants.push({ ...v, image: v.image ? await resolve(v.image) : v.image });
-    const changed = images.some((im, i) => im.url !== p.images?.[i]?.url) || variants.some((v, i) => v.image !== p.variants?.[i]?.image);
-    if (changed) { updated++; if (apply) await Product.updateOne({ _id: p._id }, { $set: { images, variants } }); }
-    console.log(`${changed ? "✔" : "·"} ${p.sku}`);
+    const images = (p.images ?? []).map((u) => map[srcOf(u)] ?? u);
+    if (!images.some((u, i) => u !== p.images?.[i])) continue;
+    updated++;
+    if (apply) await ProductModel.updateOne({ _id: p._id }, { $set: { images } });
   }
-  console.log(`\n${apply ? "APPLIED" : "DRY RUN"}: ${tally.cleaned} image(s) cleaned, ${tally.noLogo} had no logo, ${tally.skipped} skipped, ${tally.failed} failed; ${updated} product(s) ${apply ? "updated" : "would be updated"}.`);
+
+  console.log(
+    `\n${apply ? "APPLIED" : "DRY RUN"}: ${tally.painted} painted over, ${tally.cropped} cropped, ${tally.noLogo} had no watermark, ${tally.skipped} skipped, ${tally.failed} failed; ` +
+      `${updated} product(s) ${apply ? "updated" : "would be updated"}.`,
+  );
   if (apply && Object.keys(map).length) {
-    await writeFile(path.join(process.cwd(), "scripts", "clean-images.map.json"), JSON.stringify(map, null, 2));
-    console.log("Original → cleaned URL map saved to scripts/clean-images.map.json (use it to roll back).");
+    await writeFile(CONFIG.mapFile, JSON.stringify({ ...prevMap, ...map }, null, 2));
+    console.log(`Original -> cleaned URL map saved to ${path.relative(process.cwd(), CONFIG.mapFile)} (use it to roll back).`);
   }
-  if (!apply) console.log("Run again with:  npm run clean-images -- --apply");
+  if (preview) console.log(`Cleaned files saved to ${path.relative(process.cwd(), CONFIG.previewDir)} - open a few and check.`);
+  if (!apply) console.log("When it looks right run:  npm run clean-images -- --apply");
   await mongoose.disconnect();
 }
 

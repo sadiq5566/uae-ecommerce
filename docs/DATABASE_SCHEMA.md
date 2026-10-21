@@ -1,6 +1,6 @@
 # Database Schema (MongoDB + Mongoose)
 
-Complete schema of the Souq UAE e-commerce store, taken from `src/models/*.ts`. It is meant to be handed to another project or AI assistant as a spec.
+Complete schema of the Rayana Collection e-commerce store, taken from `src/models/*.ts`. It is meant to be handed to another project or AI assistant as a spec.
 **22 files → 25 collections** (reviews.ts defines 3 collections).
 Database: MongoDB, ODM: Mongoose, language: TypeScript. All schemas use `{ timestamps: true }` unless noted.
 
@@ -274,7 +274,7 @@ Never holds secrets.
 
 | group | fields (defaults) |
 |---|---|
-| identity | `storeName {en:"Souq UAE", ar:"سوق الإمارات"}`, `currency "AED"`, `supportEmail`, `supportPhone`, `logo` |
+| identity | `storeName {en:"Rayana Collection", ar:"مجموعة ريانا"}`, `currency "AED"`, `supportEmail`, `supportPhone`, `logo` |
 | money | `minOrder 50`, `freeDeliveryThreshold 200`, `baseDeliveryFee 15` (used when no zone matches) |
 | COD | `codEnabled true`, `codFee 0`, `codMaxOrder 3000` (0 = no limit) |
 | tax | `tax {enabled false, rate 0.05, pricesIncludeTax true, label {en:"VAT", ar:"ضريبة القيمة المضافة"}}`. VAT is **off by default** |

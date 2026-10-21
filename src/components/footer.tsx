@@ -1,3 +1,4 @@
+import { Logo } from "./logo";
 import Link from "next/link";
 import type { Dictionary } from "@/lib/dictionaries";
 import type { Locale } from "@/lib/i18n";
@@ -20,7 +21,7 @@ export function Footer({ locale, t, categories }: { locale: Locale; t: Dictionar
         </Reveal>
         <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
           <div className="col-span-2 md:col-span-1">
-            <p className="font-display text-xl font-bold">{t.brand}</p>
+            <Logo name={t.brand} className="[&>span:last-child]:inline" />
             <p className="mt-2 max-w-xs text-sm text-muted">{t.hero.subtitle}</p>
           </div>
           <div><p className={h}>{t.footer.shop}</p>

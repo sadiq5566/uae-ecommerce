@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Dictionary } from "@/lib/dictionaries";
 import type { Locale } from "@/lib/i18n";
 import type { CategoryView } from "@/features/catalog/service";
+import { Logo } from "./logo";
 import { useSession } from "./session-store";
 import { LangSwitcher } from "./lang-switcher";
 import { SearchBox } from "./search-box";
@@ -41,10 +42,7 @@ export function Header({ locale, t, categories, offerLines }: { locale: Locale; 
         <button onClick={() => drawer.current?.showModal()} aria-label={t.nav.menu} className="grid size-10 place-items-center rounded-full hover:bg-surface-2 lg:hidden">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 7h16M4 12h16M4 17h10" /></svg>
         </button>
-        <Link href={`/${locale}`} className="group flex items-center gap-2 font-display text-xl font-bold">
-          <span className="grid size-9 place-items-center rounded-xl bg-brand text-brand-fg transition-transform group-hover:rotate-12">س</span>
-          <span className="hidden sm:inline">{t.brand}</span>
-        </Link>
+        <Link href={`/${locale}`} aria-label={t.brand}><Logo name={t.brand} /></Link>
         <nav aria-label={t.nav.main} className="ms-6 hidden items-center gap-1 lg:flex">
           {links.map((l) => (
             <Link key={l.href} href={l.href} className="relative rounded-full px-3 py-2 text-sm font-medium after:absolute after:inset-x-3 after:bottom-1 after:h-0.5 after:origin-center after:scale-x-0 after:bg-brand after:transition-transform hover:after:scale-x-100">{l.label}</Link>
@@ -68,7 +66,7 @@ export function Header({ locale, t, categories, offerLines }: { locale: Locale; 
       <dialog ref={drawer} onClick={(e) => e.target === drawer.current && drawer.current?.close()} className="m-0 h-full max-h-none w-[min(86vw,22rem)] max-w-none bg-surface p-0 text-fg backdrop:bg-black/50 backdrop:backdrop-blur-sm me-auto">
         <div className="flex h-full flex-col gap-6 overflow-y-auto p-5">
           <div className="flex items-center justify-between">
-            <span className="font-display text-lg font-bold">{t.brand}</span>
+            <Logo name={t.brand} className="!text-lg" />
             <button onClick={() => drawer.current?.close()} aria-label={t.nav.close} className="grid size-9 place-items-center rounded-full hover:bg-surface-2">✕</button>
           </div>
           <SearchBox locale={locale} placeholder={t.nav.search} labels={{ results: t.nav.suggestions, category: t.nav.categoryTag }} onNavigate={closeDrawer} />
