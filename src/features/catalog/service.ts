@@ -11,7 +11,7 @@ type L10n = { en: string; ar: string };
 
 export type CategoryView = {
   id: string; slug: string; name: L10n; description?: Partial<L10n>; parent: string | null;
-  icon: string; hue: number; attributes: { key: string; label: L10n }[];
+  icon: string; hue: number; image?: string; attributes: { key: string; label: L10n }[];
   seo?: { title?: Partial<L10n>; description?: Partial<L10n> };
 };
 
@@ -31,7 +31,7 @@ export type ProductDetail = ProductCardData & {
 // Shapes of the lean() documents we read; Mongoose's inferred lean types don't model Map fields well.
 type CardRow = { _id: unknown; slug: string; sku: string; name: L10n; price: number; finalPrice: number; icon: string; hue: number; ratingAvg: number; ratingCount: number; stock: number; images?: { url: string; alt?: Partial<L10n> }[]; brand?: string; variants?: { sku: string }[] };
 type DetailRow = Omit<CardRow, "variants"> & { description: Partial<L10n>; category: unknown; attrs?: Record<string, string>; variants?: { sku: string; label: L10n; stock: number; price?: number; image?: string; swatch?: string }[]; specs?: { label: L10n; value: L10n }[]; lowStockThreshold: number; seo?: ProductDetail["seo"] };
-type CatRow = { _id: unknown; slug: string; name: L10n; description?: Partial<L10n>; parent?: unknown; icon: string; hue: number; attributes?: CategoryView["attributes"]; seo?: CategoryView["seo"] };
+type CatRow = { _id: unknown; slug: string; name: L10n; description?: Partial<L10n>; parent?: unknown; icon: string; hue: number; image?: string; attributes?: CategoryView["attributes"]; seo?: CategoryView["seo"] };
 type Bucket = { _id: string; count: number };
 
 const clean = <T,>(o: T): T => JSON.parse(JSON.stringify(o));
@@ -47,7 +47,7 @@ function card(p: CardRow): ProductCardData {
 }
 const catView = (c: CatRow): CategoryView => ({
   id: String(c._id), slug: c.slug, name: c.name, description: c.description, parent: c.parent ? String(c.parent) : null,
-  icon: c.icon, hue: c.hue, attributes: c.attributes ?? [], seo: c.seo,
+  icon: c.icon, hue: c.hue, image: c.image || undefined, attributes: c.attributes ?? [], seo: c.seo,
 });
 
 // Cached across requests (60 s) so navigating between pages doesn't re-query the menu every time.
