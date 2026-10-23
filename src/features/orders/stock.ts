@@ -12,11 +12,11 @@ type Item = { productId?: Types.ObjectId | string; sku?: string | null; qty?: nu
  */
 export async function take(sku: string, qty: number) {
   const res = await Product.updateOne(
-    { status: "published", variants: { $elemMatch: { sku, stock: { $gte: qty } } }, stock: { $gte: qty } },
+    { status: "active", variants: { $elemMatch: { sku, stock: { $gte: qty } } }, stock: { $gte: qty } },
     { $inc: { "variants.$.stock": -qty, stock: -qty, soldCount: qty } },
   );
   if (res.modifiedCount) return true;
-  const plain = await Product.updateOne({ status: "published", sku, stock: { $gte: qty } }, { $inc: { stock: -qty, soldCount: qty } });
+  const plain = await Product.updateOne({ status: "active", sku, stock: { $gte: qty } }, { $inc: { stock: -qty, soldCount: qty } });
   return plain.modifiedCount > 0;
 }
 

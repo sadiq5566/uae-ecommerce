@@ -9,6 +9,7 @@ import { useToast } from "@/components/toast";
 import { formatAED, type Locale } from "@/lib/i18n";
 import { fmt } from "@/lib/format";
 import type { Dictionary } from "@/lib/dictionaries";
+import { colorInStock, pickVariant, sizeInStock, swatchFor, variantOptions } from "../../../lib/variants";
 import type { ProductDetail } from "./service";
 
 /** Price/stock display and add-to-cart. Display-only: the server recomputes everything at checkout (Phase 4). */
@@ -20,6 +21,8 @@ export function ProductBuy({ p, locale, t, vi, setVi }: { p: ProductDetail; loca
   const [pending, start] = useTransition();
   const [going, startGo] = useTransition();
   const v = p.variants[vi];
+  const opts = variantOptions(p.variants);
+  const pick = (color?: string, size?: string) => { const x = pickVariant(p.variants, color, size); setVi(Math.max(0, p.variants.indexOf(x as (typeof p.variants)[number]))); };
   const price = v?.price ?? p.finalPrice;
   const stock = v ? v.stock : p.stock;
   const off = price < p.price ? Math.round((1 - price / p.price) * 100) : 0;
@@ -40,7 +43,35 @@ export function ProductBuy({ p, locale, t, vi, setVi }: { p: ProductDetail; loca
           ● {stock === 0 ? t.catalog.outOfStock : stock <= p.lowStockThreshold ? fmt(t.catalog.lowStock, { n: stock }) : t.catalog.inStock}
         </p>
       </div>
-      {p.variants.length > 0 && (
+      {(opts.colors.length > 0 || opts.sizes.length > 0) && (
+        <div className="flex flex-col gap-4">
+          {opts.colors.length > 0 && (
+            <fieldset>
+              <legend className="mb-2 text-sm font-semibold">{locale === "ar" ? "اللون" : "Colour"}: <span className="font-normal text-muted">{v?.color}</span></legend>
+              <div className="flex flex-wrap gap-2">
+                {opts.colors.map((c) => (
+                  <button key={c} type="button" title={c} aria-label={c} aria-pressed={c === v?.color} onClick={() => pick(c, v?.size && sizeInStock(p.variants, v.size, c) ? v.size : p.variants.find((x) => x.color === c && x.stock > 0)?.size)}
+                    className={`size-10 rounded-full border-2 p-0.5 ${c === v?.color ? "border-brand" : "border-transparent"} ${colorInStock(p.variants, c) ? "" : "opacity-40"}`}>
+                    <span className="block size-full rounded-full border border-line" style={{ background: swatchFor(c) }} />
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+          )}
+          {opts.sizes.length > 0 && (
+            <fieldset>
+              <legend className="mb-2 text-sm font-semibold">{locale === "ar" ? "المقاس" : "Size"}: <span className="font-normal text-muted">{v?.size}</span></legend>
+              <div className="flex flex-wrap gap-2">
+                {opts.sizes.map((z) => (
+                  <button key={z} type="button" disabled={!sizeInStock(p.variants, z, v?.color)} aria-pressed={z === v?.size} onClick={() => pick(v?.color, z)}
+                    className={`h-11 min-w-11 rounded-xl border px-3 text-sm font-medium disabled:line-through disabled:opacity-40 ${z === v?.size ? "border-brand bg-brand-soft" : "border-line"}`}>{z}</button>
+                ))}
+              </div>
+            </fieldset>
+          )}
+        </div>
+      )}
+      {p.variants.length > 0 && opts.colors.length === 0 && opts.sizes.length === 0 && (
         <fieldset>
           <legend className="mb-2 text-sm font-semibold">{t.catalog.variant}: <span className="font-normal text-muted">{v?.label[locale]}</span></legend>
           <div className="flex flex-wrap gap-2">

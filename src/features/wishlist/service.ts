@@ -4,6 +4,7 @@ import { connectDb } from "@/lib/db";
 import { Product } from "@/models/product";
 import { User } from "@/models/user";
 import type { ProductCardData } from "@/features/catalog/service";
+import { toRow } from "@/features/catalog/row";
 
 export const WISHLIST_MAX = 200;
 
@@ -23,7 +24,7 @@ export async function toggleWishlist(userId: string, productId: string): Promise
     return { ids: ids.filter((i) => i !== productId), added: false };
   }
   if (ids.length >= WISHLIST_MAX) return { error: "full" };
-  if (!(await Product.exists({ _id: productId, status: "published" }))) return { error: "not_found" };
+  if (!(await Product.exists({ _id: productId, status: "active" }))) return { error: "not_found" };
   await User.updateOne({ _id: userId }, { $addToSet: { wishlist: productId } });
   return { ids: [...ids, productId], added: true };
 }
@@ -31,7 +32,7 @@ export async function toggleWishlist(userId: string, productId: string): Promise
 export async function getWishlistProducts(userId: string): Promise<ProductCardData[]> {
   const ids = await getWishlistIds(userId);
   if (!ids.length) return [];
-  const rows = (await Product.find({ _id: { $in: ids }, status: "published" }).lean()) as unknown as {
+  const rows = ((await Product.find({ _id: { $in: ids }, status: "active" }).lean()) as unknown as Record<string, unknown>[]).map(toRow) as unknown as {
     _id: unknown; slug: string; sku: string; name: { en: string; ar: string }; price: number; finalPrice: number; icon: string; hue: number;
     ratingAvg: number; ratingCount: number; stock: number; images?: { url: string }[]; brand?: string; variants?: { sku: string }[];
   }[];

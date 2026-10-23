@@ -1,4 +1,5 @@
 import { itemImageMap } from "@/features/orders/queries";
+import { variantLabel } from "@/features/catalog/row";
 import { Product } from "@/models/product";
 import { connectDb } from "@/lib/db";
 import type { Dictionary } from "@/lib/dictionaries";
@@ -33,7 +34,7 @@ export async function ReturnsPanel({ order, lang, t, token }: { order: OrderView
     const pics = await itemImageMap(doc.items.map((i) => ({ sku: i.sku, image: i.image })));
     lines = doc.items.filter((i) => (left.get(i.sku) ?? 0) > 0).map((i) => ({
       sku: i.sku, name: i.name[lang], variant: i.variantLabel?.[lang], image: pics.get(i.sku), max: Math.min(left.get(i.sku) ?? 0, 10),
-      options: (byId.get(String(i.productId)) ?? []).filter((v) => v.sku !== i.sku).map((v) => ({ sku: v.sku, label: (v.label as { en: string; ar: string })[lang], stock: v.stock })),
+      options: (byId.get(String(i.productId)) ?? []).filter((v) => v.sku !== i.sku).map((v) => ({ sku: v.sku, label: variantLabel(v), stock: v.stock })),
     }));
   }
 

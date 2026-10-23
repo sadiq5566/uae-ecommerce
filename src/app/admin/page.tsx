@@ -59,12 +59,12 @@ export default async function Dashboard({ searchParams }: PageProps<"/admin">) {
           {d.best.length === 0 ? <p className="text-sm text-muted">No sales yet.</p> : <ol className="flex flex-col gap-2 text-sm">{d.best.map((b, i) => <li key={b._id} className="flex justify-between gap-3"><span>{i + 1}. {b.name} <span className="text-xs text-muted">{b._id}</span></span><span className="font-semibold">{b.qty} · {aed(b.revenue)}</span></li>)}</ol>}
         </Card>
         <Card title="Low stock alerts" actions={<Link href="/admin/inventory?low=1" className="text-xs font-semibold text-brand hover:underline">All →</Link>}>
-          {d.lowStock.length === 0 ? <p className="text-sm text-muted">Everything is above its threshold. 🎉</p> : <ul className="flex flex-col gap-2 text-sm">{d.lowStock.map((p) => <li key={String(p._id)} className="flex justify-between gap-3"><Link href={`/admin/products/${p._id}`} className="hover:text-brand">{p.name?.en} <span className="text-xs text-muted">{p.sku}</span></Link><Pill tone={p.stock === 0 ? "red" : "gold"}>{p.stock === 0 ? "Out" : `${p.stock} left`}</Pill></li>)}</ul>}
+          {d.lowStock.length === 0 ? <p className="text-sm text-muted">Everything is above its threshold. 🎉</p> : <ul className="flex flex-col gap-2 text-sm">{d.lowStock.map((p) => <li key={String(p._id)} className="flex justify-between gap-3"><Link href={`/admin/products/${p._id}`} className="hover:text-brand">{p.name} <span className="text-xs text-muted">{p.sku}</span></Link><Pill tone={p.stock === 0 ? "red" : "gold"}>{p.stock === 0 ? "Out" : `${p.stock} left`}</Pill></li>)}</ul>}
         </Card>
         <Card title="Popular & most viewed (all time)">
           <div className="grid gap-4 text-sm sm:grid-cols-2">
-            <div className="min-w-0"><p className="mb-2 text-xs font-semibold uppercase text-muted">Most sold</p><ol className="flex flex-col gap-1">{d.popular.map((p) => <li key={String(p._id)} className="flex justify-between gap-2"><span className="min-w-0 truncate">{p.name?.en}</span><b>{p.soldCount}</b></li>)}</ol></div>
-            <div className="min-w-0"><p className="mb-2 text-xs font-semibold uppercase text-muted">Most viewed</p><ol className="flex flex-col gap-1">{d.viewed.map((p) => <li key={String(p._id)} className="flex justify-between gap-2"><span className="min-w-0 truncate">{p.name?.en}</span><b>{p.viewCount}</b></li>)}</ol></div>
+            <div className="min-w-0"><p className="mb-2 text-xs font-semibold uppercase text-muted">Most sold</p><ol className="flex flex-col gap-1">{d.popular.map((p) => <li key={String(p._id)} className="flex justify-between gap-2"><span className="min-w-0 truncate">{p.name}</span><b>{p.soldCount}</b></li>)}</ol></div>
+            <div className="min-w-0"><p className="mb-2 text-xs font-semibold uppercase text-muted">Most viewed</p><ol className="flex flex-col gap-1">{d.viewed.map((p) => <li key={String(p._id)} className="flex justify-between gap-2"><span className="min-w-0 truncate">{p.name}</span><b>{p.viewCount}</b></li>)}</ol></div>
           </div>
         </Card>
         <Card title="Recent activity">

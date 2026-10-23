@@ -47,7 +47,7 @@ export default async function ProductsPage({ searchParams }: PageProps<"/admin/p
       <form className="mb-3 flex flex-col gap-3 rounded-2xl border border-line bg-surface p-4" role="search">
         <div className="flex flex-wrap items-center gap-2">
           <input name="q" defaultValue={f.q} placeholder="Search name, SKU, slug, brand, tag…" aria-label="Search" className={`${inputCls} max-w-sm`} />
-          <select name="status" defaultValue={f.status} aria-label="Status" className={sel}><option value="">All statuses</option><option value="published">Published</option><option value="draft">Draft</option><option value="archived">Archived</option></select>
+          <select name="status" defaultValue={f.status} aria-label="Status" className={sel}><option value="">All statuses</option><option value="active">Active</option><option value="draft">Draft</option><option value="archived">Archived</option></select>
           <select name="category" defaultValue={f.category} aria-label="Category" className={sel}><option value="">All categories</option>{cats.map((c) => <option key={c.id} value={c.id}>{c.parent ? "— " : ""}{c.name}</option>)}</select>
           <select name="stock" defaultValue={f.stock} aria-label="Stock" className={sel}><option value="">Any stock</option><option value="in">In stock</option><option value="low">Low stock (≤ threshold)</option><option value="out">Out of stock</option></select>
           <select name="sort" defaultValue={f.sort} aria-label="Sort by" className={sel}>{Object.entries(PRODUCT_SORTS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</select>
@@ -79,7 +79,7 @@ export default async function ProductsPage({ searchParams }: PageProps<"/admin/p
               <td className="text-muted">{catName.get(p.category) ?? "—"}</td>
               <td>{p.finalPrice < p.price ? <><b>{aed(p.finalPrice)}</b> <s className="text-xs text-muted">{aed(p.price)}</s></> : aed(p.price)}</td>
               <td><Pill tone={p.stock === 0 ? "red" : p.stock <= p.low ? "gold" : "green"}>{p.stock}</Pill></td>
-              <td><Pill tone={p.status === "published" ? "green" : p.status === "draft" ? "gold" : "grey"}>{p.status}</Pill>{p.featured && <> <Pill tone="dark">featured</Pill></>}</td>
+              <td><Pill tone={p.status === "active" ? "green" : p.status === "draft" ? "gold" : "grey"}>{p.status}</Pill>{p.featured && <> <Pill tone="dark">featured</Pill></>}</td>
             </tr>
           ))}
         </Table>

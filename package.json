@@ -15,7 +15,12 @@
     "remove-images": "tsx --env-file=.env.local scripts/remove-images.ts",
     "tabby:webhook": "tsx --env-file=.env.local scripts/tabby-webhook.ts",
     "db:indexes": "tsx --env-file=.env.local scripts/indexes.ts",
-    "db:migrate": "tsx --env-file=.env.local scripts/migrate.ts"
+    "db:migrate": "tsx --env-file=.env.local scripts/migrate.ts",
+    "seed:demo": "tsx --env-file=.env.local scripts/seed-demo.ts",
+    "copy-db": "tsx --env-file=.env.local scripts/copy-db.ts",
+    "db:init": "tsx --env-file=.env.local scripts/db-init.ts",
+    "db:recategorize": "tsx --env-file=.env.local scripts/recategorize.ts",
+    "db:merge-variants": "tsx --env-file=.env.local scripts/merge-variants.ts"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^7.0.0",

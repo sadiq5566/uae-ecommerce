@@ -25,7 +25,7 @@ export async function submitReviewAction(_: FormState, fd: FormData): Promise<Fo
   if (!(await rateLimit(`review:${user.id}`, 5, 3600)).ok) return { error: "rate_limited", values: echo(fd) };
   const { productId, rating, title, body } = parsed.data;
   await connectDb();
-  const product = await Product.findOne({ _id: productId, status: "published" }).select("slug").lean();
+  const product = await Product.findOne({ _id: productId, status: "active" }).select("slug").lean();
   if (!product) return { error: "not_found" };
   const elig = await reviewEligibility(user.id, productId); // eligibility is decided on the server, never by the form
   if (elig.state === "already") return { error: "review_duplicate" };

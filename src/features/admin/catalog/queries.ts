@@ -11,12 +11,13 @@ import type { CategoryOption, ProductFormData } from "./product-form";
 type L = { en: string; ar: string };
 const toLocalInput = (d?: Date | null) => (d ? new Date(d.getTime() + 4 * 3600_000).toISOString().slice(0, 16) : ""); // Dubai wall time for <input type=datetime-local>
 
+/** Category choices for the product form: every category slug in use plus the Collection documents of type "category". id is the slug products store. */
 export async function categoryOptions(): Promise<CategoryOption[]> {
   await connectDb();
-  const rows = await Category.find().sort({ order: 1, "name.en": 1 }).lean();
-  const parents = rows.filter((c) => !c.parent);
-  const ordered = parents.flatMap((p) => [p, ...rows.filter((c) => String(c.parent) === String(p._id))]);
-  return ordered.map((c) => ({ id: String(c._id), name: c.name?.en ?? "", parent: c.parent ? String(c.parent) : null, attributes: (c.attributes ?? []).map((a) => ({ key: a.key, label: a.label?.en ?? "" })) }));
+  const [used, cols] = await Promise.all([Product.distinct("category") as Promise<string[]>, Category.find({ type: "category" }).sort({ sortOrder: 1 }).lean()]);
+  const names = new Map(cols.map((c) => [c.parent as string, String(c.name).replace(/^All /, "")]));
+  const slugs = [...new Set([...cols.map((c) => c.parent as string).filter(Boolean), ...used.filter(Boolean)])];
+  return slugs.map((slug) => ({ id: slug, name: names.get(slug) ?? slug.charAt(0).toUpperCase() + slug.slice(1).replace(/-/g, " "), parent: null }));
 }
 
 /** Everything the product list can be filtered/sorted by. Parsed from the URL so the bulk actions can rebuild the exact same filter on the server. */
@@ -24,10 +25,10 @@ export const PRODUCT_SORTS = {
   updated: { label: "Recently updated", sort: { updatedAt: -1 } },
   newest: { label: "Newest first", sort: { createdAt: -1 } },
   oldest: { label: "Oldest first", sort: { createdAt: 1 } },
-  name_asc: { label: "Name A–Z", sort: { "name.en": 1 } },
-  name_desc: { label: "Name Z–A", sort: { "name.en": -1 } },
-  price_asc: { label: "Price: low → high", sort: { finalPrice: 1 } },
-  price_desc: { label: "Price: high → low", sort: { finalPrice: -1 } },
+  name_asc: { label: "Name A–Z", sort: { name: 1 } },
+  name_desc: { label: "Name Z–A", sort: { name: -1 } },
+  price_asc: { label: "Price: low → high", sort: { priceTo: 1 } },
+  price_desc: { label: "Price: high → low", sort: { priceTo: -1 } },
   stock_asc: { label: "Stock: low → high", sort: { stock: 1 } },
   stock_desc: { label: "Stock: high → low", sort: { stock: -1 } },
   status_asc: { label: "Status A–Z", sort: { status: 1 } },
@@ -43,7 +44,7 @@ export function parseProductFilters(sp: Record<string, string | string[] | undef
   const one = (k: string, ok: string[]) => (ok.includes(s(k)) ? s(k) : "");
   const per = Number(s("per"));
   return {
-    q: s("q").slice(0, 80), status: one("status", ["draft", "published", "archived"]), category: Types.ObjectId.isValid(s("category")) ? s("category") : "",
+    q: s("q").slice(0, 80), status: one("status", ["draft", "active", "archived"]), category: /^[a-z0-9][a-z0-9-]{0,39}$/.test(s("category")) ? s("category") : "",
     brand: s("brand").slice(0, 60), tag: s("tag").toLowerCase().slice(0, 40),
     stock: one("stock", ["in", "out", "low"]) || (s("low") === "1" ? "low" : ""), // `low=1` = old URLs
     featured: one("featured", ["1", "0"]), sale: one("sale", ["1"]), image: one("image", ["with", "without"]), variants: one("variants", ["with", "without"]),
@@ -56,22 +57,19 @@ export function parseProductFilters(sp: Record<string, string | string[] | undef
 /** Mongo filter for the product list. A chosen category also matches its sub-categories. */
 export async function productFilterQuery(f: ProductFilters): Promise<Record<string, unknown>> {
   const and: Record<string, unknown>[] = [];
-  if (f.q) { const re = new RegExp(escapeRe(f.q), "i"); and.push({ $or: [{ "name.en": re }, { "name.ar": re }, { sku: re }, { slug: re }, { brand: re }, { "variants.sku": re }, { tags: re }] }); }
+  if (f.q) { const re = new RegExp(escapeRe(f.q), "i"); and.push({ $or: [{ name: re }, { model: re }, { sku: re }, { slug: re }, { brand: re }, { "variants.sku": re }, { tags: re }] }); }
   if (f.status) and.push({ status: f.status });
-  if (f.category) {
-    const kids = await Category.find({ parent: f.category }, { _id: 1 }).lean();
-    and.push({ category: { $in: [f.category, ...kids.map((k) => String(k._id))] } });
-  }
+  if (f.category) and.push({ category: f.category });
   if (f.brand) and.push({ brand: new RegExp(`^${escapeRe(f.brand)}$`, "i") });
   if (f.tag) and.push({ tags: f.tag });
   if (f.stock === "out") and.push({ stock: 0 });
   if (f.stock === "in") and.push({ stock: { $gt: 0 } });
   if (f.stock === "low") and.push({ $expr: { $lte: ["$stock", "$lowStockThreshold"] } });
-  if (f.featured) and.push({ featured: f.featured === "1" });
-  if (f.sale) and.push({ $expr: { $lt: ["$finalPrice", "$price"] } });
+  if (f.featured) and.push({ isFeatured: f.featured === "1" });
+  if (f.sale) and.push({ $expr: { $lt: ["$priceTo", "$priceFrom"] } });
   if (f.image) and.push({ "images.0": { $exists: f.image === "with" } });
   if (f.variants) and.push({ "variants.0": { $exists: f.variants === "with" } });
-  if (f.min || f.max) and.push({ finalPrice: { ...(f.min ? { $gte: Number(f.min) } : {}), ...(f.max ? { $lte: Number(f.max) } : {}) } });
+  if (f.min || f.max) and.push({ priceTo: { ...(f.min ? { $gte: Number(f.min) } : {}), ...(f.max ? { $lte: Number(f.max) } : {}) } });
   if (f.from || f.to) and.push({ createdAt: { ...(f.from ? { $gte: new Date(`${f.from}T00:00:00+04:00`) } : {}), ...(f.to ? { $lte: new Date(`${f.to}T23:59:59.999+04:00`) } : {}) } });
   return and.length ? { $and: and } : {};
 }
@@ -86,10 +84,10 @@ export async function listProductsAdmin(f: ProductFilters, page: number) {
   const filter = await productFilterQuery(f);
   const size = f.per;
   const [rows, total] = await Promise.all([
-    Product.find(filter).sort({ ...PRODUCT_SORTS[f.sort].sort, _id: 1 } as Record<string, 1 | -1>).skip((page - 1) * size).limit(size).select("slug sku name price salePrice finalPrice stock lowStockThreshold status featured category icon images variants").lean(),
+    Product.find(filter).sort({ ...PRODUCT_SORTS[f.sort].sort, _id: 1 } as Record<string, 1 | -1>).skip((page - 1) * size).limit(size).select("slug sku name priceFrom priceTo stock lowStockThreshold status isFeatured category images variants").lean(),
     Product.countDocuments(filter),
   ]);
-  return { rows: rows.map((p) => ({ id: String(p._id), slug: p.slug, sku: p.sku, name: p.name?.en ?? "", price: p.price, finalPrice: p.finalPrice, stock: p.stock, low: p.lowStockThreshold, status: p.status, featured: p.featured, category: String(p.category), icon: p.icon, image: p.images?.[0]?.url, variantCount: p.variants?.length ?? 0 })), total, pages: Math.max(1, Math.ceil(total / size)) };
+  return { rows: rows.map((p) => ({ id: String(p._id), slug: p.slug, sku: p.sku, name: p.name ?? "", price: Math.max(p.priceFrom ?? 0, p.priceTo ?? 0), finalPrice: p.priceTo ?? 0, stock: p.stock, low: p.lowStockThreshold, status: p.status, featured: !!p.isFeatured, category: p.category, icon: "📦", image: p.images?.[0]?.url, variantCount: p.variants?.length ?? 0 })), total, pages: Math.max(1, Math.ceil(total / size)) };
 }
 
 export async function getProductForm(id: string): Promise<ProductFormData | null> {
@@ -98,14 +96,12 @@ export async function getProductForm(id: string): Promise<ProductFormData | null
   const p = await Product.findById(id).lean();
   if (!p) return null;
   return {
-    id: String(p._id), slug: p.slug, sku: p.sku, name: (p.name ?? { en: "", ar: "" }) as L, description: { en: p.description?.en ?? "", ar: p.description?.ar ?? "" }, category: String(p.category), brand: p.brand ?? undefined,
-    price: p.price, salePrice: p.salePrice ?? null, saleStartsAt: toLocalInput(p.saleStartsAt), saleEndsAt: toLocalInput(p.saleEndsAt), stock: p.stock, lowStockThreshold: p.lowStockThreshold,
-    status: p.status, featured: p.featured, tags: p.tags ?? [], icon: p.icon, hue: p.hue,
-    images: (p.images ?? []).map((i) => ({ url: i.url ?? "", alt: { en: i.alt?.en ?? "", ar: i.alt?.ar ?? "" } })),
-    variants: (p.variants ?? []).map((v) => ({ sku: v.sku, label: v.label as L, stock: v.stock, price: v.price ?? "", image: v.image ?? "", swatch: v.swatch ?? "" })),
-    specs: (p.specs ?? []).map((s) => ({ label: s.label as L, value: s.value as L })),
-    attrs: Object.fromEntries(Object.entries((p.attrs ?? {}) as unknown as Record<string, string>)),
-    seo: { title: { en: p.seo?.title?.en ?? "", ar: p.seo?.title?.ar ?? "" }, description: { en: p.seo?.description?.en ?? "", ar: p.seo?.description?.ar ?? "" } },
+    id: String(p._id), slug: p.slug, sku: p.sku, name: p.name, shortDescription: p.shortDescription ?? "", longDescription: p.longDescription ?? "", category: p.category, subcategory: p.subcategory ?? "general",
+    brand: p.brand ?? undefined, model: p.model ?? undefined, finish: p.finish ?? undefined, priceFrom: p.priceFrom ?? 0, priceTo: p.priceTo ?? 0, stock: p.stock, lowStockThreshold: p.lowStockThreshold,
+    status: p.status, isFeatured: !!p.isFeatured, isNewArrival: !!p.isNewArrival, isMostWanted: !!p.isMostWanted, tags: p.tags ?? [], highlights: p.highlights ?? [], includedItems: p.includedItems ?? [],
+    images: (p.images ?? []).map((i) => ({ url: i.url ?? "", alt: { en: i.alt ?? "", ar: "" } })),
+    variants: (p.variants ?? []).map((v) => ({ sku: v.sku, color: v.color ?? "", size: v.size ?? "", stock: v.stock, price: v.price ?? "", image: v.image ?? "" })),
+    seo: { title: p.seo?.title ?? "", description: p.seo?.description ?? "" },
   };
 }
 
@@ -114,41 +110,33 @@ export async function getCategoryForm(id: string): Promise<CategoryFormData | nu
   await connectDb();
   const c = await Category.findById(id).lean();
   if (!c) return null;
-  return {
-    id: String(c._id), slug: c.slug, name: (c.name ?? { en: "", ar: "" }) as L, description: { en: c.description?.en ?? "", ar: c.description?.ar ?? "" }, parent: c.parent ? String(c.parent) : null, icon: c.icon, hue: c.hue,
-    image: c.image ?? undefined, order: c.order, active: c.active, attributes: (c.attributes ?? []).map((a) => ({ key: a.key, label: a.label as L })),
-    seo: { title: { en: c.seo?.title?.en ?? "", ar: c.seo?.title?.ar ?? "" }, description: { en: c.seo?.description?.en ?? "", ar: c.seo?.description?.ar ?? "" } },
-  };
+  return { id: String(c._id), slug: c.slug, name: c.name, description: c.description ?? "", image: c.image || undefined, type: c.type, parent: c.parent ?? undefined, sortOrder: c.sortOrder ?? 0 };
 }
 
 export async function listCategoriesAdmin() {
   await connectDb();
-  const [rows, counts] = await Promise.all([Category.find().sort({ order: 1, "name.en": 1 }).lean(), Product.aggregate([{ $group: { _id: "$category", n: { $sum: 1 } } }])]);
+  const [rows, counts] = await Promise.all([Category.find().sort({ sortOrder: 1, name: 1 }).lean(), Product.aggregate([{ $group: { _id: "$category", n: { $sum: 1 } } }])]);
   const cnt = new Map<string, number>(counts.map((c) => [String(c._id), c.n as number]));
-  const top = rows.filter((c) => !c.parent);
-  return top.flatMap((p) => [p, ...rows.filter((c) => String(c.parent) === String(p._id))]).map((c) => ({ id: String(c._id), slug: c.slug, name: c.name?.en ?? "", nameAr: c.name?.ar ?? "", depth: c.parent ? 1 : 0, active: c.active, order: c.order, icon: c.icon, products: cnt.get(String(c._id)) ?? 0 }));
+  return rows.map((c) => ({ id: String(c._id), slug: c.slug, name: c.name, nameAr: "", depth: 0, active: true, order: c.sortOrder ?? 0, icon: "📦", type: c.type, products: c.parent ? cnt.get(c.parent) ?? 0 : 0 }));
 }
 
-export const INVENTORY_SORTS = { stock: "stock", name: "name.en", sku: "sku", updated: "updatedAt", threshold: "lowStockThreshold", status: "status" } as const;
+export const INVENTORY_SORTS = { stock: "stock", name: "name", sku: "sku", updated: "updatedAt", threshold: "lowStockThreshold", status: "status" } as const;
 export type InventoryFilters = { q: string; level: string; status: string; category: string; variants: string; from: string; to: string };
 
 export async function listInventory(f: InventoryFilters, sort: keyof typeof INVENTORY_SORTS, dir: 1 | -1, page: number, size = 25) {
   await connectDb();
   const and: Record<string, unknown>[] = [{ status: f.status ? f.status : { $ne: "archived" } }];
-  if (f.q) { const re = new RegExp(escapeRe(f.q.slice(0, 80)), "i"); and.push({ $or: [{ "name.en": re }, { sku: re }, { "variants.sku": re }, { brand: re }] }); }
+  if (f.q) { const re = new RegExp(escapeRe(f.q.slice(0, 80)), "i"); and.push({ $or: [{ name: re }, { sku: re }, { "variants.sku": re }, { brand: re }] }); }
   if (f.level === "out") and.push({ stock: 0 });
   if (f.level === "low") and.push({ stock: { $gt: 0 }, $expr: { $lte: ["$stock", "$lowStockThreshold"] } });
   if (f.level === "lowout") and.push({ $expr: { $lte: ["$stock", "$lowStockThreshold"] } });
   if (f.level === "ok") and.push({ $expr: { $gt: ["$stock", "$lowStockThreshold"] } });
-  if (f.category && Types.ObjectId.isValid(f.category)) {
-    const kids = await Category.find({ parent: f.category }, { _id: 1 }).lean();
-    and.push({ category: { $in: [f.category, ...kids.map((k) => String(k._id))] } });
-  }
+  if (f.category) and.push({ category: f.category });
   if (f.variants) and.push({ "variants.0": { $exists: f.variants === "with" } });
   if (f.from || f.to) and.push({ updatedAt: { ...(f.from ? { $gte: new Date(`${f.from}T00:00:00+04:00`) } : {}), ...(f.to ? { $lte: new Date(`${f.to}T23:59:59.999+04:00`) } : {}) } });
   const m = { $and: and };
-  const [rows, total] = await Promise.all([Product.find(m).sort({ [INVENTORY_SORTS[sort]]: dir, "name.en": 1 }).skip((page - 1) * size).limit(size).select("sku name stock lowStockThreshold variants status images").lean(), Product.countDocuments(m)]);
-  return { rows: rows.map((p) => ({ id: String(p._id), sku: p.sku, name: p.name?.en ?? "", image: p.images?.[0]?.url as string | undefined, stock: p.stock, low: p.lowStockThreshold, status: p.status, variants: (p.variants ?? []).map((v) => ({ sku: v.sku, label: v.label?.en ?? "", stock: v.stock })) })), total, pages: Math.max(1, Math.ceil(total / size)) };
+  const [rows, total] = await Promise.all([Product.find(m).sort({ [INVENTORY_SORTS[sort]]: dir, name: 1 }).skip((page - 1) * size).limit(size).select("sku name stock lowStockThreshold variants status images").lean(), Product.countDocuments(m)]);
+  return { rows: rows.map((p) => ({ id: String(p._id), sku: p.sku, name: p.name ?? "", image: p.images?.[0]?.url as string | undefined, stock: p.stock, low: p.lowStockThreshold, status: p.status, variants: (p.variants ?? []).map((v) => ({ sku: v.sku, label: [v.color, v.size].filter(Boolean).join(" / ") || v.sku, stock: v.stock })) })), total, pages: Math.max(1, Math.ceil(total / size)) };
 }
 
 export async function recentMovements(limit = 15) {

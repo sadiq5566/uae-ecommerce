@@ -15,6 +15,7 @@ import type { PaymentMethod } from "@/models/order";
 import { toFils } from "./money";
 import { Order } from "@/models/order";
 import { computeTotals, type AutoOffer, type CouponRule, type PriceLine, type Rules, type Totals, type Zone } from "./pricing";
+import { toRow } from "@/features/catalog/row";
 
 type L10n = { en: string; ar: string };
 
@@ -116,7 +117,7 @@ export async function prepare(input: PrepareInput): Promise<{ ok: true; p: Prepa
     : ((await Cart.findOne(userId ? { user: userId } : { guestId: input.guestId }).lean())?.items ?? []);
   if (!cartItems.length) return { ok: false, error: "empty_cart" };
   const skus = cartItems.map((i) => i.sku);
-  const rows = (await Product.find({ status: "published", $or: [{ sku: { $in: skus } }, { "variants.sku": { $in: skus } }] }).lean()) as unknown as ProductRow[];
+  const rows = ((await Product.find({ status: "active", $or: [{ sku: { $in: skus } }, { "variants.sku": { $in: skus } }] }).lean()) as unknown as Record<string, unknown>[]).map(toRow) as unknown as ProductRow[];
   const found = new Map<string, { p: ProductRow; v?: NonNullable<ProductRow["variants"]>[number] }>();
   for (const p of rows) { if (p.variants?.length) p.variants.forEach((v) => found.set(v.sku, { p, v })); else found.set(p.sku, { p }); }
 

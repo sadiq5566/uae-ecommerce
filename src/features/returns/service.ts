@@ -1,4 +1,5 @@
 import "server-only";
+import { variantLabel } from "@/features/catalog/row";
 import { randomBytes } from "node:crypto";
 import { Types } from "mongoose";
 import { connectDb } from "@/lib/db";
@@ -69,7 +70,7 @@ export async function createReturn(input: CreateReturnInput): Promise<{ ok: true
       const v = p?.variants.find((x) => x.sku === it.exchangeSku);
       if (!p || !v || v.sku === it.sku) return { ok: false, error: "invalid_exchange" };
       if (v.stock < it.qty) return { ok: false, error: "exchange_unavailable" };
-      exchangeSku = v.sku; exchangeLabel = { en: v.label?.en ?? "", ar: v.label?.ar ?? "" };
+      exchangeSku = v.sku; exchangeLabel = { en: variantLabel(v), ar: variantLabel(v) };
     }
     lines.push({ sku: line.sku, productId: line.productId, name: line.name, variantLabel: line.variantLabel, qty: it.qty, value: lineValue(line, it.qty), exchangeSku, exchangeLabel });
   }

@@ -1,0 +1,15 @@
+// Pure helpers shared by the MongoDB queries (products.ts) and the sample-catalogue fallback (catalog-memory.ts).
+
+export const PAGE_SIZE = 24;
+
+export type Filters = {
+  finish?: string;
+  color?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  inStock?: boolean;
+  sort?: "featured" | "newest" | "price-asc" | "price-desc";
+  page?: number;
+};
+
+export const categoryLabel = (slug: string) => (slug === "general" ? "Other" : slug.replace(/-/g, " ").replace(/^./, (c) => c.toUpperCase()));
