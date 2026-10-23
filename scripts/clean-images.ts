@@ -8,25 +8,23 @@
 //   npm run clean-images -- --apply --limit=20
 //   npm run clean-images -- --apply --local   ALSO cleans images already stored in public/uploads/ (most of the catalogue); cleaned copies get new file names, the products are re-pointed, the old files stay for rollback
 //
-// How it cleans (see scripts/remove-watermark.py): watermarks are detected on the plain background wherever they are (any corner / edge / middle, any text or logo) and painted out. Pictures without a plain background are left as they are.
-// Only URLs matching WATERMARK_URL_MATCH are touched. wristgallerydubai.shop images get the top-right "WG" logo reversed (scripts/remove-wg-logo.py); images cleaned by an earlier run from that host are re-cleaned from the original URL. Re-running is safe.
+// How it cleans: the four known logos - Rimal (bottom-left), Amara + Lune (bottom-right), WG (top-right) - are found by template on any background, photos included, and painted out (scripts/remove-logos.py, artwork in scripts/logo-templates/).
+// Then any other watermark on a plain background is detected and painted out (scripts/remove-watermark.py). Pictures with no known logo and no plain background are left as they are.
+// Only URLs matching WATERMARK_URL_MATCH are touched. Images cleaned by an earlier run from the WG host are re-cleaned from the original URL. Re-running is safe.
 import { createHash } from "node:crypto";
-import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import mongoose from "mongoose";
 import { ImageDoc } from "../lib/models/ImageDoc";
 import { WATERMARK, removeWatermark, type CleanResult } from "./watermark";
+import { closeWatermarkWorkers } from "../lib/watermark-remove";
 
 const CONFIG = {
   /** Only image URLs matching this regex are cleaned. Override in the env file. */
-  urlMatch: new RegExp(process.env.WATERMARK_URL_MATCH ?? String.raw`amaraswatches\.shop|wristgallerydubai\.shop|lunecollection\.shop|cdn\.shopify\.com`, "i"),
+  urlMatch: new RegExp(process.env.WATERMARK_URL_MATCH ?? String.raw`amaraswatches\.shop|wristgallerydubai\.shop|lunecollection\.shop|cdn\.shopify\.com|rimal\.club`, "i"),
   concurrency: Number(process.env.WATERMARK_CONCURRENCY ?? 6),
-  /** Images from these hosts carry the semi-transparent "WG" logo (top-right) -> removed with scripts/remove-wg-logo.py instead of the corner painter. */
+  /** Images from these hosts carry the semi-transparent "WG" logo (top-right); ones cleaned by an earlier run are re-cleaned from the original URL. */
   wgMatch: new RegExp(process.env.WG_URL_MATCH ?? String.raw`wristgallerydubai\.shop`, "i"),
-  wgScript: path.join(process.cwd(), "scripts", "remove-wg-logo.py"),
-  python: process.env.PYTHON ?? "python",
   maxBytes: 15 * 1024 * 1024,
   uploadsDir: path.join(process.cwd(), "public", "uploads"),
   previewDir: path.join(process.cwd(), "scripts", "clean-images.preview"),
@@ -34,7 +32,7 @@ const CONFIG = {
 };
 
 const args = process.argv.slice(2);
-const apply = args.includes("--apply");
+const apply = args.includes("--apply") || process.env.npm_config_apply === "true"; // npm swallows a flag given without "--"
 const preview = args.includes("--preview");
 const local = args.includes("--local"); // also clean /uploads/<id>.webp images already in the catalogue
 const toPublic = args.includes("--public") || local;
@@ -50,21 +48,6 @@ async function download(url: string) {
   const buf = Buffer.from(await res.arrayBuffer());
   if (buf.length > CONFIG.maxBytes) throw new Error("file too large");
   return buf;
-}
-
-/** Reverses the WG logo overlay (top-right) with the Python/OpenCV script; image bytes in, cleaned webp out. */
-function removeWgLogo(input: Buffer): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    const py = spawn(CONFIG.python, ["-I", path.join(process.cwd(), "scripts", "remove-wg-logo.py"), "--stdio"]);
-    const out: Buffer[] = [];
-    let err = "";
-    py.stdout.on("data", (d) => out.push(d));
-    py.stderr.on("data", (d) => (err += d));
-    py.on("error", (e) => reject(new Error(`cannot run ${CONFIG.python}: ${e.message} (need python + opencv-python + numpy)`)));
-    py.on("close", (code) => (code === 0 && out.length ? resolve(Buffer.concat(out)) : reject(new Error(`remove-wg-logo.py exit ${code}: ${err.trim().split("\n").pop()}`))));
-    py.stdin.on("error", () => {});
-    py.stdin.end(input);
-  });
 }
 
 /** Runs `fn` over `items` with at most `n` in flight. */
@@ -97,7 +80,10 @@ async function main() {
   if (apply && toPublic) await mkdir(CONFIG.uploadsDir, { recursive: true });
 
   const map: Record<string, string> = {}; // remote url -> /api/images/<id>
-  const tally = { painted: 0, cropped: 0, noLogo: 0, skipped: 0, gone: 0, failed: 0 };
+  const tally = { painted: 0, cropped: 0, noLogo: 0, skipped: 0, gone: 0, absent: 0, failed: 0 };
+  const skipReasons = new Map<string, number>();
+  const verbose = args.includes("--verbose"); // list every skipped picture instead of just counting them
+  const absent: string[] = []; // /uploads files the database lists but that are not in public/uploads on THIS machine
   const gone: string[] = []; // source URLs that no longer exist (HTTP 404/410): nothing to clean, the product keeps its old URL
   let done = 0;
 
@@ -106,8 +92,7 @@ async function main() {
     const id = createHash("sha256").update(url).digest("hex").slice(0, 24);
     try {
       const raw = await download(url);
-      // scripts/remove-wg-logo.py is optional; without it the generic painter (finds marks anywhere on a plain background) handles those hosts too.
-      const r: CleanResult = CONFIG.wgMatch.test(url) && existsSync(CONFIG.wgScript) ? { status: "cleaned", method: "painted", buf: await removeWgLogo(raw) } : await removeWatermark(raw, WATERMARK);
+      const r: CleanResult = await removeWatermark(raw, WATERMARK);
       if (r.status === "cleaned") {
         if (apply && toPublic) await writeFile(path.join(CONFIG.uploadsDir, `${id}.webp`), r.buf);
         else if (apply) await ImageDoc.updateOne({ _id: id }, { $set: { data: r.buf, contentType: "image/webp", size: r.buf.length } }, { upsert: true });
@@ -116,10 +101,17 @@ async function main() {
         if (r.method === "painted") tally.painted++;
         else tally.cropped++;
       } else if (r.status === "no-logo") tally.noLogo++;
-      else { tally.skipped++; console.log(`  skipped: ${r.why} - ${url.slice(0, 100)}`); }
+      else {
+        // A photo (or any picture without a plain corner) cannot be painted over without smudging the product, so it is left exactly as it is.
+        tally.skipped++;
+        const why = /too large|plain|touches/i.test(r.why) ? "photo / busy background - nothing safe to paint over, left as is" : r.why;
+        skipReasons.set(why, (skipReasons.get(why) ?? 0) + 1);
+        if (verbose) console.log(`  skipped: ${why} - ${url.slice(0, 100)}`);
+      }
     } catch (e) {
       const msg = (e as Error).message;
       if (/^HTTP (404|410)$/.test(msg)) { tally.gone++; gone.push(url); }
+      else if (url.startsWith("/uploads/") && /ENOENT/.test(msg)) { tally.absent++; absent.push(url); }
       else { tally.failed++; console.log(`  failed: ${msg} - ${url.slice(0, 100)}`); }
     }
     if (++done % 25 === 0 || done === urls.length) console.log(`  ${done}/${urls.length}`);
@@ -134,9 +126,15 @@ async function main() {
   }
 
   console.log(
-    `\n${apply ? "APPLIED" : "DRY RUN"}: ${tally.painted} painted over, ${tally.cropped} cropped, ${tally.noLogo} had no watermark, ${tally.skipped} skipped, ${tally.gone} gone at source (404), ${tally.failed} failed; ` +
+    `\n${apply ? "APPLIED" : "DRY RUN"}: ${tally.painted} painted over, ${tally.cropped} cropped, ${tally.noLogo} had no watermark, ${tally.skipped} skipped, ${tally.gone} gone at source (404), ${tally.absent} not on this machine, ${tally.failed} failed; ` +
       `${updated} product(s) ${apply ? "updated" : "would be updated"}.`,
   );
+  for (const [why, n] of skipReasons) console.log(`${n} skipped: ${why}`);
+  if (absent.length) {
+    await writeFile(path.join(process.cwd(), "scripts", "clean-images.absent.txt"), absent.join("\n") + "\n");
+    console.log(`${absent.length} /uploads image(s) are listed in the database but are not in public/uploads on this machine (listed in scripts/clean-images.absent.txt).`);
+    console.log("  Copy the server's public/uploads folder here (or run this script on the server that has the files); they could not be cleaned and will also show as broken images on this machine.");
+  }
   if (gone.length) {
     await writeFile(path.join(process.cwd(), "scripts", "clean-images.gone.txt"), gone.join("\n") + "\n");
     console.log(`${gone.length} image URL(s) no longer exist at the source; listed in scripts/clean-images.gone.txt (re-upload or remove them in the admin).`);
@@ -147,6 +145,7 @@ async function main() {
   }
   if (preview) console.log(`Cleaned files saved to ${path.relative(process.cwd(), CONFIG.previewDir)} - open a few and check.`);
   if (!apply) console.log("When it looks right run:  npm run clean-images -- --apply");
+  closeWatermarkWorkers();
   await mongoose.disconnect();
 }
 

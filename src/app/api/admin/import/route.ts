@@ -8,6 +8,7 @@ import { validateRecords } from "../../../../../lib/product-import";
 import { groupRows, VARIANTS_FIELD } from "../../../../../lib/import-group";
 import { cloudinaryConfigured, uploadRemote } from "../../../../../lib/cloudinary";
 import { isDuplicateKey } from "../../../../../lib/utils";
+import { categoryTitle } from "../../../../../lib/catalog-shared";
 
 const MAX_ROWS = 5000;
 const MAX_BATCH = 100;
@@ -71,13 +72,13 @@ export async function POST(req: Request) {
             data.images.map(async (img) => (img.publicId || img.url.startsWith("https://res.cloudinary.com/") || img.url.startsWith("/") ? img : { ...img, ...(await uploadRemote(img.url)) })),
           );
         }
-        const res = await ProductModel.updateOne({ sku: data.sku }, { $set: data }, { upsert: true });
+        const res = await ProductModel.updateOne({ sku: data.sku }, { $set: data, $unset: { mergedInto: "" } }, { upsert: true });
         if (res.upsertedCount) created++;
         else updated++;
         // Earlier imports made one product per size row. Archive those leftovers (kept, not deleted) now that they are variants.
         if (data.variants.length > 1) {
           const others = data.variants.map((v) => v.sku).filter((s) => s !== data.sku);
-          const gone = await ProductModel.updateMany({ sku: { $in: others }, name: data.name, status: { $ne: "archived" }, "variants.1": { $exists: false } }, { $set: { status: "archived" } });
+          const gone = await ProductModel.updateMany({ sku: { $in: others }, name: data.name, "variants.1": { $exists: false }, mergedInto: null }, { $set: { status: "archived", mergedInto: data.sku } });
           merged += gone.modifiedCount;
         }
       } catch (e) {
@@ -86,7 +87,7 @@ export async function POST(req: Request) {
     }
     // A category seen for the first time gets its own "All <Category>" collection page.
     for (const cat of new Set(results.filter((r) => r.data).map((r) => r.data!.category))) {
-      const name = "All " + cat.charAt(0).toUpperCase() + cat.slice(1).replace(/-/g, " ");
+      const name = categoryTitle(cat);
       await CollectionModel.updateOne(
         { slug: "all-" + cat },
         { $setOnInsert: { slug: "all-" + cat, name, description: "", image: "", type: "category", parent: cat, sortOrder: 50 } },

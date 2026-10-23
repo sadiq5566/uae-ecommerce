@@ -26,6 +26,9 @@ const ProductSchema = new Schema(
     isMostWanted: Boolean,
     status: { type: String, enum: ["active", "draft", "archived"], default: "active" },
     slugHistory: [String], // old slugs, redirected with 301
+    // Set on a product whose colours / sizes now live as variants of another product (a supplier sheet lists one row per size). Holds that product's SKU.
+    // It is independent of `status`, so a bulk "Set active" or an import can never bring the old one-size product back onto the shop.
+    mergedInto: { type: String, index: true },
     lowStockThreshold: { type: Number, default: 5 },
     ratingAvg: { type: Number, default: 0, min: 0, max: 5 },
     ratingCount: { type: Number, default: 0 },

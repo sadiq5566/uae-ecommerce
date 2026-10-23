@@ -71,7 +71,9 @@ function merge(members: CsvRow[]): CsvRow {
   });
 
   const images = [...new Set(members.flatMap((m) => urls(m.data.images)))].slice(0, MAX_IMAGES);
-  const { color, size: _size, stock: _stock, ...rest } = first.data;
+  const { color, ...rest } = first.data;
+  delete rest.size;
+  delete rest.stock;
   return {
     line: first.line,
     data: { ...rest, ...(rest.finish ? {} : color ? { finish: color } : {}), images: images.join("|"), [VARIANTS_FIELD]: JSON.stringify(variants) },

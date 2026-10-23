@@ -13,3 +13,6 @@ export type Filters = {
 };
 
 export const categoryLabel = (slug: string) => (slug === "general" ? "Other" : slug.replace(/-/g, " ").replace(/^./, (c) => c.toUpperCase()));
+
+/** Title of a category's listing page: "All Jewelry", but just "Footwear" when the category slug already starts with "all-". */
+export const categoryTitle = (slug: string) => (/^all-/.test(slug) ? categoryLabel(slug.replace(/^all-/, "")) : "All " + categoryLabel(slug));

@@ -1,6 +1,5 @@
-// Core of `npm run clean-images`. removeWatermark() first runs the generic detector (lib/watermark-remove.ts -> scripts/remove-watermark.py):
-// finds watermark(s) anywhere (any corner/edge/middle, any wording) on a plain background and paints them out.
-// If Python/OpenCV isn't available it falls back to the old fixed-corner painter below (bottom-right by default, tune via WATERMARK_* env).
+// Core of `npm run clean-images`. removeWatermark() runs the Python worker: the four known logos (Rimal, Amara, Lune, WG) by template, then any other
+// watermark / logo on a plain background. If Python/OpenCV isn't available it falls back to the fixed-corner painters below (tune via WATERMARK_* env).
 import sharp from "sharp";
 import { removeAnyWatermark } from "../lib/watermark-remove";
 
@@ -40,15 +39,40 @@ export type CleanResult =
   | { status: "no-logo" }
   | { status: "skipped"; why: string };
 
-/** Generic removal (any position / any watermark). A picture whose background isn't plain comes back "skipped" and stays untouched. */
+/**
+ * "RIMAL collection" logo (rimal.club and the Shopify copies of its pictures): light-grey text in the bottom-left corner, on a plain white background.
+ * Its thick letters are read as part of the picture by the generic detector, so this fixed-corner pass runs first.
+ * A picture whose bottom-left corner is not a plain colour (product runs into it) is left alone by this pass.
+ */
+export const RIMAL = { x0: 0, x1: 0.27, y0: 0, y1: 1, hW: 0.11, anchor: "bottom" as const, maxW: 0.3, maxH: 0.3, tolerance: 6, maxBackgroundSpread: 30, pad: 12, minInkPixels: 60, cropKeep: 1 };
+
+/** "WG" (Wrist Gallery) logo: semi-transparent mark in the top-right corner of the wristgallerydubai.shop pictures and their Shopify copies (measured: 0.148 x 0.134 of the width, 3.6% from the top and right). */
+export const WG = { x0: 0.78, x1: 1, y0: 0, y1: 1, hW: 0.2, anchor: "top" as const, maxW: 0.22, maxH: 0.4, tolerance: 6, maxBackgroundSpread: 30, pad: 12, minInkPixels: 60, cropKeep: 1 };
+
+/**
+ * Cleans a picture in the Python worker (lib/watermark-remove.ts -> scripts/clean-worker.py): the four known logos (Rimal, Amara, Lune, WG) by template
+ * (scripts/remove-logos.py - works on photos too, and only when the logo is really there), then the generic detector for any other watermark / logo
+ * on a plain background.
+ * A picture with no plain background and no known logo comes back "skipped" and stays exactly as it is.
+ * Without Python/OpenCV the old plain-background corner painters are used instead.
+ */
 export async function removeWatermark(input: Buffer, cfg = WATERMARK): Promise<CleanResult> {
+  let buf = input;
+  let painted = false;
+  let generic: CleanResult;
   try {
-    const r = await removeAnyWatermark(input);
-    return r.status === "cleaned" ? { status: "cleaned", buf: r.buf, method: "painted" } : r;
+    const r = await removeAnyWatermark(buf);
+    generic = r.status === "cleaned" ? { status: "cleaned", buf: r.buf, method: "painted" } : r;
   } catch (e) {
-    if (!warned) { warned = true; console.warn(`  generic watermark remover unavailable (${(e as Error).message}); using the fixed bottom-right corner painter`); }
-    return removeCornerWatermark(input, cfg);
+    if (!warned) { warned = true; console.warn(`  Python watermark worker unavailable (${(e as Error).message}); using the plain-background corner painters only`); }
+    for (const logo of [WG, RIMAL]) {
+      const r = await paintOver(buf, logo).catch((): CleanResult => ({ status: "no-logo" }));
+      if (r.status === "cleaned") { buf = r.buf; painted = true; }
+    }
+    generic = await removeCornerWatermark(buf, cfg).catch((): CleanResult => ({ status: "skipped", why: "image could not be read (not a raster picture?)" }));
   }
+  if (generic.status === "cleaned") return generic;
+  return painted ? { status: "cleaned", buf, method: "painted" } : generic;
 }
 let warned = false;
 
@@ -63,12 +87,18 @@ export async function removeCornerWatermark(input: Buffer, cfg = WATERMARK): Pro
   return { status: "cleaned", method: "cropped", buf: await img.extract({ left: 0, top: 0, width, height: h }).webp({ quality: 92 }).toBuffer() };
 }
 
-async function paintOver(input: Buffer, cfg: typeof WATERMARK): Promise<CleanResult> {
-  const { data, info } = await sharp(input).rotate().ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+/** Search window: fractions of the picture (x0..x1, y0..y1), or, when `hW` is set, a strip `hW` x width tall glued to the bottom or top edge (the logos are sized by width, so this stays right on tall and wide pictures). */
+type Window = typeof WATERMARK & { hW?: number; anchor?: "top" | "bottom" };
+
+export async function paintOver(input: Buffer, cfg: Window): Promise<CleanResult> {
+  // Transparent PNGs are flattened onto white first (the shop shows them on white); otherwise the colour hidden under transparent pixels is analysed.
+  const { data, info } = await sharp(input).rotate().flatten({ background: "#ffffff" }).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
   const { width: W, height: H } = info;
   const at = (x: number, y: number) => (y * W + x) * 4;
   const sx0 = Math.floor(W * cfg.x0), sx1 = Math.min(W - 1, Math.ceil(W * cfg.x1) - 1);
-  const sy0 = Math.floor(H * cfg.y0), sy1 = Math.min(H - 1, Math.ceil(H * cfg.y1) - 1);
+  const strip = cfg.hW ? Math.round(W * cfg.hW) : 0;
+  const sy0 = strip ? (cfg.anchor === "top" ? 0 : Math.max(0, H - strip)) : Math.floor(H * cfg.y0);
+  const sy1 = strip ? (cfg.anchor === "top" ? Math.min(H - 1, strip - 1) : H - 1) : Math.min(H - 1, Math.ceil(H * cfg.y1) - 1);
 
   // Background = median colour of the window's outer border (right / bottom edge rows), which these photos leave empty.
   const sample: number[][] = [[], [], []];

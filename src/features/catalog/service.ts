@@ -34,7 +34,8 @@ export type ProductDetail = ProductCardData & {
 };
 
 type Doc = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
-const ACTIVE = { status: "active" } as const;
+/** What the shop may show: active AND not merged into another product (mergedInto missing/null), whatever the status says. */
+const ACTIVE = { status: "active", mergedInto: null } as const;
 const clean = <T,>(o: T): T => JSON.parse(JSON.stringify(o));
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const ICONS: Record<string, string> = { watches: "⌚", jewelry: "💍", bags: "👜", perfume: "🧴", accessories: "🕶️" };
@@ -225,7 +226,12 @@ export async function findSlugRedirect(kind: "product" | "category", slug: strin
   if (kind !== "product") return null;
   await connectDb();
   const p = (await ProductModel.findOne({ slugHistory: slug.toLowerCase(), ...ACTIVE }, { slug: 1 }).lean()) as unknown as { slug: string } | null;
-  return p?.slug ?? null;
+  if (p?.slug) return p.slug;
+  // An old one-size product URL goes to the product it was merged into (colour / size variants).
+  const old = (await ProductModel.findOne({ slug: slug.toLowerCase(), mergedInto: { $ne: null } }, { mergedInto: 1 }).lean()) as unknown as { mergedInto?: string } | null;
+  if (!old?.mergedInto) return null;
+  const main = (await ProductModel.findOne({ ...ACTIVE, sku: old.mergedInto }, { slug: 1 }).lean()) as unknown as { slug: string } | null;
+  return main?.slug ?? null;
 }
 
 export type Suggestion = { type: "product" | "category"; slug: string; name: L10n; icon: string; price?: number; image?: string };

@@ -51,7 +51,7 @@ export async function getGuestId() {
 
 async function resolve(skus: string[]) {
   if (!skus.length) return new Map<string, { p: ProductRow; v?: NonNullable<ProductRow["variants"]>[number] }>();
-  const rows = ((await Product.find({ status: "active", $or: [{ sku: { $in: skus } }, { "variants.sku": { $in: skus } }] }).lean()) as unknown as Record<string, unknown>[]).map(toRow) as unknown as ProductRow[];
+  const rows = ((await Product.find({ status: "active", mergedInto: null, $or: [{ sku: { $in: skus } }, { "variants.sku": { $in: skus } }] }).lean()) as unknown as Record<string, unknown>[]).map(toRow) as unknown as ProductRow[];
   const map = new Map<string, { p: ProductRow; v?: NonNullable<ProductRow["variants"]>[number] }>();
   for (const p of rows) {
     if (p.variants?.length) p.variants.forEach((v) => map.set(v.sku, { p, v }));

@@ -60,7 +60,7 @@ async function main() {
       $set: { name: main.base, model: main.base, variants, stock: variants.reduce((s, v) => s + v.stock, 0), images },
       $addToSet: { slugHistory: { $each: rest.map((m) => m.doc.slug) } },
     });
-    await ProductModel.updateMany({ _id: { $in: rest.map((m) => m.doc._id) } }, { $set: { status: "archived" } });
+    await ProductModel.updateMany({ _id: { $in: rest.map((m) => m.doc._id) } }, { $set: { status: "archived", mergedInto: main.doc.sku } });
   }
 
   console.log(`\n${merges.length} group(s), ${removed} product(s) ${apply ? "merged into their group" : "would be archived"}.${apply ? "" : " Run with --apply to do it."}`);

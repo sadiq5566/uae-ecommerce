@@ -55,8 +55,9 @@ export function parseProductFilters(sp: Record<string, string | string[] | undef
 }
 
 /** Mongo filter for the product list. A chosen category also matches its sub-categories. */
+// Products merged into another product (see Product.mergedInto) are internal leftovers: never listed, never part of "select all".
 export async function productFilterQuery(f: ProductFilters): Promise<Record<string, unknown>> {
-  const and: Record<string, unknown>[] = [];
+  const and: Record<string, unknown>[] = [{ mergedInto: null }];
   if (f.q) { const re = new RegExp(escapeRe(f.q), "i"); and.push({ $or: [{ name: re }, { model: re }, { sku: re }, { slug: re }, { brand: re }, { "variants.sku": re }, { tags: re }] }); }
   if (f.status) and.push({ status: f.status });
   if (f.category) and.push({ category: f.category });
@@ -125,7 +126,7 @@ export type InventoryFilters = { q: string; level: string; status: string; categ
 
 export async function listInventory(f: InventoryFilters, sort: keyof typeof INVENTORY_SORTS, dir: 1 | -1, page: number, size = 25) {
   await connectDb();
-  const and: Record<string, unknown>[] = [{ status: f.status ? f.status : { $ne: "archived" } }];
+  const and: Record<string, unknown>[] = [{ status: f.status ? f.status : { $ne: "archived" } }, { mergedInto: null }];
   if (f.q) { const re = new RegExp(escapeRe(f.q.slice(0, 80)), "i"); and.push({ $or: [{ name: re }, { sku: re }, { "variants.sku": re }, { brand: re }] }); }
   if (f.level === "out") and.push({ stock: 0 });
   if (f.level === "low") and.push({ stock: { $gt: 0 }, $expr: { $lte: ["$stock", "$lowStockThreshold"] } });

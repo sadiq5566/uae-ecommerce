@@ -232,3 +232,35 @@ export async function validateRecords(items: ImportItem[]): Promise<RowResult[]>
     return { line, sku, name: grouped ? `${data.name} · ${data.variants.length} variants` : data.name, action: old ? "update" : "create", errors: [], data };
   });
 }
+
+/**
+ * Saves validated rows in one bulk write (upsert by SKU). Grouped products also retire the one-row-per-size products an older
+ * import left behind (same name, single variant, SKU now inside this product's variants): they are archived and marked `mergedInto` this product. Used by scripts/import-csv.ts.
+ */
+export async function persistBatch(results: RowResult[]) {
+  const saves: any[] = [];
+  const archives: any[] = [];
+  for (const r of results) {
+    const d = r.data;
+    if (!d) continue;
+    saves.push({ updateOne: { filter: { sku: d.sku }, update: { $set: d, $unset: { mergedInto: "" } }, upsert: true } });
+    const others = d.variants.map((v) => v.sku).filter((s) => s !== d.sku);
+    if (d.variants.length > 1 && others.length) {
+      archives.push({ updateMany: { filter: { sku: { $in: others }, name: d.name, "variants.1": { $exists: false }, mergedInto: null }, update: { $set: { status: "archived", mergedInto: d.sku } } } });
+    }
+  }
+  const errors: string[] = [];
+  let created = 0;
+  let archived = 0;
+  if (saves.length) {
+    try {
+      created = (await ProductModel.bulkWrite(saves, { ordered: false })).upsertedCount;
+    } catch (e: any) {
+      if (!e?.writeErrors) throw e;
+      created = e?.result?.upsertedCount ?? 0;
+      for (const w of e.writeErrors) errors.push(String(w?.errmsg ?? w?.err?.errmsg ?? w).slice(0, 160));
+    }
+  }
+  if (archives.length) archived = (await ProductModel.bulkWrite(archives, { ordered: false })).modifiedCount;
+  return { saved: saves.length, created, archived, errors };
+}

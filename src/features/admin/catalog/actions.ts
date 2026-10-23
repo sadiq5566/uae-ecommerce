@@ -102,10 +102,10 @@ export async function bulkProductsAction(fd: FormData) {
   const detail = byFilter ? { count: ids.length, filter: filterQs } : { ids };
   if (op === "publish" || op === "unpublish" || op === "archive") {
     const status = op === "publish" ? "active" : op === "archive" ? "archived" : "draft";
-    await Product.updateMany({ _id: { $in: ids } }, { status });
+    await Product.updateMany({ _id: { $in: ids }, mergedInto: null }, { status });
     await audit(user, `product.bulk_${op}`, "product", undefined, `${op} ${ids.length} product(s)${byFilter ? " (all matching filter)" : ""}`, detail);
   } else if (op === "feature" || op === "unfeature") {
-    await Product.updateMany({ _id: { $in: ids } }, { isFeatured: op === "feature" });
+    await Product.updateMany({ _id: { $in: ids }, mergedInto: null }, { isFeatured: op === "feature" });
     await audit(user, `product.bulk_${op}`, "product", undefined, `${op} ${ids.length} product(s)${byFilter ? " (all matching filter)" : ""}`, detail);
   } else {
     // Only non-active products can be deleted; active ones must be unpublished/archived first (safety).

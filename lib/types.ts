@@ -35,6 +35,7 @@ export type Product = {
   viewCount?: number;
   ratingAvg?: number;
   status: "active" | "draft" | "archived";
+  mergedInto?: string;
   seo?: { title?: string; description?: string };
   createdAt: string;
 };

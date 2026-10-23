@@ -8,7 +8,7 @@ export type ProductDoc = {
   images: { url: string; alt?: string; publicId?: string }[]; priceFrom?: number; priceTo?: number; currency: string;
   variants: { sku: string; color?: string; size?: string; price?: number; stock: number; image?: string }[];
   stock: number; tags: string[]; isNewArrival?: boolean; isFeatured?: boolean; isMostWanted?: boolean;
-  status: "active" | "draft" | "archived"; slugHistory: string[]; lowStockThreshold: number;
+  status: "active" | "draft" | "archived"; mergedInto?: string; slugHistory: string[]; lowStockThreshold: number;
   ratingAvg: number; ratingCount: number; viewCount: number; soldCount: number; seo?: { title?: string; description?: string };
   createdAt: Date; updatedAt: Date;
 };
