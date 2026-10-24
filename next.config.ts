@@ -26,6 +26,7 @@ const nextConfig: NextConfig = {
       { source: "/:lang(en|ar)/(account|cart|checkout|wishlist|pay)/:path*", headers: privateHeaders },
     ];
   },
+  env: { NEXT_PUBLIC_IMAGE_HOSTS: imageHosts.join(",") },
   poweredByHeader: false,
   images: {
     remotePatterns: imageHosts.map((hostname) => ({ protocol: "https" as const, hostname })),

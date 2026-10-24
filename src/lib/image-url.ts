@@ -7,7 +7,7 @@ export function isAllowedImageUrl(u: string) {
   if (/^\/uploads\/[a-f0-9]{24}\.(png|jpg|webp)$/.test(u)) return true;
   try {
     const url = new URL(u);
-    return url.protocol === "https:" && imageHosts().includes(url.hostname.toLowerCase());
+    return url.protocol === "https:"; // any https host is shown (see components/img.tsx); IMAGE_HOSTS only decides which are optimised
   } catch { return false; }
 }
 

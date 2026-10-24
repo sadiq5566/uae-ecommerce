@@ -1,5 +1,5 @@
 "use client";
-import Image from "next/image";
+import Image from "@/components/img";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { addToCartAction } from "@/features/cart/actions";
@@ -52,7 +52,7 @@ export function ProductBuy({ p, locale, t, vi, setVi }: { p: ProductDetail; loca
                 {opts.colors.map((c) => (
                   <button key={c} type="button" title={c} aria-label={c} aria-pressed={c === v?.color} onClick={() => pick(c, v?.size && sizeInStock(p.variants, v.size, c) ? v.size : p.variants.find((x) => x.color === c && x.stock > 0)?.size)}
                     className={`size-10 rounded-full border-2 p-0.5 ${c === v?.color ? "border-brand" : "border-transparent"} ${colorInStock(p.variants, c) ? "" : "opacity-40"}`}>
-                    <span className="block size-full rounded-full border border-line" style={{ background: swatchFor(c) }} />
+                    {(() => { const img = p.variants.find((x) => x.color === c && x.image)?.image; return img ? <span className="relative block size-full overflow-hidden rounded-full border border-line"><Image src={img} alt="" fill sizes="40px" className="object-cover" /></span> : <span className="block size-full rounded-full border border-line" style={{ background: swatchFor(c) }} />; })()}
                   </button>
                 ))}
               </div>

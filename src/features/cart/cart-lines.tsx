@@ -1,5 +1,5 @@
 "use client";
-import Image from "next/image";
+import Image from "@/components/img";
 import Link from "next/link";
 import { useTransition } from "react";
 import { setCartCount } from "@/components/session-store";

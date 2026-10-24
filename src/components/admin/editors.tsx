@@ -33,7 +33,7 @@ export function ImagesEditor({ name = "images", initial, max = 10, single, onUrl
         {items.map((it, i) => (
           <li key={it.url + i} className="flex gap-3 rounded-xl border border-line p-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={it.url} alt="" className="size-20 shrink-0 rounded-lg bg-surface-2 object-cover" />
+            <img src={it.url} alt="" referrerPolicy="no-referrer" className="size-20 shrink-0 rounded-lg bg-surface-2 object-cover" />
             <div className="flex min-w-0 flex-1 flex-col gap-1.5">
               {!single && <><input aria-label="Alt text (English)" placeholder="Alt text (English)" value={it.alt.en} onChange={(e) => set(i, { alt: { ...it.alt, en: e.target.value } })} className={inputCls} /><input aria-label="Alt text (Arabic)" dir="rtl" placeholder="النص البديل (العربية)" value={it.alt.ar} onChange={(e) => set(i, { alt: { ...it.alt, ar: e.target.value } })} className={inputCls} /></>}
               <div className="flex gap-1.5"><button type="button" className={mini} disabled={i === 0} onClick={() => setItems(move(items, i, -1))}>↑</button><button type="button" className={mini} disabled={i === items.length - 1} onClick={() => setItems(move(items, i, 1))}>↓</button><button type="button" className={`${mini} text-danger`} onClick={() => commit(items.filter((_, k) => k !== i))}>Remove</button></div>
@@ -45,7 +45,7 @@ export function ImagesEditor({ name = "images", initial, max = 10, single, onUrl
         <div className="flex flex-wrap items-center gap-2">
           <input ref={file} type="file" aria-label="Upload an image file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f) upload(f); e.target.value = ""; }} />
           <button type="button" className={mini} disabled={busy} onClick={() => file.current?.click()}>{busy ? "Uploading…" : "Upload image"}</button>
-          <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="…or paste an allowed image URL" aria-label="Image URL" className={`${inputCls} max-w-xs`} />
+          <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="…or paste an image URL (https)" aria-label="Image URL" className={`${inputCls} max-w-xs`} />
           <button type="button" className={mini} disabled={!url.trim()} onClick={() => { commit(single ? [{ url: url.trim(), alt: { en: "", ar: "" } }] : [...items, { url: url.trim(), alt: { en: "", ar: "" } }]); setUrl(""); }}>Add URL</button>
         </div>
       )}
@@ -70,7 +70,8 @@ export function VariantsEditor({ initial, onCount }: { initial: VariantItem[]; o
           <input aria-label="Size" placeholder="Size (e.g. 38)" value={v.size ?? ""} onChange={(e) => set(i, { size: e.target.value })} className={inputCls} />
           <input aria-label="Variant stock" type="number" min={0} placeholder="Stock" value={v.stock} onChange={(e) => set(i, { stock: e.target.value })} className={inputCls} />
           <input aria-label="Variant price (optional)" type="number" min={0} step="0.01" placeholder="Price?" value={v.price ?? ""} onChange={(e) => set(i, { price: e.target.value })} className={inputCls} />
-          <input aria-label="Variant image URL (shown when this option is selected)" placeholder="Image URL for this option (optional)" value={v.image ?? ""} onChange={(e) => set(i, { image: e.target.value })} className={`${inputCls} sm:col-span-5`} />
+          {v.image ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={v.image} alt="" referrerPolicy="no-referrer" className="size-9 rounded-lg border border-line bg-surface-2 object-cover" /> : <span aria-hidden className="grid size-9 place-items-center rounded-lg border border-dashed border-line text-xs text-muted">img</span>}
+          <input aria-label="Variant image URL (shown when this option is selected)" placeholder="Image URL for this option (optional)" value={v.image ?? ""} onChange={(e) => set(i, { image: e.target.value })} className={`${inputCls} sm:col-span-4`} />
           <button type="button" className={mini} onClick={() => update(items.filter((_, k) => k !== i))}>Remove</button>
         </div>
       ))}

@@ -1,4 +1,4 @@
-import Image from "next/image";
+import Image from "@/components/img";
 import Link from "next/link";
 import { guard } from "@/lib/admin/guard";
 import { LinkButton, PageHeader, Pager, Pill, Table, aed, btnGhost, btnPrimary, inputCls } from "@/components/admin/ui";

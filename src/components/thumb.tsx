@@ -1,4 +1,4 @@
-import Image from "next/image";
+import Image from "@/components/img";
 
 /** Small product picture with the emoji placeholder as fallback. Decorative: the product name is always next to it. */
 export function Thumb({ src, icon = "📦", size = 48, className = "" }: { src?: string | null; icon?: string; size?: number; className?: string }) {

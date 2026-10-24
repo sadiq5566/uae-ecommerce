@@ -1,5 +1,5 @@
 "use client";
-import Image from "next/image";
+import Image from "@/components/img";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import { formatAED, type Locale } from "@/lib/i18n";
