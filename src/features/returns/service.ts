@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import { Types } from "mongoose";
 import { connectDb } from "@/lib/db";
 import { getMailer } from "@/lib/mailer";
+import { button, emailLayout, esc, getBrand, h, p, rows } from "@/lib/email";
 import { Coupon } from "@/models/coupon";
 import { InventoryMovement } from "@/models/inventory-movement";
 import { Order, type OrderDoc } from "@/models/order";
@@ -84,6 +85,7 @@ export async function createReturn(input: CreateReturnInput): Promise<{ ok: true
         resolution: input.resolution, reason: input.reason, note: input.note?.slice(0, 500) || undefined, items: lines, status: "requested",
         timeline: [{ status: "requested", at: now, by: input.actor ?? "customer", note: input.note?.slice(0, 200) || undefined }],
       });
+      await notifySupport(r.toObject() as ReturnDoc);
       return { ok: true, number: r.number };
     } catch (e) {
       if ((e as { code?: number }).code === 11000 && attempt < 5) continue; // number collision
@@ -95,9 +97,34 @@ export async function createReturn(input: CreateReturnInput): Promise<{ ok: true
 async function notify(r: ReturnDoc, text: { en: string; ar: string }) {
   try {
     const l = r.contact.locale ?? "en";
-    if (r.contact.email) await getMailer().send({ to: r.contact.email, subject: `${l === "ar" ? "طلب الإرجاع" : "Return"} ${r.number}`, text: text[l] });
+    if (r.contact.email) {
+      const b = await getBrand(l);
+      const title = l === "ar" ? "طلب الإرجاع" : "Return request";
+      await getMailer().send({
+        to: r.contact.email, subject: `${b.name} — ${l === "ar" ? "طلب الإرجاع" : "Return"} ${r.number}`, text: text[l],
+        html: emailLayout(b, { preheader: text[l], body: h(`${title} ${r.number}`) + p(esc(text[l])) + rows([[l === "ar" ? "رقم الطلب" : "Order", esc(r.orderNumber)], [l === "ar" ? "رقم الطلب المرتجع" : "Request", esc(r.number)]]) + button(`${b.url}/${l}/account`, l === "ar" ? "حسابي" : "My account") }),
+      });
+    }
     if (process.env.NODE_ENV !== "production" && r.contact.phone) console.info(`[sms:dev — NOT SENT] ${r.contact.phone}: ${text[l]}`);
   } catch (e) { console.warn("[returns] notify failed:", (e as Error).message); }
+}
+
+/** Tells the support inbox about a new return / refund / exchange request, with a reply-to of the customer. */
+async function notifySupport(r: ReturnDoc) {
+  try {
+    const b = await getBrand("en");
+    if (!b.supportEmail) return;
+    const kind = r.resolution === "exchange" ? "Exchange" : "Refund";
+    const items = r.items.map((i) => `<tr><td style="padding:6px 0;font:400 14px Arial,sans-serif;border-bottom:1px solid #e7e3da">${esc(i.name.en)}${i.variantLabel?.en ? ` <span style="color:#6b6b6b">(${esc(i.variantLabel.en)})</span>` : ""}${i.exchangeLabel?.en ? ` → <b>${esc(i.exchangeLabel.en)}</b>` : ""}</td><td align="right" style="padding:6px 0;font:600 14px Arial,sans-serif;border-bottom:1px solid #e7e3da">× ${i.qty}</td></tr>`).join("");
+    await getMailer().send({
+      to: b.supportEmail, replyTo: r.contact.email || undefined, subject: `[${kind}] ${r.number} — order ${r.orderNumber}`,
+      text: `${kind} request ${r.number} for order ${r.orderNumber}
+Customer: ${r.contact.name} ${r.contact.email ?? ""} ${r.contact.phone}
+Reason: ${r.reason}
+${r.note ?? ""}`,
+      html: emailLayout(b, { preheader: `${kind} request ${r.number}`, body: h(`New ${kind.toLowerCase()} request`) + rows([["Request", esc(r.number)], ["Order", esc(r.orderNumber)], ["Customer", esc(r.contact.name)], ["Email", esc(r.contact.email || "—")], ["Phone", esc(r.contact.phone)], ["Reason", esc(r.reason)]]) + `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${items}</table>` + (r.note ? p(`<i>${esc(r.note)}</i>`) : "") + button(`${b.url}/admin/returns`, "Open in admin") }),
+    });
+  } catch (e) { console.warn("[returns] support notify failed:", (e as Error).message); }
 }
 
 const push = (status: ReturnStatus, actor: string, note?: string) => ({ status, at: new Date(), by: actor, note });

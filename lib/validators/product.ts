@@ -1,3 +1,4 @@
+import { looksLikeBrand } from "../brands";
 import { z } from "zod";
 import { slugify } from "../utils";
 
@@ -18,7 +19,7 @@ export const productSchema = z
     sku: z.string().trim().min(1, "SKU is required").max(40),
     name: z.string().trim().min(2, "Name is required").max(200),
     slug: z.string().trim().optional(),
-    category: z.string().trim().toLowerCase().regex(/^[a-z0-9][a-z0-9-]{0,39}$/, "Category: lowercase letters, numbers and dashes, e.g. bags"),
+    category: z.string().trim().toLowerCase().regex(/^[a-z0-9][a-z0-9-]{0,39}$/, "Category: lowercase letters, numbers and dashes, e.g. bags").refine((c) => !looksLikeBrand(c), "That is a brand, not a category. Put it in the Brand field and pick what the product is (watches, bags, footwear...) as the category."),
     subcategory: z.string().trim().min(1, "Subcategory is required").max(40),
     brand: z.string().trim().default("Carts Heaven"),
     model: z.string().trim().optional(),

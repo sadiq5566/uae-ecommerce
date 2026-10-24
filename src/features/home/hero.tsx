@@ -1,11 +1,11 @@
 "use client";
-import Image from "next/image";
+import Image from "@/components/img";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { Locale } from "@/lib/i18n";
 
 export type HeroSlide = { id: string; eyebrow: string; title: string; subtitle: string; cta: string; href: string; secondary?: { label: string; href: string }; image?: string; hue: number; bullets?: string[] };
-export type HeroChip = { label: string; href: string; count: number };
+export type HeroTile = { label: string; href: string; image?: string; count: number };
 
 const Check = () => <svg aria-hidden viewBox="0 0 20 20" className="size-4 shrink-0 text-amber-300" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="10" cy="10" r="8.25" className="opacity-40" /><path d="m6.5 10.2 2.3 2.3 4.7-4.9" /></svg>;
 const btnMain = "inline-flex items-center justify-center gap-2 rounded-full bg-amber-300 px-7 py-3.5 font-semibold text-[#1a1405] shadow-lg shadow-black/20 transition hover:bg-amber-200 hover:shadow-amber-300/30 active:scale-[.98]";
@@ -16,7 +16,7 @@ function Cta({ href, className, children }: { href: string; className: string; c
   return /^https?:/.test(href) ? <a href={href} rel="noopener" className={className}>{children}</a> : <Link href={href} className={className}>{children}</Link>;
 }
 
-export function Hero({ slides, locale, labels, chips = [] }: { slides: HeroSlide[]; locale: Locale; labels: { prev: string; next: string; goTo: string }; chips?: HeroChip[] }) {
+export function Hero({ slides, locale, labels, tiles = [] }: { slides: HeroSlide[]; locale: Locale; labels: { prev: string; next: string; goTo: string }; tiles?: HeroTile[] }) {
   const [i, setI] = useState(0);
   const [paused, setPaused] = useState(false);
   const n = slides.length;
@@ -41,7 +41,7 @@ export function Hero({ slides, locale, labels, chips = [] }: { slides: HeroSlide
           <span className="absolute inset-[38%] rounded-full bg-gradient-to-br from-amber-300/40 to-transparent blur-2xl" />
         </div>
       )}
-      <div className="mx-auto max-w-7xl px-4 pb-24 pt-16 sm:px-6 md:pb-28 md:pt-24 lg:pb-32 lg:pt-28" key={s.id} aria-live={paused ? "polite" : "off"}>
+      <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 pb-24 pt-14 sm:px-6 md:pb-28 md:pt-20 lg:grid-cols-[1.1fr_0.9fr] lg:pb-32 lg:pt-24" key={s.id} aria-live={paused ? "polite" : "off"}>
         <div className="max-w-2xl">
           {s.eyebrow && <span className="animate-fade-up inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-4 py-1.5 text-xs font-semibold tracking-wide backdrop-blur"><span aria-hidden className="size-1.5 rounded-full bg-amber-300" />{s.eyebrow}</span>}
           <h1 className="animate-fade-up mt-5 text-balance font-display text-4xl font-bold leading-[1.08] [animation-delay:100ms] sm:text-5xl lg:text-6xl">{s.title}</h1>
@@ -53,12 +53,19 @@ export function Hero({ slides, locale, labels, chips = [] }: { slides: HeroSlide
             </div>
           ) : null}
           {s.bullets && <ul className="animate-fade-up mt-8 flex flex-wrap gap-x-6 gap-y-2.5 text-sm font-medium text-white/85 [animation-delay:380ms]">{s.bullets.map((b) => <li key={b} className="flex items-center gap-2"><Check />{b}</li>)}</ul>}
-          {chips.length > 0 && (
-            <nav aria-label="Shop by category" className="animate-fade-up mt-8 flex flex-wrap gap-2 [animation-delay:440ms]">
-              {chips.map((c) => <Link key={c.href} href={c.href} className="group flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-4 py-2 text-sm font-medium backdrop-blur transition hover:border-amber-300 hover:bg-white/20">{c.label}<span className="rounded-full bg-white/15 px-2 py-0.5 text-xs text-white/80 group-hover:bg-amber-300 group-hover:text-[#1a1405]">{c.count}</span></Link>)}
-            </nav>
-          )}
         </div>
+        {tiles.length > 0 && !s.image && (
+          <ul className="animate-fade-up hidden grid-cols-2 gap-3 [animation-delay:200ms] lg:grid">
+            {tiles.slice(0, 4).map((c, k) => (
+              <li key={c.href} className={k % 2 ? "mt-8" : ""}>
+                <Link href={c.href} className="group relative block aspect-[4/5] overflow-hidden rounded-2xl border border-white/20 bg-white/10 shadow-xl shadow-black/20">
+                  {c.image && <Image src={c.image} alt="" fill sizes="20vw" className="object-cover transition duration-500 group-hover:scale-110" />}
+                  <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-4 pb-4 pt-12"><span className="block font-display text-lg font-bold leading-tight">{c.label}</span><span className="text-xs text-white/75">{c.count} {locale === "ar" ? "منتج" : "items"}</span></span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
       {n > 1 && (
         <div className="absolute inset-x-0 bottom-12 flex items-center justify-center gap-2 md:bottom-14">

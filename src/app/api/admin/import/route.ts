@@ -9,6 +9,7 @@ import { groupRows, VARIANTS_FIELD } from "../../../../../lib/import-group";
 import { cloudinaryConfigured, uploadRemote } from "../../../../../lib/cloudinary";
 import { isDuplicateKey } from "../../../../../lib/utils";
 import { categoryTitle } from "../../../../../lib/catalog-shared";
+import { ensureBrand } from "@/features/catalog/brands";
 
 const MAX_ROWS = 5000;
 const MAX_BATCH = 100;
@@ -85,6 +86,8 @@ export async function POST(req: Request) {
         failed.push({ line: r.line, sku: r.sku, error: isDuplicateKey(e) ? "SKU or slug already exists" : e instanceof Error ? e.message : "failed" });
       }
     }
+    // A brand seen for the first time gets its own brand page.
+    for (const b of new Set(results.filter((r) => r.data).map((r) => r.data!.brand))) await ensureBrand(b);
     // A category seen for the first time gets its own "All <Category>" collection page.
     for (const cat of new Set(results.filter((r) => r.data).map((r) => r.data!.category))) {
       const name = categoryTitle(cat);

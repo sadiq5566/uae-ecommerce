@@ -2,7 +2,8 @@
 import { ProductModel } from "./models/Product";
 import { productSchema, type ProductInput } from "./validators/product";
 import { slugify } from "./utils";
-import { resolveCategory } from "./category";
+import { guessCategory, resolveCategory } from "./category";
+import { brandFromCategorySlug, inferBrand, isPlaceholderBrand, looksLikeBrand } from "./brands";
 import { VARIANTS_FIELD } from "./import-group";
 
 export type ImportItem = { line: number; record: Record<string, string> };
@@ -113,8 +114,16 @@ export async function validateRecords(items: ImportItem[]): Promise<RowResult[]>
     if (has("name")) input.name = clip(r.name, 200);
     if (has("category")) {
       const c = resolveCategory(r.category); // any category (bags, perfume…) is accepted and created on import
-      if (c !== "general") input.category = c;
-      else errors.push(`category: "${r.category}" is not a valid category name`);
+      if (c === "general") errors.push(`category: "${r.category}" is not a valid category name`);
+      else if (!looksLikeBrand(c)) input.category = c;
+      else {
+        // A brand ("Cartier", "all-louis-vuitton") in the category column: the product is filed by what it is (read from its name / subcategory / tags)
+        // and the brand goes in the brand field unless the row has its own.
+        const kind = guessCategory([r.name ?? input.name, r.subcategory, r.tags].filter(Boolean).join(" ").replace(/[-_|]+/g, " "));
+        if (kind) input.category = kind;
+        else errors.push(`category: "${r.category}" is a brand. Put it in the brand column and use a category such as watches, jewelry, bags, footwear, perfume or accessories.`);
+        if (!has("brand")) input.brand = brandFromCategorySlug(c);
+      }
     }
     for (const [col, key] of [["subcategory", "subcategory"], ["brand", "brand"], ["model", "model"], ["finish", "finish"], ["short_description", "shortDescription"], ["long_description", "longDescription"]] as const) {
       if (has(col)) input[key] = key === "shortDescription" ? clip(r[col], 400) : key === "longDescription" ? clip(r[col], 5000) : r[col];
@@ -190,6 +199,8 @@ export async function validateRecords(items: ImportItem[]): Promise<RowResult[]>
     }
 
     if (!input.shortDescription && input.longDescription) input.shortDescription = String(input.longDescription).slice(0, 160);
+    // No brand in the file (or just the shop's own name): take it from the product name ("Zegna Suede Sneakers" -> Zegna).
+    if (!has("brand") && isPlaceholderBrand(input.brand)) input.brand = inferBrand(String(input.name ?? "")) ?? input.brand;
     if (!input.finish && has("color")) input.finish = r.color;
     else if (!input.finish && input.variants?.[0]?.color) input.finish = input.variants[0].color;
     if (!input.category) input.category = resolveCategory("", [input.name, input.subcategory, ...(input.tags ?? [])].filter(Boolean).join(" "));

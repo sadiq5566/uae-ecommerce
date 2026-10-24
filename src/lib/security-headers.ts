@@ -1,7 +1,7 @@
 // Security response headers, kept in one pure module so they can be unit-tested and reused by next.config.ts.
 
 export function contentSecurityPolicy(imageHosts: string[] = [], stripe = false) {
-  const img = ["'self'", "data:", "blob:", ...imageHosts.map((h) => `https://${h}`)].join(" ");
+  const img = ["'self'", "data:", "blob:", "https:", ...imageHosts.map((h) => `https://${h}`)].join(" ");
   return [
     "default-src 'self'",
     // 'unsafe-inline' is required today for Next's inline bootstrap and the no-flash theme script. To go nonce-based

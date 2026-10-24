@@ -21,7 +21,7 @@ export function ArticleForm({ article }: { article?: ArticleData }) {
     <form action={action} className="flex flex-col gap-6" noValidate>
       {a.id && <input type="hidden" name="id" value={a.id} />}<Banner s={s} />
       <Card title="Content"><div className="grid gap-4 sm:grid-cols-2">
-        <TF s={s} name="title_en" label="Title (EN)" defaultValue={a.title.en} /><TF s={s} name="title_ar" label="Title (AR)" defaultValue={a.title.ar} dir="rtl" />
+        <TF s={s} name="title_en" label="Title (EN)" defaultValue={a.title.en} hint="One language is enough" /><TF s={s} name="title_ar" label="Title (AR)" defaultValue={a.title.ar} dir="rtl" />
         <TF s={s} name="slug" label="URL slug" defaultValue={a.slug} /><TF s={s} name="category" label="Category label" defaultValue={a.category} hint="e.g. Guides" />
         <TA s={s} name="excerpt_en" label="Summary (EN)" defaultValue={a.excerpt.en} rows={2} /><TA s={s} name="excerpt_ar" label="Summary (AR)" defaultValue={a.excerpt.ar} rows={2} dir="rtl" />
         <TA s={s} name="body_en" label="Body (EN)" defaultValue={a.body.en} rows={12} /><TA s={s} name="body_ar" label="Body (AR)" defaultValue={a.body.ar} rows={12} dir="rtl" />

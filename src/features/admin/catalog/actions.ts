@@ -11,7 +11,9 @@ import { Category } from "@/models/category";
 import { InventoryMovement } from "@/models/inventory-movement";
 import { Product } from "@/models/product";
 import { slugify } from "../../../../lib/utils";
-import { categorySchema, productSchema, stockAdjustSchema } from "./schemas";
+import { brandSchema, categorySchema, productSchema, stockAdjustSchema } from "./schemas";
+import { BrandModel } from "../../../../lib/models/Brand";
+import { brandRegex, ensureBrand } from "@/features/catalog/brands";
 import { parseProductFilters, productFilterQuery } from "./queries";
 
 const refresh = () => revalidatePath("/[lang]", "layout");
@@ -65,6 +67,7 @@ export async function saveProductAction(_: FormState, fd: FormData): Promise<For
       const moves = [...after].map(([sku, qty]) => ({ sku, delta: qty - (before.get(sku) ?? 0) })).filter((m) => m.delta !== 0);
       if (moves.length) await InventoryMovement.insertMany(moves.map((m) => ({ product: doc._id, sku: m.sku, delta: m.delta, reason: "manual_adjustment", actor: user.id, note: "Edited in product form" })));
       await ensureCategoryPage(base.category);
+      await ensureBrand(base.brand);
       await audit(user, "product.update", "product", String(doc._id), `Updated product ${base.sku}`, { status: p.status, slugChanged: doc.slug !== base.slug });
       refresh(); revalidatePath("/admin/products");
       return { ok: true };
@@ -72,6 +75,7 @@ export async function saveProductAction(_: FormState, fd: FormData): Promise<For
     const doc = await Product.create(base);
     if (stock > 0) await InventoryMovement.insertMany((hasVariants ? variants : [{ sku: base.sku, stock }]).filter((v) => v.stock > 0).map((v) => ({ product: doc._id, sku: v.sku, delta: v.stock, reason: "restock", actor: user.id, note: "Initial stock" })));
     await ensureCategoryPage(base.category);
+    await ensureBrand(base.brand);
     await audit(user, "product.create", "product", String(doc._id), `Created product ${base.sku}`);
     refresh(); revalidatePath("/admin/products");
   } catch (e) {
@@ -165,6 +169,53 @@ export async function deleteCategoryAction(fd: FormData): Promise<void> {
   await Category.deleteOne({ _id: id });
   await audit(user, "category.delete", "category", id, `Deleted collection ${c.slug}`);
   refresh(); redirect("/admin/categories");
+}
+
+/* -------------------------------- brands -------------------------------- */
+
+export async function saveBrandAction(_: FormState, fd: FormData): Promise<FormState> {
+  const user = await actor("categories:write");
+  if (!user) return { error: FORBIDDEN };
+  const parsed = brandSchema.safeParse(formObj(fd));
+  if (!parsed.success) return fail(issues(parsed.error), fd);
+  const b = parsed.data;
+  await connectDb();
+  const base = { slug: b.slug || slugify(b.name), name: b.name, description: b.description, logo: b.logo, image: b.image, isFeatured: b.isFeatured, isActive: b.isActive, sortOrder: b.sortOrder };
+  try {
+    if (b.id) {
+      if (!Types.ObjectId.isValid(b.id)) return { error: "Not found" };
+      const old = await BrandModel.findById(b.id).lean<{ name: string } | null>();
+      if (!old) return { error: "Brand not found" };
+      await BrandModel.updateOne({ _id: b.id }, { $set: base });
+      // Renaming a brand renames it on every product that carried the old name.
+      if (old.name !== base.name) await Product.updateMany({ brand: brandRegex(old.name) }, { $set: { brand: base.name } });
+      await audit(user, "brand.update", "brand", b.id, `Updated brand ${base.slug}`);
+      refresh(); revalidatePath("/admin/brands");
+      return { ok: true };
+    }
+    const doc = await BrandModel.create(base);
+    await audit(user, "brand.create", "brand", String(doc._id), `Created brand ${base.slug}`);
+    refresh(); revalidatePath("/admin/brands");
+  } catch (e) {
+    if (isDupKey(e, "slug")) return fail({ slug: "This brand already exists" }, fd);
+    throw e;
+  }
+  redirect("/admin/brands?saved=1");
+}
+
+export async function deleteBrandAction(fd: FormData): Promise<void> {
+  const user = await actor("categories:write");
+  const id = String(fd.get("id") ?? "");
+  if (!user || !Types.ObjectId.isValid(id)) return;
+  await connectDb();
+  const b = await BrandModel.findById(id).lean<{ name: string; slug: string } | null>();
+  if (!b) redirect("/admin/brands");
+  // A brand with products would simply come back (every product's brand is listed), so ask to move the products first.
+  const inUse = await Product.countDocuments({ brand: brandRegex(b.name) });
+  if (inUse > 0) redirect(`/admin/brands/${id}?blocked=${inUse}`);
+  await BrandModel.deleteOne({ _id: id });
+  await audit(user, "brand.delete", "brand", id, `Deleted brand ${b.slug}`);
+  refresh(); redirect("/admin/brands");
 }
 
 /* ------------------------------ inventory ------------------------------ */

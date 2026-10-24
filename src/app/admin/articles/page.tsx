@@ -41,7 +41,7 @@ export default async function Articles({ searchParams }: PageProps<"/admin/artic
       <FilterForm {...c} fields={fields} sorts={[{ value: "updated", label: "Last updated" }, { value: "publish", label: "Publish date" }, { value: "title", label: "Title" }, { value: "author", label: "Author" }, { value: "status", label: "Status" }]} />
       <Table head={[H("Title", "title"), H("Author", "author"), H("Publish", "publish"), H("Status", "status")]} empty={rows.length ? undefined : "No articles match."}>
         {rows.map((a) => { const scheduled = a.status === "published" && a.publishAt && a.publishAt > now; return (
-          <tr key={String(a._id)}><td><Link href={`/admin/articles/${a._id}`} className="font-medium hover:text-brand">{a.title?.en}</Link><span className="block text-xs text-muted">/{a.slug}</span></td><td className="text-muted">{a.author ?? "—"}</td><td className="text-xs text-muted">{a.publishAt ? dubaiDate(a.publishAt, true) : "—"}</td><td><Pill tone={scheduled ? "gold" : a.status === "published" ? "green" : "grey"}>{scheduled ? "scheduled" : a.status}</Pill></td></tr>
+          <tr key={String(a._id)}><td><Link href={`/admin/articles/${a._id}`} className="font-medium hover:text-brand">{a.title?.en || a.title?.ar}</Link><span className="block text-xs text-muted">/{a.slug}</span></td><td className="text-muted">{a.author ?? "—"}</td><td className="text-xs text-muted">{a.publishAt ? dubaiDate(a.publishAt, true) : "—"}</td><td><Pill tone={scheduled ? "gold" : a.status === "published" ? "green" : "grey"}>{scheduled ? "scheduled" : a.status}</Pill></td></tr>
         ); })}
       </Table>
       <Pager page={page} pages={Math.max(1, Math.ceil(total / per))} href={(p) => hrefFor(c, { page: p })} />

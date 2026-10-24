@@ -7,7 +7,9 @@ import { getDictionary } from "@/lib/dictionaries";
 import { dirOf, isLocale, locales } from "@/lib/i18n";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
-import { getNavCategories } from "@/features/catalog/service";
+import { getNavCategories, getShowcase } from "@/features/catalog/service";
+import { buildMenu } from "@/features/catalog/menu";
+import { getStoreBrands } from "@/features/catalog/brands";
 import { ToastProvider } from "@/components/toast";
 import { SessionBootstrap } from "@/components/session-store";
 import { ScrollToAlert } from "@/components/scroll-to-alert";
@@ -45,6 +47,7 @@ export default async function RootLayout({ children, params }: LayoutProps<"/[la
   // Locale chrome loads live MongoDB data, so defer it until a real request.
   await connection();
   const [t, categories, offers] = await Promise.all([getDictionary(lang), getNavCategories(), getPublicOffers()]);
+  const menu = buildMenu(categories, await getShowcase().catch(() => ({})), await getStoreBrands().catch(() => []));
   const lines = offerLines(offers, t, lang);
   return (
     <html lang={lang} dir={dirOf(lang)} data-scroll-behavior="smooth" suppressHydrationWarning className={`${latin.variable} ${display.variable} ${arabic.variable}`}>
@@ -54,9 +57,9 @@ export default async function RootLayout({ children, params }: LayoutProps<"/[la
           <SessionBootstrap />
           <ScrollToAlert />
           <ScrollToTop />
-          <Header locale={lang} t={t} categories={categories} offerLines={lines} />
+          <Header locale={lang} t={t} menu={menu} offerLines={lines} />
           <main id="main" tabIndex={-1} className="flex-1 outline-none">{children}</main>
-          <Footer locale={lang} t={t} categories={categories} />
+          <Footer locale={lang} t={t} menu={menu} />
           {offers.modal.enabled && lines.length > 0 && (
             <WelcomeModal
               locale={lang} version={offers.modal.version} delaySeconds={offers.modal.delaySeconds} collectLeads={offers.modal.collectLeads} lines={lines}

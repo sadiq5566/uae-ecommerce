@@ -1,4 +1,4 @@
-import Image from "next/image";
+import Image from "@/components/img";
 import Link from "next/link";
 import { guard } from "@/lib/admin/guard";
 import { LinkButton, PageHeader, Pager, Pill, Table, aed, btnGhost, btnPrimary, inputCls } from "@/components/admin/ui";
@@ -71,12 +71,13 @@ export default async function ProductsPage({ searchParams }: PageProps<"/admin/p
       {chips.length > 0 && <div className="mb-3 flex flex-wrap items-center gap-2" aria-label="Active filters">{chips}</div>}
 
       <BulkForm total={total} pageIds={rows.map((r) => r.id)} filterQs={filterQs}>
-        <Table head={["", head("Product", "name"), "Category", head("Price", "price"), head("Stock", "stock"), head("Status", "status")]} empty={rows.length ? undefined : "No products match."}>
+        <Table head={["", head("Product", "name"), "Category", "Brand", head("Price", "price"), head("Stock", "stock"), head("Status", "status")]} empty={rows.length ? undefined : "No products match."}>
           {rows.map((p) => (
             <tr key={p.id}>
               <td className="w-8"><RowCheck id={p.id} label={p.name} /></td>
               <td><Link href={`/admin/products/${p.id}`} className="flex items-center gap-3 hover:text-brand"><span className="relative grid size-10 shrink-0 place-items-center overflow-hidden rounded-lg bg-surface-2 text-xl">{p.image ? <Image src={p.image} alt="" fill sizes="40px" className="object-cover" /> : p.icon}</span><span><span className="block font-medium">{p.name}</span><span className="text-xs text-muted">{p.sku}{p.variantCount > 0 && ` · ${p.variantCount} options`}</span></span></Link></td>
               <td className="text-muted">{catName.get(p.category) ?? "—"}</td>
+              <td className="text-muted">{p.brand || "—"}</td>
               <td>{p.finalPrice < p.price ? <><b>{aed(p.finalPrice)}</b> <s className="text-xs text-muted">{aed(p.price)}</s></> : aed(p.price)}</td>
               <td><Pill tone={p.stock === 0 ? "red" : p.stock <= p.low ? "gold" : "green"}>{p.stock}</Pill></td>
               <td><Pill tone={p.status === "active" ? "green" : p.status === "draft" ? "gold" : "grey"}>{p.status}</Pill>{p.featured && <> <Pill tone="dark">featured</Pill></>}</td>

@@ -1,4 +1,5 @@
 "use client";
+import { SeoPreview } from "./seo-preview";
 import { useActionState, useState } from "react";
 import { CB, SF, TA, TF } from "@/components/admin/fields";
 import { ImagesEditor, VariantsEditor, type ImageItem, type VariantItem } from "@/components/admin/editors";
@@ -16,7 +17,7 @@ export type ProductFormData = {
 
 const EMPTY: ProductFormData = { slug: "", sku: "", name: "", shortDescription: "", longDescription: "", category: "", subcategory: "general", priceFrom: 0, priceTo: 0, stock: 0, lowStockThreshold: 5, status: "draft", isFeatured: false, isNewArrival: false, isMostWanted: false, tags: [], highlights: [], includedItems: [], images: [], variants: [], seo: { title: "", description: "" } };
 
-export function ProductForm({ categories, product }: { categories: CategoryOption[]; product?: ProductFormData }) {
+export function ProductForm({ categories, product, brands = [] }: { categories: CategoryOption[]; product?: ProductFormData; brands?: string[] }) {
   const p = product ?? EMPTY;
   const [s, action, pending] = useActionState<FormState, FormData>(saveProductAction, {});
   const [variantCount, setVariantCount] = useState(p.variants.length);
@@ -39,7 +40,8 @@ export function ProductForm({ categories, product }: { categories: CategoryOptio
             {p.category && !categories.some((c) => c.id === p.category) && <option value={p.category}>{p.category}</option>}
           </SF>
           <TF s={s} name="subcategory" label="Subcategory" defaultValue={p.subcategory} />
-          <TF s={s} name="brand" label="Brand (optional)" defaultValue={p.brand} />
+          <TF s={s} name="brand" label="Brand (optional)" defaultValue={p.brand} list="brand-options" hint="The maker (Rolex, Cartier, Zegna…). Not the category." />
+          <datalist id="brand-options">{brands.map((b) => <option key={b} value={b} />)}</datalist>
           <TF s={s} name="model" label="Model (optional)" defaultValue={p.model} />
           <TF s={s} name="finish" label="Finish / material (optional)" defaultValue={p.finish} />
           <TA s={s} name="shortDescription" label="Short description" defaultValue={p.shortDescription} rows={3} required />
@@ -70,8 +72,9 @@ export function ProductForm({ categories, product }: { categories: CategoryOptio
           <CB s={s} name="isNewArrival" label="New arrival" defaultChecked={p.isNewArrival} />
           <CB s={s} name="isMostWanted" label="Most wanted" defaultChecked={p.isMostWanted} />
           <div />
-          <TF s={s} name="seoTitle" label="SEO title" defaultValue={p.seo.title} hint="Max 70 characters" />
+          <TF s={s} name="seoTitle" label="SEO title" defaultValue={p.seo.title} hint="Max 70 characters. Main words first: brand, what it is, colour." />
           <TA s={s} name="seoDesc" label="Meta description" defaultValue={p.seo.description} rows={2} />
+          <SeoPreview />
         </div>
       </Card>
       <div className="sticky bottom-3 z-10 flex gap-3 rounded-2xl border border-line bg-surface/95 p-3 shadow-card backdrop-blur"><button disabled={pending} className={btnPrimary}>{pending ? "Saving…" : p.id ? "Save changes" : "Create product"}</button></div>

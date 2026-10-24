@@ -19,7 +19,7 @@ export function ProductMain({ p, locale, t, children }: { p: ProductDetail; loca
     .filter((im, k, a) => a.findIndex((z) => z.url === im.url) === k);
   return (
     <div className="mt-6 grid gap-10 lg:grid-cols-2">
-      <div className="animate-fade-up"><Gallery images={images} name={title} locale={locale} icon={p.icon} hue={p.hue} labels={{ thumb: t.catalog.thumb }} selectedUrl={v?.image} /></div>
+      <div className="animate-fade-up"><Gallery images={images} name={title} locale={locale} icon={p.icon} hue={p.hue} labels={{ thumb: t.catalog.thumb }} selectedUrl={v?.image} onPick={(url) => { const k = p.variants.findIndex((x) => x.image === url && (!v?.color || x.color === v.color || !p.variants.some((y) => y.image === url && y.color === v.color))); if (k >= 0) setVi(k); }} /></div>
       <div className="animate-fade-up flex flex-col gap-6 [animation-delay:120ms]">
         <div>
           {p.brand && <p className="text-sm font-semibold text-brand">{p.brand}</p>}

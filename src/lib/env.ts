@@ -17,6 +17,12 @@ const schema = z.object({
   TABBY_MERCHANT_CODE: z.preprocess(blankToUndefined, z.string().min(1).optional()),
   TABBY_WEBHOOK_SECRET: z.preprocess(blankToUndefined, z.string().min(16).optional()),
   CRON_SECRET: z.preprocess(blankToUndefined, z.string().min(16).optional()),
+  SMTP_HOST: z.preprocess(blankToUndefined, z.string().optional()),
+  SMTP_PORT: z.preprocess(blankToUndefined, z.coerce.number().int().optional()),
+  SMTP_USER: z.preprocess(blankToUndefined, z.string().optional()),
+  SMTP_PASS: z.preprocess(blankToUndefined, z.string().optional()),
+  EMAIL_FROM: z.preprocess(blankToUndefined, z.string().optional()),
+  SUPPORT_EMAIL: z.preprocess(blankToUndefined, z.email().optional()), // inbox for complaints / refunds / exchanges
   IMAGE_HOSTS: z.string().optional(), // comma-separated hostnames allowed for remote images
   IMAGE_BLOCKLIST: z.string().optional(), // comma-separated URL substrings that are never imported (e.g. "Screenshot_")
   STORAGE_DRIVER: z.string().optional(), // "local" (dev only) or your own adapter id

@@ -8,6 +8,7 @@ import { CollectionModel } from "../../../lib/models/Collection";
 import { swatchFor } from "../../../lib/variants";
 import { categoryLabel } from "../../../lib/catalog-shared";
 import { PAGE_SIZE, type Filters } from "./filters";
+import { brandRegex } from "./brands";
 
 // Reads the shared flat catalogue (lib/models/Product.ts + Collection.ts, identical in every storefront) and adapts it
 // to the DTOs this storefront's components use: names become { en, ar } (same text), price = original price, finalPrice = selling price.
@@ -22,7 +23,7 @@ export type CategoryView = {
 
 export type ProductCardData = {
   id: string; slug: string; sku: string; name: L10n; price: number; finalPrice: number;
-  icon: string; hue: number; ratingAvg: number; ratingCount: number; stock: number; image?: string; brand?: string;
+  icon: string; hue: number; ratingAvg: number; ratingCount: number; stock: number; image?: string; image2?: string; brand?: string;
   hasVariants?: boolean; // has colour/size options: can only be added to the cart from its page, after choosing one
 };
 
@@ -46,7 +47,7 @@ function card(p: Doc): ProductCardData {
   return {
     id: String(p._id), slug: p.slug, sku: p.sku, name: both(p.name), price, finalPrice: p.priceTo,
     icon: ICONS[p.category] ?? "📦", hue: hueOf(p.category ?? ""), ratingAvg: p.ratingAvg ?? 0, ratingCount: p.ratingCount ?? 0, stock: p.stock ?? 0,
-    image: p.images?.[0]?.url, brand: p.brand, hasVariants: (p.variants?.length ?? 0) > 0,
+    image: p.images?.[0]?.url, image2: p.images?.[1]?.url, brand: p.brand, hasVariants: (p.variants?.length ?? 0) > 0,
   };
 }
 
@@ -77,11 +78,12 @@ export async function getCategoryBySlug(slug: string) {
   return { cat, children: [] as CategoryView[], parent: null as CategoryView | null, scopeIds: [cat.id] };
 }
 
-export type Scope = { categoryIds?: string[]; deals?: boolean; newOnly?: boolean };
+export type Scope = { categoryIds?: string[]; brand?: string; deals?: boolean; newOnly?: boolean };
 
 function baseMatch(scope: Scope, q?: string, regexFallback = false): QueryFilter<Doc> {
   const m: QueryFilter<Doc> = { ...ACTIVE };
   if (scope.categoryIds) m.category = { $in: scope.categoryIds };
+  if (scope.brand) m.brand = brandRegex(scope.brand);
   if (scope.deals) m.$expr = { $lt: ["$priceTo", "$priceFrom"] };
   if (scope.newOnly) m.createdAt = { $gte: new Date(Date.now() - 60 * 24 * 3600 * 1000) };
   if (q) {
@@ -121,7 +123,7 @@ const SORT = {
 export type Facets = { brands: { value: string; count: number }[]; price: { min: number; max: number }; attrs: Record<string, { value: string; count: number }[]> };
 
 /** Only what a product card shows (first image only) — avoids loading descriptions and every gallery image per row. */
-const CARD_PROJECTION = { slug: 1, sku: 1, name: 1, category: 1, priceFrom: 1, priceTo: 1, ratingAvg: 1, ratingCount: 1, stock: 1, brand: 1, "variants.sku": 1, images: { $slice: 1 } };
+const CARD_PROJECTION = { slug: 1, sku: 1, name: 1, category: 1, priceFrom: 1, priceTo: 1, ratingAvg: 1, ratingCount: 1, stock: 1, brand: 1, "variants.sku": 1, images: { $slice: 2 } };
 
 async function computeFacets(base: QueryFilter<Doc>, allowedAttrs: string[]): Promise<Facets> {
   const keys = allowedAttrs.filter((k) => ATTR_FIELD[k]);
@@ -170,17 +172,29 @@ export async function listProducts(scope: Scope, f: Filters, allowedAttrs: strin
   return { items: rows.map(card), total, pages: Math.max(1, Math.ceil(total / PAGE_SIZE)), facets };
 }
 
-/** Simple collections for the home page. */
-export async function getCollection(kind: "featured" | "deals" | "new" | "popular" | "viewed", limit = 4) {
+/** Simple collections for the home page. `categories` limits them to those category slugs (the lead categories on the home page). */
+export async function getCollection(kind: "featured" | "deals" | "new" | "popular" | "viewed" | "category", limit = 4, categories?: string[]) {
   await connectDb();
-  const filter: QueryFilter<Doc> = { ...ACTIVE };
+  const filter: QueryFilter<Doc> = { ...ACTIVE, "images.0": { $exists: true } };
+  if (categories?.length) filter.category = { $in: categories };
   let sort: Record<string, 1 | -1> = { createdAt: -1 };
   if (kind === "featured") { filter.isFeatured = true; sort = { soldCount: -1 }; }
   if (kind === "deals") { filter.$expr = { $lt: ["$priceTo", "$priceFrom"] }; sort = { soldCount: -1 }; }
-  if (kind === "popular") sort = { soldCount: -1 };
+  if (kind === "popular" || kind === "category") sort = { soldCount: -1, isFeatured: -1, viewCount: -1 };
   if (kind === "viewed") sort = { viewCount: -1 };
-  return ((await ProductModel.find(filter, CARD_PROJECTION).sort(sort).limit(limit).lean()) as unknown as Doc[]).map(card);
+  return ((await ProductModel.find(filter, CARD_PROJECTION).sort({ ...sort, _id: 1 }).limit(limit).lean()) as unknown as Doc[]).map(card);
 }
+
+/** One picture + product count per category (best-selling product that has a photo). Categories have no image of their own, so this feeds the home tiles and menus. */
+export const getShowcase = cachedFor("showcase", 300, async (): Promise<Record<string, { image?: string; count: number }>> => {
+  await connectDb();
+  const rows = await ProductModel.aggregate<{ _id: string; image?: string; count: number }>([
+    { $match: ACTIVE },
+    { $sort: { isFeatured: -1, soldCount: -1, viewCount: -1 } },
+    { $group: { _id: "$category", count: { $sum: 1 }, image: { $first: { $arrayElemAt: ["$images.url", 0] } } } },
+  ]);
+  return Object.fromEntries(rows.map((r) => [r._id, { image: r.image || undefined, count: r.count }]));
+});
 
 export async function getProductBySlug(slug: string) {
   await connectDb();
