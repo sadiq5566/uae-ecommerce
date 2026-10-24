@@ -1,0 +1,190 @@
+
+> ecommerce-uae@0.1.0 build
+> next build
+
+▲ Next.js 16.4.3 (Turbopack)
+- Environments: .env
+✓ Running next.config.ts took 151ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 20.5s
+  Running TypeScript ...
+  Finished TypeScript in 41s ...
+  Collecting page data using 5 workers ...
+  Generating static pages using 5 workers (0/65) ...
+  Generating static pages using 5 workers (16/65) 
+  Generating static pages using 5 workers (32/65) 
+  Generating static pages using 5 workers (48/65) 
+revalidating cache with key: async()=>{let a=await (0,e.e)(),b=a.offers;return{freeDelivery:{enabled:a.freeDeliveryThreshold>0,min:a.freeDeliveryThreshold},tier:{enabled:!!b?.tier?.enabled&&b.tier.percent>0,min:b?.tier?.minSubtotal??500,pct:b?.tier?.percent??10},firstOrder:{enabled:!!b?.firstOrder?.enabled&&b.firstOrder.percent>0,pct:b?.firstOrder?.percent??10},cod:a.codEnabled,returnDays:a.returnWindowDays??7,modal:{enabled:b?.modal?.enabled??!0,delaySeconds:b?.modal?.delaySeconds??2,version:b?.modal?.version??"1",collectLeads:b?.modal?.collectLeads??!0,title:{en:b?.modal?.title?.en||void 0,ar:b?.modal?.title?.ar||void 0},body:{en:b?.modal?.body?.en||void 0,ar:b?.modal?.body?.ar||void 0}}}}-public-offers-[] Error: Invalid environment configuration:
+STRIPE_SECRET_KEY: required when PAYMENT_PROVIDER=stripe
+STRIPE_WEBHOOK_SECRET: required when PAYMENT_PROVIDER=stripe
+STRIPE_PUBLISHABLE_KEY: required when PAYMENT_PROVIDER=stripe
+    at <unknown> (src/lib/env.ts:41:11)
+    at m (src/lib/env.ts:43:31)
+    at <unknown> (src/features/checkout/prepare.ts:41:9)
+    at <unknown> (src/features/offers/service.ts:11:19)
+    at async l (src/app/[lang]/offers/page.tsx:22:32)
+  39 |   if (!parsed.success) {
+  40 |     const issues = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`);
+> 41 |     throw new Error(`Invalid environment configuration:\n${issues.join("\n")}`);
+     |           ^
+  42 |   }
+  43 |   return (cached = parsed.data);
+  44 | }
+revalidating cache with key: async()=>{await (0,d.f)();let a=new Date;return(await f.f.find({active:!0,public:!0,$and:[{$or:[{startsAt:null},{startsAt:{$lte:a}}]},{$or:[{endsAt:null},{endsAt:{$gte:a}}]}]}).sort({createdAt:-1}).limit(20).lean()).filter(a=>null==a.usageLimit||a.usedCount<a.usageLimit).map(a=>({code:a.code,type:a.type,value:a.value,minSubtotal:a.minSubtotal??0,maxDiscount:a.maxDiscount??void 0,stackWithSale:!!a.stackWithSale,endsAt:a.endsAt?.toISOString(),description:a.description?{en:a.description.en??void 0,ar:a.description.ar??void 0}:void 0}))}-public-coupons-[] Error: Invalid environment configuration:
+STRIPE_SECRET_KEY: required when PAYMENT_PROVIDER=stripe
+STRIPE_WEBHOOK_SECRET: required when PAYMENT_PROVIDER=stripe
+STRIPE_PUBLISHABLE_KEY: required when PAYMENT_PROVIDER=stripe
+    at <unknown> (src/lib/env.ts:41:11)
+    at m (src/lib/env.ts:43:31)
+    at <unknown> (src/features/offers/service.ts:27:9)
+    at async l (src/app/[lang]/offers/page.tsx:22:32)
+  39 |   if (!parsed.success) {
+  40 |     const issues = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`);
+> 41 |     throw new Error(`Invalid environment configuration:\n${issues.join("\n")}`);
+     |           ^
+  42 |   }
+  43 |   return (cached = parsed.data);
+  44 | }
+revalidating cache with key: async()=>{let a=await (0,e.e)(),b=a.offers;return{freeDelivery:{enabled:a.freeDeliveryThreshold>0,min:a.freeDeliveryThreshold},tier:{enabled:!!b?.tier?.enabled&&b.tier.percent>0,min:b?.tier?.minSubtotal??500,pct:b?.tier?.percent??10},firstOrder:{enabled:!!b?.firstOrder?.enabled&&b.firstOrder.percent>0,pct:b?.firstOrder?.percent??10},cod:a.codEnabled,returnDays:a.returnWindowDays??7,modal:{enabled:b?.modal?.enabled??!0,delaySeconds:b?.modal?.delaySeconds??2,version:b?.modal?.version??"1",collectLeads:b?.modal?.collectLeads??!0,title:{en:b?.modal?.title?.en||void 0,ar:b?.modal?.title?.ar||void 0},body:{en:b?.modal?.body?.en||void 0,ar:b?.modal?.body?.ar||void 0}}}}-public-offers-[] Error: Invalid environment configuration:
+STRIPE_SECRET_KEY: required when PAYMENT_PROVIDER=stripe
+STRIPE_WEBHOOK_SECRET: required when PAYMENT_PROVIDER=stripe
+STRIPE_PUBLISHABLE_KEY: required when PAYMENT_PROVIDER=stripe
+    at <unknown> (src/lib/env.ts:41:11)
+    at m (src/lib/env.ts:43:31)
+    at <unknown> (src/features/checkout/prepare.ts:41:9)
+    at <unknown> (src/features/offers/service.ts:11:19)
+    at async l (src/app/[lang]/offers/page.tsx:22:32)
+  39 |   if (!parsed.success) {
+  40 |     const issues = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`);
+> 41 |     throw new Error(`Invalid environment configuration:\n${issues.join("\n")}`);
+     |           ^
+  42 |   }
+  43 |   return (cached = parsed.data);
+  44 | }
+revalidating cache with key: async()=>{await (0,d.f)();let a=new Date;return(await f.f.find({active:!0,public:!0,$and:[{$or:[{startsAt:null},{startsAt:{$lte:a}}]},{$or:[{endsAt:null},{endsAt:{$gte:a}}]}]}).sort({createdAt:-1}).limit(20).lean()).filter(a=>null==a.usageLimit||a.usedCount<a.usageLimit).map(a=>({code:a.code,type:a.type,value:a.value,minSubtotal:a.minSubtotal??0,maxDiscount:a.maxDiscount??void 0,stackWithSale:!!a.stackWithSale,endsAt:a.endsAt?.toISOString(),description:a.description?{en:a.description.en??void 0,ar:a.description.ar??void 0}:void 0}))}-public-coupons-[] Error: Invalid environment configuration:
+STRIPE_SECRET_KEY: required when PAYMENT_PROVIDER=stripe
+STRIPE_WEBHOOK_SECRET: required when PAYMENT_PROVIDER=stripe
+STRIPE_PUBLISHABLE_KEY: required when PAYMENT_PROVIDER=stripe
+    at <unknown> (src/lib/env.ts:41:11)
+    at m (src/lib/env.ts:43:31)
+    at <unknown> (src/features/offers/service.ts:27:9)
+    at async l (src/app/[lang]/offers/page.tsx:22:32)
+  39 |   if (!parsed.success) {
+  40 |     const issues = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`);
+> 41 |     throw new Error(`Invalid environment configuration:\n${issues.join("\n")}`);
+     |           ^
+  42 |   }
+  43 |   return (cached = parsed.data);
+  44 | }
+✓ Generating static pages using 5 workers (65/65) in 2.1s
+revalidating cache with key: async()=>{let a=await (0,e.e)(),b=a.offers;return{freeDelivery:{enabled:a.freeDeliveryThreshold>0,min:a.freeDeliveryThreshold},tier:{enabled:!!b?.tier?.enabled&&b.tier.percent>0,min:b?.tier?.minSubtotal??500,pct:b?.tier?.percent??10},firstOrder:{enabled:!!b?.firstOrder?.enabled&&b.firstOrder.percent>0,pct:b?.firstOrder?.percent??10},cod:a.codEnabled,returnDays:a.returnWindowDays??7,modal:{enabled:b?.modal?.enabled??!0,delaySeconds:b?.modal?.delaySeconds??2,version:b?.modal?.version??"1",collectLeads:b?.modal?.collectLeads??!0,title:{en:b?.modal?.title?.en||void 0,ar:b?.modal?.title?.ar||void 0},body:{en:b?.modal?.body?.en||void 0,ar:b?.modal?.body?.ar||void 0}}}}-public-offers-[] Error: Invalid environment configuration:
+STRIPE_SECRET_KEY: required when PAYMENT_PROVIDER=stripe
+STRIPE_WEBHOOK_SECRET: required when PAYMENT_PROVIDER=stripe
+STRIPE_PUBLISHABLE_KEY: required when PAYMENT_PROVIDER=stripe
+    at <unknown> (src/lib/env.ts:41:11)
+    at m (src/lib/env.ts:43:31)
+    at <unknown> (src/features/checkout/prepare.ts:41:9)
+    at <unknown> (src/features/offers/service.ts:11:19)
+  39 |   if (!parsed.success) {
+  40 |     const issues = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`);
+> 41 |     throw new Error(`Invalid environment configuration:\n${issues.join("\n")}`);
+     |           ^
+  42 |   }
+  43 |   return (cached = parsed.data);
+  44 | }
+revalidating cache with key: async()=>{let a=await (0,e.e)(),b=a.offers;return{freeDelivery:{enabled:a.freeDeliveryThreshold>0,min:a.freeDeliveryThreshold},tier:{enabled:!!b?.tier?.enabled&&b.tier.percent>0,min:b?.tier?.minSubtotal??500,pct:b?.tier?.percent??10},firstOrder:{enabled:!!b?.firstOrder?.enabled&&b.firstOrder.percent>0,pct:b?.firstOrder?.percent??10},cod:a.codEnabled,returnDays:a.returnWindowDays??7,modal:{enabled:b?.modal?.enabled??!0,delaySeconds:b?.modal?.delaySeconds??2,version:b?.modal?.version??"1",collectLeads:b?.modal?.collectLeads??!0,title:{en:b?.modal?.title?.en||void 0,ar:b?.modal?.title?.ar||void 0},body:{en:b?.modal?.body?.en||void 0,ar:b?.modal?.body?.ar||void 0}}}}-public-offers-[] Error: Invalid environment configuration:
+STRIPE_SECRET_KEY: required when PAYMENT_PROVIDER=stripe
+STRIPE_WEBHOOK_SECRET: required when PAYMENT_PROVIDER=stripe
+STRIPE_PUBLISHABLE_KEY: required when PAYMENT_PROVIDER=stripe
+    at <unknown> (src/lib/env.ts:41:11)
+    at m (src/lib/env.ts:43:31)
+    at <unknown> (src/features/checkout/prepare.ts:41:9)
+    at <unknown> (src/features/offers/service.ts:11:19)
+  39 |   if (!parsed.success) {
+  40 |     const issues = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`);
+> 41 |     throw new Error(`Invalid environment configuration:\n${issues.join("\n")}`);
+     |           ^
+  42 |   }
+  43 |   return (cached = parsed.data);
+  44 | }
+  Finalizing page optimization ...
+
+Route (app)                          Revalidate  Expire
+┌ ○ /_not-found
+├ ƒ /[lang]
+├ ƒ /[lang]/[page]
+├ ƒ /[lang]/account
+├ ƒ /[lang]/account/addresses
+├ ƒ /[lang]/account/orders
+├ ƒ /[lang]/account/orders/[number]
+├ ƒ /[lang]/c/[slug]
+├ ƒ /[lang]/cart
+├ ƒ /[lang]/checkout
+├ ƒ /[lang]/deals
+├ ƒ /[lang]/forgot-password
+├ ƒ /[lang]/journal
+├ ƒ /[lang]/journal/[slug]
+├ ƒ /[lang]/login
+├ ƒ /[lang]/new
+├ ƒ /[lang]/offers
+├ ƒ /[lang]/p/[slug]
+├ ƒ /[lang]/pay/card/[number]
+├ ƒ /[lang]/pay/mock/[number]
+├ ƒ /[lang]/register
+├ ƒ /[lang]/reset-password
+├ ƒ /[lang]/search
+├ ƒ /[lang]/track
+├ ƒ /[lang]/track/[number]
+├ ƒ /[lang]/wishlist
+├ ƒ /admin
+├ ƒ /admin/articles
+├ ƒ /admin/articles/[id]
+├ ƒ /admin/articles/new
+├ ƒ /admin/audit
+├ ƒ /admin/categories
+├ ƒ /admin/categories/[id]
+├ ƒ /admin/categories/new
+├ ƒ /admin/customers
+├ ƒ /admin/customers/[id]
+├ ƒ /admin/delivery
+├ ƒ /admin/forbidden
+├ ƒ /admin/homepage
+├ ƒ /admin/import
+├ ƒ /admin/inventory
+├ ƒ /admin/marketing
+├ ƒ /admin/orders
+├ ƒ /admin/orders/[number]
+├ ƒ /admin/pages
+├ ƒ /admin/pages/[slug]
+├ ƒ /admin/products
+├ ƒ /admin/products/[id]
+├ ƒ /admin/products/new
+├ ƒ /admin/promotions
+├ ƒ /admin/promotions/[id]
+├ ƒ /admin/promotions/new
+├ ƒ /admin/returns
+├ ƒ /admin/returns/[id]
+├ ƒ /admin/reviews
+├ ƒ /admin/settings
+├ ƒ /admin/users
+├ ƒ /api/admin/export
+├ ƒ /api/admin/import
+├ ƒ /api/admin/upload
+├ ƒ /api/cron/maintenance
+├ ƒ /api/health
+├ ƒ /api/session
+├ ƒ /api/suggest
+├ ƒ /api/views
+├ ƒ /api/webhooks/payments
+├ ƒ /api/webhooks/tabby
+├ ○ /icon.svg
+├ ○ /robots.txt
+└ ○ /sitemap.xml                             1h      1y
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
