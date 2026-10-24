@@ -60,6 +60,18 @@ export const categorySchema = z.object({
 });
 export type CategoryInput = z.infer<typeof categorySchema>;
 
+export const brandSchema = z.object({
+  id: z.string().optional(),
+  slug: z.string().trim().optional().transform((v) => (v ? slugify(v) : "")),
+  name: text(60).min(2, "Name is required"),
+  description: text(1000),
+  logo: z.string().trim().max(500).optional().transform((v) => v || ""),
+  image: z.string().trim().max(500).optional().transform((v) => v || ""),
+  isFeatured: checkbox,
+  isActive: checkbox,
+  sortOrder: int("Order", 10_000).default(0),
+});
+
 export const stockAdjustSchema = z.object({
   productId: objectId,
   sku: z.string().trim().min(1),

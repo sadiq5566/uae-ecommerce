@@ -6,13 +6,15 @@ import { Homepage } from "@/models/homepage";
 
 type L = { en: string; ar: string };
 const l = (x?: { en?: string | null; ar?: string | null } | null): L => ({ en: x?.en ?? "", ar: x?.ar ?? "" });
+/** An article written in one language only shows that text in both (blank en <-> ar fall back to each other). */
+const both = (x?: { en?: string | null; ar?: string | null } | null): L => { const v = l(x); return { en: v.en || v.ar, ar: v.ar || v.en }; };
 const live = () => ({ status: "published" as const, publishAt: { $lte: new Date() } }); // scheduled articles appear automatically
 
 export type ArticleView = { slug: string; title: L; excerpt: L; body: L; category?: string; cover?: string; coverAlt: L; icon: string; hue: number; author?: string; publishAt: string; seo: { title: L; description: L } };
 
 const view = (a: Record<string, unknown>): ArticleView => {
   const x = a as { slug: string; title?: L; excerpt?: L; body?: L; category?: string; cover?: string; coverAlt?: L; icon: string; hue: number; author?: string; publishAt?: Date; seo?: { title?: L; description?: L } };
-  return { slug: x.slug, title: l(x.title), excerpt: l(x.excerpt), body: l(x.body), category: x.category ?? undefined, cover: x.cover ?? undefined, coverAlt: l(x.coverAlt), icon: x.icon, hue: x.hue, author: x.author ?? undefined, publishAt: (x.publishAt ?? new Date()).toISOString(), seo: { title: l(x.seo?.title), description: l(x.seo?.description) } };
+  return { slug: x.slug, title: both(x.title), excerpt: both(x.excerpt), body: both(x.body), category: x.category ?? undefined, cover: x.cover ?? undefined, coverAlt: both(x.coverAlt), icon: x.icon, hue: x.hue, author: x.author ?? undefined, publishAt: (x.publishAt ?? new Date()).toISOString(), seo: { title: l(x.seo?.title), description: l(x.seo?.description) } };
 };
 
 export async function listArticles(limit = 12, page = 1) {

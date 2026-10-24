@@ -81,7 +81,7 @@ export function Header({ locale, t, menu, offerLines }: { locale: Locale; t: Dic
                 </ul>
                 <div className="grid content-start gap-4 text-sm">
                   {menu.more.length > 0 && <div><p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted">{ar ? "المزيد" : "More"}</p><ul>{menu.more.map((c) => <li key={c.slug}><Link href={`/${locale}/c/${c.slug}`} className="flex justify-between rounded-lg px-2 py-1.5 hover:bg-surface-2">{c.name[locale]}<span className="text-xs text-muted">{c.count}</span></Link></li>)}</ul></div>}
-                  {menu.brands.length > 0 && <div><p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted">{ar ? "تسوقي حسب الماركة" : "Shop by brand"}</p><ul className="flex flex-wrap gap-1.5">{menu.brands.map((c) => <li key={c.slug}><Link href={`/${locale}/c/${c.slug}`} className="block rounded-full border border-line px-3 py-1 text-xs font-medium hover:border-brand hover:text-brand">{c.name[locale]}</Link></li>)}</ul></div>}
+                  {menu.brands.length > 0 && <div><p className="mb-1.5 text-xs font-semibold uppercase tracking-wider text-muted">{ar ? "تسوق حسب الماركة" : "Shop by brand"}</p><ul className="flex flex-wrap gap-1.5">{menu.brands.map((c) => <li key={c.slug}><Link href={`/${locale}/brands/${c.slug}`} className="block rounded-full border border-line px-3 py-1 text-xs font-medium hover:border-brand hover:text-brand">{c.name[locale]}</Link></li>)}<li><Link href={`/${locale}/brands`} className="block rounded-full px-3 py-1 text-xs font-semibold text-brand">{ar ? "كل الماركات ←" : "All brands →"}</Link></li></ul></div>}
                 </div>
               </div>
             </div>
@@ -109,14 +109,14 @@ export function Header({ locale, t, menu, offerLines }: { locale: Locale; t: Dic
             <ul className="grid grid-cols-2 gap-2">
               {menu.main.map((c) => (
                 <li key={c.slug}>
-                  <Link href={`/${locale}/c/${c.slug}`} onClick={() => drawer.current?.close()} className="group relative grid aspect-[4/3] items-end overflow-hidden rounded-xl bg-surface-2">
+                  <Link href={c.kind === "brand" ? `/${locale}/brands/${c.slug}` : `/${locale}/c/${c.slug}`} onClick={() => drawer.current?.close()} className="group relative grid aspect-[4/3] items-end overflow-hidden rounded-xl bg-surface-2">
                     {c.image && <Image src={c.image} alt="" fill sizes="160px" className="object-cover transition-transform duration-300 group-hover:scale-105" />}
                     <span className="relative bg-gradient-to-t from-black/75 to-transparent px-2.5 pb-2 pt-6 text-sm font-semibold text-white">{c.name[locale]}</span>
                   </Link>
                 </li>
               ))}
             </ul>
-            {[...menu.more, ...menu.brands].length > 0 && <ul className="mt-3 flex flex-wrap gap-1.5">{[...menu.more, ...menu.brands].map((c) => <li key={c.slug}><Link href={`/${locale}/c/${c.slug}`} onClick={() => drawer.current?.close()} className="block rounded-full border border-line px-3 py-1.5 text-sm">{c.name[locale]}</Link></li>)}</ul>}
+            {[...menu.more, ...menu.brands].length > 0 && <ul className="mt-3 flex flex-wrap gap-1.5">{[...menu.more, ...menu.brands].map((c) => <li key={c.slug}><Link href={c.kind === "brand" ? `/${locale}/brands/${c.slug}` : `/${locale}/c/${c.slug}`} onClick={() => drawer.current?.close()} className="block rounded-full border border-line px-3 py-1.5 text-sm">{c.name[locale]}</Link></li>)}</ul>}
           </div>
           <nav className="flex flex-col" aria-label={t.nav.mobile}>
             <Link href={`/${locale}`} onClick={() => drawer.current?.close()} className="rounded-xl px-3 py-3 font-medium hover:bg-surface-2">{t.nav.home}</Link>

@@ -6,6 +6,7 @@ const HINTS: [string, RegExp][] = [
   ["watches", /\b(watch|watches|chronograph|smartwatch)\b/i],
   ["jewelry", /\b(jewel(l)?ery|rings?|necklaces?|earrings?|bracelets?|bangles?|pendants?|anklets?|brooch(es)?|chokers?|messika)\b/i],
   ["bags", /\b(bags?|handbags?|totes?|clutch(es)?|backpacks?|wallets?|purses?|satchels?|hobo|birkin|kelly|flap|evelyne|capucines|onthego|crossbody|cross body|shoulder)\b/i],
+  ["footwear", /\b(footwear|shoes?|sneakers?|trainers?|loafers?|sandals?|slippers?|heels?|boots?|mules?|espadrilles?|moccasins?|slingbacks?)\b/i],
   ["accessories", /\b(keychains?|key chains?|scarf|scarves|sunglasses|belts?)\b/i],
 ];
 

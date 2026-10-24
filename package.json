@@ -20,6 +20,8 @@
     "seed:demo": "tsx --env-file=.env.local scripts/seed-demo.ts",
     "db:fix-groups": "tsx --env-file=.env.local scripts/fix-variant-groups.ts",
     "import-csv": "tsx --env-file=.env.local scripts/import-csv.ts",
+    "seed-pages": "tsx --env-file=.env.local scripts/seed-pages.ts",
+    "seed-journal": "tsx --env-file=.env.local scripts/seed-journal.ts",
     "copy-db": "tsx --env-file=.env.local scripts/copy-db.ts",
     "db:init": "tsx --env-file=.env.local scripts/db-init.ts",
     "db:recategorize": "tsx --env-file=.env.local scripts/recategorize.ts",

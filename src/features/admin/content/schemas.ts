@@ -6,7 +6,7 @@ import { PAGE_SLUGS } from "@/models/content-page";
 export const articleSchema = z.object({
   id: z.string().optional(),
   slug,
-  title_en: text(150).min(2, "English title required"), title_ar: text(150).min(2, "Arabic title required"),
+  title_en: text(150), title_ar: text(150),
   excerpt_en: text(300), excerpt_ar: text(300),
   body_en: text(20000), body_ar: text(20000),
   category: optText(40), author: optText(80),
@@ -17,7 +17,9 @@ export const articleSchema = z.object({
   publishAt: optDate,
   seoTitle_en: text(70), seoTitle_ar: text(70), seoDesc_en: text(160), seoDesc_ar: text(160),
 }).superRefine((a, ctx) => {
-  if (a.status === "published" && (!a.body_en.trim() || !a.body_ar.trim())) ctx.addIssue({ code: "custom", path: ["body_en"], message: "Published articles need both English and Arabic body text" });
+  // One language is enough: the store shows it in both languages when the other is left blank.
+  if (a.title_en.length < 2 && a.title_ar.length < 2) ctx.addIssue({ code: "custom", path: ["title_en"], message: "A title is required (English or Arabic)" });
+  if (a.status === "published" && !a.body_en && !a.body_ar) ctx.addIssue({ code: "custom", path: ["body_en"], message: "Published articles need body text (English or Arabic)" });
 });
 
 export const pageSchema = z.object({

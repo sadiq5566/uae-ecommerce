@@ -9,6 +9,7 @@ import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { getNavCategories, getShowcase } from "@/features/catalog/service";
 import { buildMenu } from "@/features/catalog/menu";
+import { getStoreBrands } from "@/features/catalog/brands";
 import { ToastProvider } from "@/components/toast";
 import { SessionBootstrap } from "@/components/session-store";
 import { ScrollToAlert } from "@/components/scroll-to-alert";
@@ -46,7 +47,7 @@ export default async function RootLayout({ children, params }: LayoutProps<"/[la
   // Locale chrome loads live MongoDB data, so defer it until a real request.
   await connection();
   const [t, categories, offers] = await Promise.all([getDictionary(lang), getNavCategories(), getPublicOffers()]);
-  const menu = buildMenu(categories, await getShowcase().catch(() => ({})));
+  const menu = buildMenu(categories, await getShowcase().catch(() => ({})), await getStoreBrands().catch(() => []));
   const lines = offerLines(offers, t, lang);
   return (
     <html lang={lang} dir={dirOf(lang)} data-scroll-behavior="smooth" suppressHydrationWarning className={`${latin.variable} ${display.variable} ${arabic.variable}`}>

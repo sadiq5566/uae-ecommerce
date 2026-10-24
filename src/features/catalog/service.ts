@@ -8,6 +8,7 @@ import { CollectionModel } from "../../../lib/models/Collection";
 import { swatchFor } from "../../../lib/variants";
 import { categoryLabel } from "../../../lib/catalog-shared";
 import { PAGE_SIZE, type Filters } from "./filters";
+import { brandRegex } from "./brands";
 
 // Reads the shared flat catalogue (lib/models/Product.ts + Collection.ts, identical in every storefront) and adapts it
 // to the DTOs this storefront's components use: names become { en, ar } (same text), price = original price, finalPrice = selling price.
@@ -77,11 +78,12 @@ export async function getCategoryBySlug(slug: string) {
   return { cat, children: [] as CategoryView[], parent: null as CategoryView | null, scopeIds: [cat.id] };
 }
 
-export type Scope = { categoryIds?: string[]; deals?: boolean; newOnly?: boolean };
+export type Scope = { categoryIds?: string[]; brand?: string; deals?: boolean; newOnly?: boolean };
 
 function baseMatch(scope: Scope, q?: string, regexFallback = false): QueryFilter<Doc> {
   const m: QueryFilter<Doc> = { ...ACTIVE };
   if (scope.categoryIds) m.category = { $in: scope.categoryIds };
+  if (scope.brand) m.brand = brandRegex(scope.brand);
   if (scope.deals) m.$expr = { $lt: ["$priceTo", "$priceFrom"] };
   if (scope.newOnly) m.createdAt = { $gte: new Date(Date.now() - 60 * 24 * 3600 * 1000) };
   if (q) {

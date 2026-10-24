@@ -19,6 +19,7 @@ const NAV: (NavItem & { perm: Permission })[] = [
   { href: "/admin/returns", label: "Returns", icon: "↩️", perm: "orders:read" },
   { href: "/admin/products", label: "Products", icon: "🏷️", perm: "products:write" },
   { href: "/admin/categories", label: "Categories", icon: "🗂️", perm: "categories:write" },
+  { href: "/admin/brands", label: "Brands", icon: "🔖", perm: "categories:write" },
   { href: "/admin/inventory", label: "Inventory", icon: "📉", perm: "inventory:write" },
   { href: "/admin/import", label: "CSV import/export", icon: "⇅", perm: "products:write" },
   { href: "/admin/reviews", label: "Reviews", icon: "⭐", perm: "reviews:moderate" },

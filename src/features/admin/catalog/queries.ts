@@ -88,7 +88,7 @@ export async function listProductsAdmin(f: ProductFilters, page: number) {
     Product.find(filter).sort({ ...PRODUCT_SORTS[f.sort].sort, _id: 1 } as Record<string, 1 | -1>).skip((page - 1) * size).limit(size).select("slug sku name priceFrom priceTo stock lowStockThreshold status isFeatured category images variants").lean(),
     Product.countDocuments(filter),
   ]);
-  return { rows: rows.map((p) => ({ id: String(p._id), slug: p.slug, sku: p.sku, name: p.name ?? "", price: Math.max(p.priceFrom ?? 0, p.priceTo ?? 0), finalPrice: p.priceTo ?? 0, stock: p.stock, low: p.lowStockThreshold, status: p.status, featured: !!p.isFeatured, category: p.category, icon: "📦", image: p.images?.[0]?.url, variantCount: p.variants?.length ?? 0 })), total, pages: Math.max(1, Math.ceil(total / size)) };
+  return { rows: rows.map((p) => ({ id: String(p._id), slug: p.slug, sku: p.sku, name: p.name ?? "", price: Math.max(p.priceFrom ?? 0, p.priceTo ?? 0), finalPrice: p.priceTo ?? 0, stock: p.stock, low: p.lowStockThreshold, status: p.status, featured: !!p.isFeatured, category: p.category, brand: p.brand ?? "", icon: "📦", image: p.images?.[0]?.url, variantCount: p.variants?.length ?? 0 })), total, pages: Math.max(1, Math.ceil(total / size)) };
 }
 
 export async function getProductForm(id: string): Promise<ProductFormData | null> {

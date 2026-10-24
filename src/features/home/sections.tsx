@@ -55,7 +55,7 @@ export function CategoryShowcase({ locale, t, menu }: P & { menu: Menu }) {
               <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 pt-16 text-white sm:p-5 sm:pt-20">
                 <span className="block font-display text-lg font-bold leading-tight sm:text-xl">{c.name[locale]}</span>
                 <span className="mt-0.5 block text-xs text-white/80 sm:text-sm">{c.tagline[locale]}</span>
-                <span className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-amber-300">{ar ? "تسوقي الآن" : "Shop now"} <span className="flip-rtl transition-transform group-hover:translate-x-1">→</span></span>
+                <span className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-amber-300">{ar ? "تسوق الآن" : "Shop now"} <span className="flip-rtl transition-transform group-hover:translate-x-1">→</span></span>
               </span>
             </Link>
           </Reveal>
@@ -64,7 +64,7 @@ export function CategoryShowcase({ locale, t, menu }: P & { menu: Menu }) {
       {(menu.more.length > 0 || menu.brands.length > 0) && (
         <div className="mt-5 flex flex-wrap items-center gap-2">
           <span className="me-1 text-sm font-medium text-muted">{ar ? "المزيد:" : "Also shop:"}</span>
-          {[...menu.more, ...menu.brands].map((c) => <Link key={c.slug} href={`/${locale}/c/${c.slug}`} className="rounded-full border border-line bg-surface px-3.5 py-1.5 text-sm font-medium transition hover:border-brand hover:text-brand">{c.name[locale]}</Link>)}
+          {[...menu.more, ...menu.brands].map((c) => <Link key={c.slug} href={c.kind === "brand" ? `/${locale}/brands/${c.slug}` : `/${locale}/c/${c.slug}`} className="rounded-full border border-line bg-surface px-3.5 py-1.5 text-sm font-medium transition hover:border-brand hover:text-brand">{c.name[locale]}</Link>)}
         </div>
       )}
     </section>
@@ -128,26 +128,66 @@ export function CategorySpotlight({ locale, t, title, sub, items, href, image, e
   );
 }
 
+const readMins = (text: string) => Math.max(1, Math.round(text.trim().split(/\s+/).length / 200));
+
+function StoryVisual({ a, locale, big }: { a: ArticleView; locale: Locale; big?: boolean }) {
+  return (
+    <div className={`relative isolate grid place-items-center overflow-hidden ${big ? "h-56 sm:h-72 lg:h-full lg:min-h-[22rem]" : "h-36 w-36 shrink-0 sm:h-auto sm:w-40"}`} style={{ background: `linear-gradient(145deg, hsl(${a.hue} 65% 93%), hsl(${a.hue} 55% 76%))` }}>
+      {a.cover ? <Image src={a.cover} alt={a.coverAlt[locale]} fill sizes={big ? "(min-width:1024px) 55vw, 100vw" : "160px"} className="object-contain p-4 mix-blend-multiply transition-transform duration-500 group-hover:scale-105" /> : (
+        <>
+          <span aria-hidden className="absolute -end-10 -top-10 size-40 rounded-full opacity-40 blur-2xl" style={{ background: `hsl(${a.hue} 80% 70%)` }} />
+          <span aria-hidden className="absolute -bottom-12 -start-8 size-36 rounded-full border-[18px] opacity-30" style={{ borderColor: `hsl(${a.hue} 60% 100%)` }} />
+          <span aria-hidden className={`relative drop-shadow-sm transition-transform duration-500 group-hover:scale-110 group-hover:-rotate-6 ${big ? "text-8xl" : "text-5xl"}`}>{a.icon}</span>
+        </>
+      )}
+      {a.category && <span className="absolute start-3 top-3 rounded-full bg-white/90 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-neutral-800 shadow-sm backdrop-blur">{a.category}</span>}
+    </div>
+  );
+}
+
+function StoryMeta({ a, locale }: { a: ArticleView; locale: Locale }) {
+  const ar = locale === "ar";
+  const mins = readMins(a.body[locale] || a.excerpt[locale]);
+  const date = new Date(a.publishAt).toLocaleDateString(ar ? "ar-AE" : "en-AE", { day: "numeric", month: "short", year: "numeric" });
+  return <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted"><time dateTime={a.publishAt}>{date}</time><span aria-hidden>·</span><span>{ar ? `${mins} د قراءة` : `${mins} min read`}</span></p>;
+}
+
 export function Journal({ locale, t, articles }: P & { articles: ArticleView[] }) {
   if (!articles.length) return null;
+  const ar = locale === "ar";
+  const [lead, ...rest] = articles;
+  const card = "group overflow-hidden rounded-2xl border border-line bg-surface transition duration-300 hover:-translate-y-1 hover:shadow-card";
   return (
-    <section className={`${wrap} pt-20`}>
+    <section className={`${wrap} pb-16 pt-20 sm:pb-24`}>
       <Heading title={t.sections.journal} sub={t.sections.journalSub} href={`/${locale}/journal`} cta={t.sections.viewAll} />
-      <div className="grid gap-4 md:grid-cols-3">
-        {articles.map((a, i) => (
-          <Reveal key={a.slug} delay={i * 100}>
-            <Link href={`/${locale}/journal/${a.slug}`} className="group block h-full overflow-hidden rounded-2xl border border-line bg-surface transition duration-300 hover:-translate-y-1 hover:shadow-card">
-              <div className="relative grid h-40 place-items-center overflow-hidden text-6xl transition-transform duration-500 group-hover:scale-105" style={{ background: `linear-gradient(135deg, hsl(${a.hue} 60% 90%), hsl(${a.hue} 55% 78%))` }}>
-                {a.cover ? <Image src={a.cover} alt={a.coverAlt[locale]} fill sizes="(min-width:768px) 33vw, 100vw" className="object-cover" /> : <span aria-hidden>{a.icon}</span>}
-              </div>
-              <div className="p-5">
-                {a.category && <p className="text-xs font-semibold text-brand">{a.category}</p>}
-                <h3 className="mt-2 font-display text-lg font-bold leading-snug">{a.title[locale]}</h3>
-                {a.excerpt[locale] && <p className="mt-2 line-clamp-2 text-sm text-muted">{a.excerpt[locale]}</p>}
-              </div>
-            </Link>
-          </Reveal>
-        ))}
+      <div className={`grid gap-5 ${rest.length ? "lg:grid-cols-[1.35fr_1fr]" : ""}`}>
+        <Reveal>
+          <Link href={`/${locale}/journal/${lead.slug}`} className={`${card} grid h-full lg:grid-cols-1`}>
+            <StoryVisual a={lead} locale={locale} big />
+            <div className="p-6">
+              <StoryMeta a={lead} locale={locale} />
+              <h3 className="mt-2 font-display text-2xl font-bold leading-snug sm:text-3xl">{lead.title[locale]}</h3>
+              {lead.excerpt[locale] && <p className="mt-3 line-clamp-3 text-muted">{lead.excerpt[locale]}</p>}
+              <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-brand">{ar ? "اقرأ المقال" : "Read the story"} <span className="flip-rtl transition-transform group-hover:translate-x-1">→</span></span>
+            </div>
+          </Link>
+        </Reveal>
+        {rest.length > 0 && (
+          <div className="flex flex-col gap-5">
+            {rest.map((a, i) => (
+              <Reveal key={a.slug} delay={(i + 1) * 100} className="flex-1">
+                <Link href={`/${locale}/journal/${a.slug}`} className={`${card} flex h-full flex-row`}>
+                  <StoryVisual a={a} locale={locale} />
+                  <div className="flex min-w-0 flex-1 flex-col justify-center p-4 sm:p-5">
+                    <StoryMeta a={a} locale={locale} />
+                    <h3 className="mt-1.5 font-display text-lg font-bold leading-snug">{a.title[locale]}</h3>
+                    {a.excerpt[locale] && <p className="mt-1.5 line-clamp-2 text-sm text-muted">{a.excerpt[locale]}</p>}
+                  </div>
+                </Link>
+              </Reveal>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );
