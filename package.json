@@ -10,12 +10,28 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "format": "prettier --write .",
+<<<<<<< HEAD
     "seed": "tsx --env-file=.env scripts/seed.ts",
     "clean-images": "tsx --env-file=.env scripts/clean-images.ts",
     "remove-images": "tsx --env-file=.env scripts/remove-images.ts",
     "tabby:webhook": "tsx --env-file=.env scripts/tabby-webhook.ts",
     "db:indexes": "tsx --env-file=.env scripts/indexes.ts",
     "db:migrate": "tsx --env-file=.env scripts/migrate.ts"
+=======
+    "seed": "tsx --env-file=.env.local scripts/seed.ts",
+    "clean-images": "tsx --env-file=.env.local scripts/clean-images.ts",
+    "remove-images": "tsx --env-file=.env.local scripts/remove-images.ts",
+    "tabby:webhook": "tsx --env-file=.env.local scripts/tabby-webhook.ts",
+    "db:indexes": "tsx --env-file=.env.local scripts/indexes.ts",
+    "db:migrate": "tsx --env-file=.env.local scripts/migrate.ts",
+    "seed:demo": "tsx --env-file=.env.local scripts/seed-demo.ts",
+    "db:fix-groups": "tsx --env-file=.env.local scripts/fix-variant-groups.ts",
+    "import-csv": "tsx --env-file=.env.local scripts/import-csv.ts",
+    "copy-db": "tsx --env-file=.env.local scripts/copy-db.ts",
+    "db:init": "tsx --env-file=.env.local scripts/db-init.ts",
+    "db:recategorize": "tsx --env-file=.env.local scripts/recategorize.ts",
+    "db:merge-variants": "tsx --env-file=.env.local scripts/merge-variants.ts"
+>>>>>>> 94db73de1a0051c3ce9c9e66ae63aef69f8be445
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^7.0.0",

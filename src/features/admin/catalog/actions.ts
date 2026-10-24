@@ -10,10 +10,15 @@ import type { FormState } from "@/features/auth/schemas";
 import { Category } from "@/models/category";
 import { InventoryMovement } from "@/models/inventory-movement";
 import { Product } from "@/models/product";
+import { slugify } from "../../../../lib/utils";
 import { categorySchema, productSchema, stockAdjustSchema } from "./schemas";
 import { parseProductFilters, productFilterQuery } from "./queries";
 
 const refresh = () => revalidatePath("/[lang]", "layout");
+/** A category seen for the first time gets its "All <Category>" collection page (same rule as the CSV importer). */
+async function ensureCategoryPage(cat: string) {
+  await Category.updateOne({ slug: `all-${cat}` }, { $setOnInsert: { slug: `all-${cat}`, name: "All " + cat.charAt(0).toUpperCase() + cat.slice(1).replace(/-/g, " "), description: "", image: "", type: "category", parent: cat, sortOrder: 50 } }, { upsert: true });
+}
 
 /* ------------------------------ products ------------------------------ */
 
@@ -24,26 +29,22 @@ export async function saveProductAction(_: FormState, fd: FormData): Promise<For
   if (!parsed.success) return fail(issues(parsed.error), fd);
   const p = parsed.data;
   await connectDb();
-  if (!(await Category.exists({ _id: p.category }))) return fail({ category: "Choose a valid category" }, fd);
 
-  // Attribute keys must exist on the category (filters are data-driven from the category definition).
-  const cat = await Category.findById(p.category).lean();
-  const allowed = new Set((cat?.attributes ?? []).map((a) => a.key));
-  const attrs = Object.fromEntries(Object.entries(p.attrs).filter(([k, v]) => allowed.has(k) && v));
   const hasVariants = p.variants.length > 0;
   const stock = hasVariants ? p.variants.reduce((a, v) => a + v.stock, 0) : p.stock;
-  const variants = p.variants.map((v) => ({ sku: v.sku.toUpperCase(), label: v.label, stock: v.stock, price: v.price, image: v.image, swatch: v.swatch }));
+  const variants = p.variants.map((v) => ({ sku: v.sku.toUpperCase(), color: v.color, size: v.size, stock: v.stock, price: v.price, image: v.image }));
 
   // Variant SKUs must not collide with any other product's SKU / variant SKU.
   const clash = await Product.findOne({ _id: { $ne: p.id || new Types.ObjectId() }, $or: [{ sku: { $in: [p.sku.toUpperCase(), ...variants.map((v) => v.sku)] } }, { "variants.sku": { $in: [p.sku.toUpperCase(), ...variants.map((v) => v.sku)] } }] }).select("sku").lean();
   if (clash) return fail({ sku: `SKU already used by product ${clash.sku}` }, fd);
 
   const base = {
-    slug: p.slug, sku: p.sku.toUpperCase(), name: { en: p.name_en, ar: p.name_ar }, description: { en: p.description_en, ar: p.description_ar },
-    category: p.category, brand: p.brand, price: p.price, salePrice: p.salePrice, saleStartsAt: p.saleStartsAt, saleEndsAt: p.saleEndsAt,
-    stock, lowStockThreshold: p.lowStockThreshold, status: p.status, featured: p.featured, tags: p.tags, icon: p.icon, hue: p.hue,
-    images: p.images, variants, specs: p.specs, attrs,
-    seo: { title: { en: p.seoTitle_en, ar: p.seoTitle_ar }, description: { en: p.seoDesc_en, ar: p.seoDesc_ar } },
+    slug: p.slug || slugify(p.name), sku: p.sku.toUpperCase(), name: p.name, shortDescription: p.shortDescription, longDescription: p.longDescription,
+    category: p.category, subcategory: p.subcategory, brand: p.brand, model: p.model || p.name, finish: p.finish ?? "",
+    priceFrom: p.priceFrom, priceTo: p.priceTo, currency: "AED", stock, lowStockThreshold: p.lowStockThreshold, status: p.status,
+    isFeatured: p.isFeatured, isNewArrival: p.isNewArrival, isMostWanted: p.isMostWanted, tags: p.tags, highlights: p.highlights, includedItems: p.includedItems,
+    images: p.images.map((i) => ({ url: i.url, alt: i.alt?.en || p.name })), variants,
+    seo: { title: p.seoTitle || undefined, description: p.seoDesc || undefined },
   };
 
   try {
@@ -52,23 +53,25 @@ export async function saveProductAction(_: FormState, fd: FormData): Promise<For
       const doc = await Product.findById(p.id);
       if (!doc) return { error: "Product not found" };
       // Slug changes keep the old slug so old URLs 301-redirect.
-      const clashSlug = p.slug !== doc.slug && (await Product.exists({ _id: { $ne: doc._id }, slugHistory: p.slug }));
+      const clashSlug = base.slug !== doc.slug && (await Product.exists({ _id: { $ne: doc._id }, slugHistory: base.slug }));
       if (clashSlug) return fail({ slug: "That slug was used by another product before" }, fd);
       const history = new Set<string>(doc.slugHistory ?? []);
-      if (doc.slug !== p.slug) history.add(doc.slug);
-      history.delete(p.slug);
+      if (doc.slug !== base.slug) history.add(doc.slug);
+      history.delete(base.slug);
       const before = new Map<string, number>(doc.variants?.length ? doc.variants.map((v) => [v.sku, v.stock]) : [[doc.sku, doc.stock]]);
       doc.set({ ...base, slugHistory: [...history] });
       await doc.save();
       const after = new Map<string, number>(hasVariants ? variants.map((v) => [v.sku, v.stock]) : [[base.sku, stock]]);
       const moves = [...after].map(([sku, qty]) => ({ sku, delta: qty - (before.get(sku) ?? 0) })).filter((m) => m.delta !== 0);
       if (moves.length) await InventoryMovement.insertMany(moves.map((m) => ({ product: doc._id, sku: m.sku, delta: m.delta, reason: "manual_adjustment", actor: user.id, note: "Edited in product form" })));
-      await audit(user, "product.update", "product", String(doc._id), `Updated product ${base.sku}`, { status: p.status, slugChanged: doc.slug !== p.slug });
+      await ensureCategoryPage(base.category);
+      await audit(user, "product.update", "product", String(doc._id), `Updated product ${base.sku}`, { status: p.status, slugChanged: doc.slug !== base.slug });
       refresh(); revalidatePath("/admin/products");
       return { ok: true };
     }
     const doc = await Product.create(base);
     if (stock > 0) await InventoryMovement.insertMany((hasVariants ? variants : [{ sku: base.sku, stock }]).filter((v) => v.stock > 0).map((v) => ({ product: doc._id, sku: v.sku, delta: v.stock, reason: "restock", actor: user.id, note: "Initial stock" })));
+    await ensureCategoryPage(base.category);
     await audit(user, "product.create", "product", String(doc._id), `Created product ${base.sku}`);
     refresh(); revalidatePath("/admin/products");
   } catch (e) {
@@ -98,15 +101,15 @@ export async function bulkProductsAction(fd: FormData) {
   if (!ids.length) return;
   const detail = byFilter ? { count: ids.length, filter: filterQs } : { ids };
   if (op === "publish" || op === "unpublish" || op === "archive") {
-    const status = op === "publish" ? "published" : op === "archive" ? "archived" : "draft";
-    await Product.updateMany({ _id: { $in: ids } }, { status });
+    const status = op === "publish" ? "active" : op === "archive" ? "archived" : "draft";
+    await Product.updateMany({ _id: { $in: ids }, mergedInto: null }, { status });
     await audit(user, `product.bulk_${op}`, "product", undefined, `${op} ${ids.length} product(s)${byFilter ? " (all matching filter)" : ""}`, detail);
   } else if (op === "feature" || op === "unfeature") {
-    await Product.updateMany({ _id: { $in: ids } }, { featured: op === "feature" });
+    await Product.updateMany({ _id: { $in: ids }, mergedInto: null }, { isFeatured: op === "feature" });
     await audit(user, `product.bulk_${op}`, "product", undefined, `${op} ${ids.length} product(s)${byFilter ? " (all matching filter)" : ""}`, detail);
   } else {
-    // Only non-published products can be deleted; published ones must be unpublished/archived first (safety).
-    const res = await Product.deleteMany({ _id: { $in: ids }, status: { $ne: "published" } });
+    // Only non-active products can be deleted; active ones must be unpublished/archived first (safety).
+    const res = await Product.deleteMany({ _id: { $in: ids }, status: { $ne: "active" } });
     await audit(user, "product.bulk_delete", "product", undefined, `Deleted ${res.deletedCount} of ${ids.length} selected product(s)${byFilter ? " (all matching filter)" : ""}`, detail);
   }
   refresh(); revalidatePath("/admin/products");
@@ -117,19 +120,12 @@ export async function deleteProductAction(fd: FormData) {
   const id = String(fd.get("id") ?? "");
   if (!user || !Types.ObjectId.isValid(id)) return;
   await connectDb();
-  const res = await Product.findOneAndDelete({ _id: id, status: { $ne: "published" } }); // orders keep their own snapshot
+  const res = await Product.findOneAndDelete({ _id: id, status: { $ne: "active" } }); // orders keep their own snapshot
   if (res) await audit(user, "product.delete", "product", id, `Deleted product ${res.sku}`);
   refresh(); redirect("/admin/products");
 }
 
-/* ----------------------------- categories ----------------------------- */
-
-async function descendants(id: string): Promise<string[]> {
-  const all = await Category.find({}, { parent: 1 }).lean();
-  const out: string[] = []; const stack = [id];
-  while (stack.length) { const cur = stack.pop()!; for (const c of all) if (String(c.parent) === cur && !out.includes(String(c._id))) { out.push(String(c._id)); stack.push(String(c._id)); } }
-  return out;
-}
+/* ----------------------------- categories / collections ----------------------------- */
 
 export async function saveCategoryAction(_: FormState, fd: FormData): Promise<FormState> {
   const user = await actor("categories:write");
@@ -138,32 +134,18 @@ export async function saveCategoryAction(_: FormState, fd: FormData): Promise<Fo
   if (!parsed.success) return fail(issues(parsed.error), fd);
   const c = parsed.data;
   await connectDb();
-  if (c.parent) {
-    if (!(await Category.exists({ _id: c.parent }))) return fail({ parent: "Parent category not found" }, fd);
-    if (c.id && (c.parent === c.id || (await descendants(c.id)).includes(c.parent))) return fail({ parent: "A category can't be placed under itself or one of its own subcategories" }, fd);
-  }
-  const base = {
-    slug: c.slug, name: { en: c.name_en, ar: c.name_ar }, description: { en: c.desc_en, ar: c.desc_ar }, parent: c.parent, icon: c.icon, hue: c.hue,
-    image: c.image || undefined, order: c.order, active: c.active, attributes: c.attributes,
-    seo: { title: { en: c.seoTitle_en, ar: c.seoTitle_ar }, description: { en: c.seoDesc_en, ar: c.seoDesc_ar } },
-  };
+  const base = { slug: c.slug || slugify(c.name), name: c.name, description: c.description, image: c.image || "", type: c.type, parent: c.parent, sortOrder: c.sortOrder };
   try {
     if (c.id) {
       if (!Types.ObjectId.isValid(c.id)) return { error: "Not found" };
-      const doc = await Category.findById(c.id);
-      if (!doc) return { error: "Category not found" };
-      if (c.slug !== doc.slug && (await Category.exists({ _id: { $ne: doc._id }, slugHistory: c.slug }))) return fail({ slug: "That slug was used by another category before" }, fd);
-      const history = new Set<string>(doc.slugHistory ?? []);
-      if (doc.slug !== c.slug) history.add(doc.slug);
-      history.delete(c.slug);
-      doc.set({ ...base, slugHistory: [...history] });
-      await doc.save();
-      await audit(user, "category.update", "category", c.id, `Updated category ${c.slug}`);
+      const res = await Category.updateOne({ _id: c.id }, { $set: base });
+      if (!res.matchedCount) return { error: "Collection not found" };
+      await audit(user, "category.update", "category", c.id, `Updated collection ${base.slug}`);
       refresh(); revalidatePath("/admin/categories");
       return { ok: true };
     }
     const doc = await Category.create(base);
-    await audit(user, "category.create", "category", String(doc._id), `Created category ${c.slug}`);
+    await audit(user, "category.create", "category", String(doc._id), `Created collection ${base.slug}`);
     refresh(); revalidatePath("/admin/categories");
   } catch (e) {
     if (isDupKey(e, "slug")) return fail({ slug: "This slug is already in use" }, fd);
@@ -177,10 +159,11 @@ export async function deleteCategoryAction(fd: FormData): Promise<void> {
   const id = String(fd.get("id") ?? "");
   if (!user || !Types.ObjectId.isValid(id)) return;
   await connectDb();
-  const [kids, products] = await Promise.all([Category.countDocuments({ parent: id }), Product.countDocuments({ category: id, status: { $ne: "archived" } })]);
-  if (kids || products) redirect(`/admin/categories/${id}?blocked=${kids ? "children" : "products"}`);
-  const gone = await Category.findByIdAndDelete(id);
-  if (gone) await audit(user, "category.delete", "category", id, `Deleted category ${gone.slug}`);
+  const c = await Category.findById(id).lean();
+  if (!c) redirect("/admin/categories");
+  if (c.type === "category" && c.parent && (await Product.countDocuments({ category: c.parent, status: { $ne: "archived" } }))) redirect(`/admin/categories/${id}?blocked=products`);
+  await Category.deleteOne({ _id: id });
+  await audit(user, "category.delete", "category", id, `Deleted collection ${c.slug}`);
   refresh(); redirect("/admin/categories");
 }
 

@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { Dictionary } from "@/lib/dictionaries";
@@ -81,7 +82,7 @@ export function Header({ locale, t, categories, offerLines }: { locale: Locale; 
               {categories.filter((c) => !c.parent).map((c) => (
                 <li key={c.slug}>
                   <Link href={`/${locale}/c/${c.slug}`} onClick={() => drawer.current?.close()} className="flex items-center gap-2 rounded-xl bg-surface-2 px-3 py-2.5 text-sm">
-                    <span aria-hidden>{c.icon}</span>{c.name[locale]}
+                    <span aria-hidden className="relative grid size-6 place-items-center overflow-hidden rounded-full">{c.image ? <Image src={c.image} alt="" fill sizes="24px" className="object-cover" /> : c.icon}</span>{c.name[locale]}
                   </Link>
                 </li>
               ))}

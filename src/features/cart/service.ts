@@ -10,6 +10,7 @@ import { baseName } from "@/lib/variant-name";
 export const MAX_QTY = 10;
 export const MAX_LINES = 50;
 import { CART_COOKIE as GUEST_COOKIE, secureCookie } from "@/lib/auth/cookies";
+import { toRow } from "@/features/catalog/row";
 const GUEST_TTL_MS = 30 * 24 * 3600 * 1000;
 
 type L10n = { en: string; ar: string };
@@ -50,7 +51,7 @@ export async function getGuestId() {
 
 async function resolve(skus: string[]) {
   if (!skus.length) return new Map<string, { p: ProductRow; v?: NonNullable<ProductRow["variants"]>[number] }>();
-  const rows = (await Product.find({ status: "published", $or: [{ sku: { $in: skus } }, { "variants.sku": { $in: skus } }] }).lean()) as unknown as ProductRow[];
+  const rows = ((await Product.find({ status: "active", mergedInto: null, $or: [{ sku: { $in: skus } }, { "variants.sku": { $in: skus } }] }).lean()) as unknown as Record<string, unknown>[]).map(toRow) as unknown as ProductRow[];
   const map = new Map<string, { p: ProductRow; v?: NonNullable<ProductRow["variants"]>[number] }>();
   for (const p of rows) {
     if (p.variants?.length) p.variants.forEach((v) => map.set(v.sku, { p, v }));

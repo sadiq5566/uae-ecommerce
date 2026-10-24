@@ -27,12 +27,15 @@ All DB commands read `MONGODB_URI` / `MONGODB_DB` from `.env.local` (local: `mon
 | `npm run db:indexes` | create/verify all indexes (run on every deploy) |
 | `npm run db:indexes -- --sync` | also DROP indexes that are no longer in the schema |
 | `npm run db:migrate` | run pending forward-only migrations in `scripts/migrations/` |
-  
+
 Demo logins after seeding (development only): `owner@example.test`, `catalog@example.test`, `ops@example.test`, `content@example.test`, `customer@example.test` — password `Demo-Pass-2026!`.
 
 ## Product images
 | Command | What it does |
 |---|---|
+npm run clean-images -- --local --limit=5 --preview   # check a few results first
+npm run clean-images -- --apply --local
+
 | `npm run clean-images` | DRY RUN: shows which remote product images would have the corner "AMARA WATCHES" logo removed |
 | `npm run clean-images -- --apply` | do it: saves cleaned copies to `public/uploads/` and updates products. Original→new URL map goes to `scripts/clean-images.map.json` (for rollback) |
 

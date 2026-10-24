@@ -57,7 +57,7 @@ export default async function ReviewsAdmin({ searchParams }: PageProps<"/admin/r
             <li key={id} className="rounded-2xl border border-line bg-surface p-5">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm"><span className="text-gold" aria-label={`${r.rating} stars`}>{"★".repeat(r.rating)}{"☆".repeat(5 - r.rating)}</span> <b>{r.authorName}</b> {r.verified && <Pill tone="green">verified purchase</Pill>} {r.demo && <Pill tone="gold">demo</Pill>} {r.flagCount > 0 && <Pill tone="red">{r.flagCount} report{r.flagCount > 1 ? "s" : ""}</Pill>}</p>
-                <p className="text-xs text-muted">{p?.name?.en ?? "(deleted product)"} · {dubaiDate((r as unknown as { createdAt: Date }).createdAt, true)}</p>
+                <p className="text-xs text-muted">{p?.name ?? "(deleted product)"} · {dubaiDate((r as unknown as { createdAt: Date }).createdAt, true)}</p>
               </div>
               {r.title && <p className="mt-2 font-semibold">{r.title}</p>}
               <p className="mt-1 whitespace-pre-line text-sm text-muted">{r.body}</p>

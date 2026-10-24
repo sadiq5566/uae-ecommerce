@@ -49,7 +49,7 @@ export function CategoryGrid({ locale, t, categories }: P & { categories: Catego
         {top.map((c, i) => (
           <Reveal key={c.slug} delay={i * 50}>
             <Link href={`/${locale}/c/${c.slug}`} className="group flex flex-col items-center gap-2 rounded-2xl border border-line bg-surface p-4 text-center transition duration-300 hover:-translate-y-1 hover:border-brand hover:shadow-card">
-              <span className="grid size-14 place-items-center rounded-full text-3xl transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6" style={{ background: `hsl(${c.hue} 70% 90% / 0.9)` }}>{c.icon}</span>
+              <span className="relative grid size-14 place-items-center overflow-hidden rounded-full text-3xl transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6" style={{ background: `hsl(${c.hue} 70% 90% / 0.9)` }}>{c.image ? <Image src={c.image} alt="" fill sizes="56px" className="object-cover" /> : c.icon}</span>
               <span className="text-xs font-medium leading-tight sm:text-sm">{c.name[locale]}</span>
             </Link>
           </Reveal>

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
 import { getDictionary } from "@/lib/dictionaries";
@@ -46,7 +47,7 @@ export default async function CategoryPage({ params, searchParams }: PageProps<"
         <nav aria-label={t.catalog.subcategories} className="mt-5 flex flex-wrap gap-2">
           {children.map((c) => (
             <Link key={c.slug} href={`/${lang}/c/${c.slug}`} className="flex items-center gap-2 rounded-full border border-line bg-surface px-4 py-2 text-sm font-medium transition hover:-translate-y-0.5 hover:border-brand hover:text-brand">
-              <span aria-hidden>{c.icon}</span>{c.name[lang]}
+              <span aria-hidden className="relative grid size-6 place-items-center overflow-hidden rounded-full">{c.image ? <Image src={c.image} alt="" fill sizes="24px" className="object-cover" /> : c.icon}</span>{c.name[lang]}
             </Link>
           ))}
         </nav>

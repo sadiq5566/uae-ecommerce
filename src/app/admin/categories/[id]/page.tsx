@@ -17,7 +17,7 @@ export default async function EditCategory({ params, searchParams }: PageProps<"
   const parents = opts.filter((c) => !c.parent && c.id !== cat.id).map((c) => ({ id: c.id, name: c.name }));
   return (
     <>
-      <PageHeader title={cat.name.en} sub={cat.slug} actions={<form action={deleteCategoryAction}><input type="hidden" name="id" value={cat.id} /><ConfirmButton message="Delete this category?" className={btnDanger}>Delete</ConfirmButton></form>} />
+      <PageHeader title={cat.name} sub={cat.slug} actions={<form action={deleteCategoryAction}><input type="hidden" name="id" value={cat.id} /><ConfirmButton message="Delete this category?" className={btnDanger}>Delete</ConfirmButton></form>} />
       {sp.blocked && <p role="alert" className="mb-4 rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger">Can&apos;t delete: this category still has {sp.blocked === "children" ? "subcategories" : "products (archive or move them first)"}.</p>}
       <CategoryForm key={cat.id} category={cat} parents={parents} />
     </>

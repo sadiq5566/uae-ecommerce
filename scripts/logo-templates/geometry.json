@@ -1,0 +1,26 @@
+{
+ "amara": {
+  "anchor": "br",
+  "width": 205,
+  "height": 57,
+  "margin_x": 33,
+  "margin_y": 30,
+  "peak": 34.0
+ },
+ "lune": {
+  "anchor": "br",
+  "width": 176,
+  "height": 64,
+  "margin_x": 31,
+  "margin_y": 31,
+  "peak": 47.0
+ },
+ "wg": {
+  "anchor": "tr",
+  "width": 157,
+  "height": 143,
+  "margin_x": 31,
+  "margin_y": 31,
+  "peak": 44.0
+ }
+}

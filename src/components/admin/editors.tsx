@@ -54,7 +54,7 @@ export function ImagesEditor({ name = "images", initial, max = 10, single, onUrl
   );
 }
 
-export type VariantItem = { sku: string; label: L; stock: number | string; price?: number | string | null; image?: string; swatch?: string };
+export type VariantItem = { sku: string; color?: string; size?: string; stock: number | string; price?: number | string | null; image?: string };
 export function VariantsEditor({ initial, onCount }: { initial: VariantItem[]; onCount?: (n: number) => void }) {
   const [items, setItems] = useState<VariantItem[]>(initial);
   const update = (next: VariantItem[]) => { setItems(next); onCount?.(next.length); };
@@ -62,19 +62,19 @@ export function VariantsEditor({ initial, onCount }: { initial: VariantItem[]; o
   return (
     <div className="flex flex-col gap-3">
       <Hidden name="variants" value={items.map((v) => ({ ...v, price: v.price === null ? "" : v.price }))} />
-      {items.length === 0 && <p className="text-sm text-muted">No variants. Add them if this product comes in options (size, colour…). With variants, stock is tracked per variant.</p>}
+      {items.length === 0 && <p className="text-sm text-muted">No variants. Add one per colour / size combination; the shop shows colour swatches (by colour name) and size buttons. With variants, stock is tracked per variant.</p>}
       {items.map((v, i) => (
         <div key={i} className="grid gap-2 rounded-xl border border-line p-3 sm:grid-cols-6">
           <input aria-label="Variant SKU" placeholder="Variant SKU" value={v.sku} onChange={(e) => set(i, { sku: e.target.value })} className={`${inputCls} sm:col-span-2`} />
-          <input aria-label="Label (English)" placeholder="Label EN" value={v.label.en} onChange={(e) => set(i, { label: { ...v.label, en: e.target.value } })} className={inputCls} />
-          <input aria-label="Label (Arabic)" dir="rtl" placeholder="التسمية" value={v.label.ar} onChange={(e) => set(i, { label: { ...v.label, ar: e.target.value } })} className={inputCls} />
+          <input aria-label="Colour name" placeholder="Colour (e.g. Black)" value={v.color ?? ""} onChange={(e) => set(i, { color: e.target.value })} className={inputCls} />
+          <input aria-label="Size" placeholder="Size (e.g. 38)" value={v.size ?? ""} onChange={(e) => set(i, { size: e.target.value })} className={inputCls} />
           <input aria-label="Variant stock" type="number" min={0} placeholder="Stock" value={v.stock} onChange={(e) => set(i, { stock: e.target.value })} className={inputCls} />
-          <div className="flex gap-1.5"><input aria-label="Variant price (optional)" type="number" min={0} step="0.01" placeholder="Price?" value={v.price ?? ""} onChange={(e) => set(i, { price: e.target.value })} className={inputCls} /><button type="button" aria-label="Remove variant" className={`${mini} text-danger`} onClick={() => update(items.filter((_, k) => k !== i))}>✕</button></div>
-          <input aria-label="Variant image URL (shown when this option is selected)" placeholder="Image URL for this option (optional)" value={v.image ?? ""} onChange={(e) => set(i, { image: e.target.value })} className={`${inputCls} sm:col-span-4`} />
-          <label className="flex items-center gap-2 text-sm sm:col-span-2">Colour<input aria-label="Swatch colour" type="color" value={/^#[0-9a-fA-F]{6}$/.test(v.swatch ?? "") ? v.swatch : "#cccccc"} onChange={(e) => set(i, { swatch: e.target.value })} className="h-9 w-12 cursor-pointer rounded border border-line" />{v.swatch && <button type="button" className={mini} onClick={() => set(i, { swatch: "" })}>none</button>}</label>
+          <input aria-label="Variant price (optional)" type="number" min={0} step="0.01" placeholder="Price?" value={v.price ?? ""} onChange={(e) => set(i, { price: e.target.value })} className={inputCls} />
+          <input aria-label="Variant image URL (shown when this option is selected)" placeholder="Image URL for this option (optional)" value={v.image ?? ""} onChange={(e) => set(i, { image: e.target.value })} className={`${inputCls} sm:col-span-5`} />
+          <button type="button" className={mini} onClick={() => update(items.filter((_, k) => k !== i))}>Remove</button>
         </div>
       ))}
-      <button type="button" className={`${mini} self-start`} onClick={() => update([...items, { sku: "", label: { en: "", ar: "" }, stock: 0 }])}>+ Add variant</button>
+      <button type="button" className={`${mini} self-start`} onClick={() => update([...items, { sku: "", color: "", size: "", stock: 0 }])}>+ Add variant</button>
     </div>
   );
 }
