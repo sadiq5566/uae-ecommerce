@@ -39,6 +39,7 @@ export default async function ReturnPage({ params }: PageProps<"/admin/returns/[
         <div className="flex flex-col gap-6">
           <Card title="Reason"><p className="text-sm font-medium">{REASON[r.reason]}</p>{r.note && <p className="mt-2 text-sm text-muted">“{r.note}”</p>}</Card>
           <Card title="Customer"><p className="text-sm">{r.contact.name}</p><p className="text-sm text-muted" dir="ltr">{r.contact.phone}</p>{r.contact.email && <p className="text-sm text-muted">{r.contact.email}</p>}<Link href={`/admin/orders/${r.orderNumber}`} className="mt-2 inline-block text-sm font-semibold text-brand hover:underline">View order →</Link></Card>
+          {r.status === "completed" && r.resolution === "credit" && !r.creditCode && r.creditAmount != null && <Card title="Web credit issued"><p className="text-lg font-bold">{aed(r.creditAmount)}</p><p className="text-sm text-muted">Added to the customer&apos;s web credit{r.creditExpiresAt ? ` · expires ${new Date(r.creditExpiresAt).toLocaleDateString("en-GB", { timeZone: "Asia/Dubai" })}` : ""}</p></Card>}
           {r.creditCode && <Card title="Store credit issued"><p className="font-mono text-lg font-bold tracking-wider">{r.creditCode}</p><p className="text-sm text-muted">{aed(r.creditAmount ?? 0)} · single use · 90 days</p></Card>}
           <Card title="Stock"><p className="text-sm">{r.restocked ? "Returned items were put back in stock." : "Returned items were not restocked."}</p></Card>
         </div>

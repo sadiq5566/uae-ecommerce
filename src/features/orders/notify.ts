@@ -54,7 +54,7 @@ async function orderEmail(order: NotifyOrder, kind: Kind, subject: string, l: Lo
   if (kind === "confirmation") {
     const t = order.totals;
     const a = order.address;
-    const pay = order.payment?.method === "cod" ? c.cash(money(t?.total ?? 0)) : order.payment?.status === "paid" ? c.card : c.other;
+    const pay = order.payment?.method === "credit" ? (l === "ar" ? "رصيد المتجر" : "Web credit") : order.payment?.method === "cod" ? c.cash(money(t?.total ?? 0)) : order.payment?.status === "paid" ? c.card : c.other;
     pre = c.preConfirm(order.orderNumber, money(t?.total ?? 0));
     body = h(c.thanks) + p(c.hi(esc(name))) + p(c.received(esc(order.orderNumber))) + itemsTable(order, l)
       + rows([
@@ -64,6 +64,7 @@ async function orderEmail(order: NotifyOrder, kind: Kind, subject: string, l: Lo
         ...(t?.codFee ? [[c.cod, money(t.codFee)] as [string, string]] : []),
         ...(t && !t.taxIncluded && t.tax ? [[c.tax, money(t.tax)] as [string, string]] : []),
         [c.total, `<span style="font-size:17px;color:#0b6b57">${money(t?.total ?? 0)}</span>`],
+        ...(t?.credit ? [[l === "ar" ? "رصيد المتجر" : "Web credit", `-${money(t.credit)}`] as [string, string]] : []),
       ])
       + rows([
         [c.ship, [a?.recipientName, [a?.building, a?.unit, a?.street].filter(Boolean).join(", "), [a?.area, a?.emirate].filter(Boolean).join(", "), a?.phone].filter(Boolean).map((x) => esc(x)).join("<br>")],

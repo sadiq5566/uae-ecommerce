@@ -6,12 +6,14 @@ import { connectDb } from "@/lib/db";
 import { getMailer } from "@/lib/mailer";
 import { button, emailLayout, esc, getBrand, h, p, rows } from "@/lib/email";
 import { Coupon } from "@/models/coupon";
+import { User } from "@/models/user";
 import { InventoryMovement } from "@/models/inventory-movement";
 import { Order, type OrderDoc } from "@/models/order";
 import { Product } from "@/models/product";
 import { RETURN_REASONS, ReturnRequest, type ReturnDoc, type ReturnReason, type ReturnResolution, type ReturnStatus } from "@/models/return-request";
 import { getSettings } from "@/features/checkout/prepare";
 import { give, take } from "@/features/orders/stock";
+import { CREDIT_VALID_DAYS, issueCredit } from "@/features/credit/service";
 
 const ALPHABET = "ABCDEFGHJKMNPQRSTVWXYZ23456789";
 const code = (prefix: string, n = 8) => prefix + Array.from(randomBytes(n), (b) => ALPHABET[b % ALPHABET.length]).join("");
@@ -153,10 +155,10 @@ export async function receiveReturn(id: string, actor: string, restock: boolean,
 }
 
 /**
- * Close the return. Credit → issue a single-use store-credit coupon worth the returned value (valid 90 days).
+ * Close the return. Credit → pay the returned value into the customer's web credit (valid 90 days).
  * Exchange → take the replacement from stock (fails cleanly if it just sold out).
  */
-export async function completeReturn(id: string, actor: string, note?: string): Promise<{ ok: true; creditCode?: string; creditAmount?: number } | { ok: false; error: ReturnError }> {
+export async function completeReturn(id: string, actor: string, note?: string): Promise<{ ok: true; creditCode?: string; creditAmount?: number; creditExpiresAt?: Date } | { ok: false; error: ReturnError }> {
   await connectDb();
   const claimed = await ReturnRequest.findOneAndUpdate({ _id: id, status: "received" }, { $set: { status: "completed" }, $push: { timeline: push("completed", actor, note) } }, { returnDocument: "before" }).lean();
   if (!claimed) return { ok: false, error: "invalid_state" };
@@ -174,15 +176,29 @@ export async function completeReturn(id: string, actor: string, note?: string): 
   }
 
   const amount = round2(claimed.items.reduce((a, i) => a + i.value, 0));
+  // The refund is paid into the customer's web credit. Returns are only accepted from signed-in owners, so the order's user is
+  // known; for an older guest-made request we use the verified account with the same email, and only then fall back to a coupon.
+  let userId = claimed.user ?? null;
+  if (!userId && claimed.contact.email) userId = (await User.findOne({ email: claimed.contact.email.toLowerCase(), emailVerifiedAt: { $exists: true } }).select("_id").lean())?._id ?? null;
+  if (userId) {
+    const lot = await issueCredit({ userId, amount, source: "return", ref: claimed.number, note: { en: `Refund for return ${claimed.number}`, ar: `استرداد للإرجاع ${claimed.number}` } });
+    await ReturnRequest.updateOne({ _id: id }, { $set: { creditAmount: amount, creditExpiresAt: lot.expiresAt } });
+    const until = (l: "en" | "ar") => new Intl.DateTimeFormat(l === "ar" ? "ar-AE" : "en-AE", { dateStyle: "long", timeZone: "Asia/Dubai" }).format(lot.expiresAt);
+    await notify(claimed, {
+      en: `Your return ${claimed.number} is complete. AED ${amount.toFixed(2)} has been added to your web credit — use it at checkout ("Use web credit first") before ${until("en")} (${CREDIT_VALID_DAYS} days).`,
+      ar: `اكتمل طلب الإرجاع ${claimed.number}. تمت إضافة ${amount.toFixed(2)} د.إ إلى رصيدك في المتجر — استخدمه عند الدفع ("استخدم رصيد المتجر أولاً") قبل ${until("ar")} (${CREDIT_VALID_DAYS} يوماً).`,
+    });
+    return { ok: true, creditAmount: amount, creditExpiresAt: lot.expiresAt };
+  }
   const creditCode = code("CR-", 8);
   await Coupon.create({
     code: creditCode, type: "fixed", value: amount, minSubtotal: 0, active: true, public: false, usageLimit: 1, perCustomerLimit: 1, stackWithSale: true,
-    endsAt: new Date(Date.now() + 90 * 86_400_000), description: { en: `Store credit for return ${claimed.number}`, ar: `رصيد متجر للإرجاع ${claimed.number}` },
+    endsAt: new Date(Date.now() + CREDIT_VALID_DAYS * 86_400_000), description: { en: `Store credit for return ${claimed.number}`, ar: `رصيد متجر للإرجاع ${claimed.number}` },
   });
   await ReturnRequest.updateOne({ _id: id }, { $set: { creditAmount: amount, creditCode } });
   await notify(claimed, {
-    en: `Your return ${claimed.number} is complete. Your store credit: code ${creditCode} — AED ${amount.toFixed(2)} off your next order, valid for 90 days.`,
-    ar: `اكتمل طلب الإرجاع ${claimed.number}. رصيدك في المتجر: الكود ${creditCode} — خصم ${amount.toFixed(2)} د.إ على طلبك القادم، صالح لمدة 90 يوماً.`,
+    en: `Your return ${claimed.number} is complete. Your store credit: code ${creditCode} — AED ${amount.toFixed(2)} off your next order, valid for ${CREDIT_VALID_DAYS} days.`,
+    ar: `اكتمل طلب الإرجاع ${claimed.number}. رصيدك في المتجر: الكود ${creditCode} — خصم ${amount.toFixed(2)} د.إ على طلبك القادم، صالح لمدة ${CREDIT_VALID_DAYS} يوماً.`,
   });
   return { ok: true, creditCode, creditAmount: amount };
 }

@@ -9,6 +9,7 @@ import { getBuyNowView, getCartView } from "@/features/cart/service";
 import { CheckoutClient } from "@/features/checkout/checkout-client";
 import { availableMethods } from "@/features/checkout/prepare";
 import { privatePage } from "@/lib/page-meta";
+import { creditSummary } from "@/features/credit/service";
 import { getPublicCoupons, getPublicOffers } from "@/features/offers/service";
 
 export const generateMetadata = privatePage((t) => t.checkout.title);
@@ -20,8 +21,8 @@ export default async function CheckoutPage({ params, searchParams }: PageProps<"
   const buySku = typeof sp.buy === "string" && sp.buy.length <= 64 ? sp.buy : undefined; // "Buy now": one item, cart untouched
   const buyQty = Number(typeof sp.qty === "string" ? sp.qty : 1) || 1;
   const user = await getCurrentUser(); // guests can check out: no sign-in wall
-  const [t, cart, addresses, methods, offers, coupons] = await Promise.all([
-    getDictionary(lang), buySku ? getBuyNowView(buySku, buyQty) : getCartView(), user ? getAddresses(user.id) : Promise.resolve([]), availableMethods(), getPublicOffers(), getPublicCoupons(),
+  const [t, cart, addresses, methods, offers, coupons, credit] = await Promise.all([
+    getDictionary(lang), buySku ? getBuyNowView(buySku, buyQty) : getCartView(), user ? getAddresses(user.id) : Promise.resolve([]), availableMethods(), getPublicOffers(), getPublicCoupons(), user ? creditSummary(user.id) : Promise.resolve(null),
   ]);
   const items = cart.lines.filter((l) => l.qty > 0 && l.status === "ok");
   const blocked = items.length === 0 || cart.lines.some((l) => l.status !== "ok");
@@ -44,6 +45,7 @@ export default async function CheckoutPage({ params, searchParams }: PageProps<"
         <CheckoutClient
           key={addresses.map((a) => a.id).join() + (buySku ?? "")} locale={lang} t={t} addresses={addresses} methods={methods as never} testMode={!!getProvider()?.testOnly}
           guest={!user} buy={buySku ? { sku: buySku, qty: items[0]?.qty ?? 1 } : undefined} offers={offers} coupons={coupons} defaultName={user?.name} defaultPhone={user?.phone}
+          credit={credit && credit.balanceFils > 0 ? { balance: credit.balance, expiresAt: credit.nextExpiry?.toISOString() } : undefined}
           items={items.map((l) => ({ sku: l.sku, name: l.name[lang], variant: l.variantLabel?.[lang], qty: l.qty, icon: l.icon, hue: l.hue, image: l.image, unitPrice: l.unitPrice, listPrice: l.listPrice, lineTotal: l.lineTotal }))}
         />
       )}

@@ -1,10 +1,10 @@
 "use client";
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import type { Dictionary } from "@/lib/dictionaries";
 import type { Locale } from "@/lib/i18n";
 import { Field, FormAlert, PasswordField, SubmitButton } from "@/components/form-ui";
-import { forgotPasswordAction, loginAction, registerAction, resetPasswordAction } from "./actions";
+import { forgotPasswordAction, loginAction, registerAction, resendOtpAction, resetPasswordAction, verifyEmailAction } from "./actions";
 import type { FormState } from "./schemas";
 
 const init: FormState = {};
@@ -61,5 +61,36 @@ export function ResetForm({ locale, t, token }: P & { token: string }) {
       <PasswordField id="password" name="password" autoComplete="new-password" required minLength={10} label={t.auth.password} hint={t.auth.passwordHint} errors={t.errors} error={s.fieldErrors?.password} show={t.auth.show} hide={t.auth.hide} />
       <SubmitButton pending={pending}>{t.auth.resetBtn}</SubmitButton>
     </form>
+  );
+}
+
+/** Step 2 of sign-up (and of first sign-in for older accounts): the 6-digit code that was emailed. */
+export function VerifyForm({ locale, t, email, purpose, next }: P & { email: string; purpose: "register" | "verify" }) {
+  const [s, action, pending] = useActionState(verifyEmailAction, init);
+  const [r, resend, resending] = useActionState(resendOtpAction, init);
+  const [wait, setWait] = useState(45); // a code was just sent when this page opened
+  useEffect(() => { if (wait <= 0) return; const id = setTimeout(() => setWait((w) => w - 1), 1000); return () => clearTimeout(id); }, [wait]);
+  const hidden = <><input type="hidden" name="locale" value={locale} /><input type="hidden" name="email" value={email} /><input type="hidden" name="purpose" value={purpose} /></>;
+  return (
+    <div className="flex flex-col gap-4">
+      <form action={action} className="flex flex-col gap-4" noValidate>
+        {hidden}<input type="hidden" name="next" value={next ?? ""} />
+        <FormAlert error={s.error} errors={t.errors} />
+        <div>
+          <label htmlFor="code" className="mb-1.5 block text-sm font-medium">{t.auth.otpLabel}</label>
+          <input id="code" name="code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} required autoFocus dir="ltr" aria-invalid={!!s.error}
+            className="w-full rounded-xl border border-line bg-surface px-4 py-3 text-center font-mono text-2xl tracking-[0.5em] outline-none transition focus:border-brand focus:shadow-card aria-[invalid=true]:border-danger" placeholder="······" />
+        </div>
+        <SubmitButton pending={pending}>{purpose === "register" ? t.auth.otpCreate : t.auth.otpVerify}</SubmitButton>
+      </form>
+      <form action={resend} onSubmit={() => setWait(45)} className="text-center text-sm text-muted">
+        {hidden}
+        {r.ok && <p role="status" className="mb-2 text-brand">✓ {t.auth.otpResent}</p>}
+        {r.error && <p role="alert" className="mb-2 text-danger">{(t.errors as Record<string, string>)[r.error] ?? t.errors.generic}</p>}
+        <button disabled={wait > 0 || resending} className="font-semibold text-brand hover:underline disabled:cursor-not-allowed disabled:text-muted disabled:no-underline">
+          {wait > 0 ? `${t.auth.otpResend} (${wait})` : t.auth.otpResend}
+        </button>
+      </form>
+    </div>
   );
 }

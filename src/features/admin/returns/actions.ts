@@ -45,6 +45,6 @@ export async function completeReturnAction(_: FormState, fd: FormData): Promise<
   if (!id) return { error: MSG.not_found };
   const r = await completeReturn(id, user.id, note(fd) || undefined);
   if (!r.ok) return { error: MSG[r.error] };
-  await audit(user, "return.completed", "return", id, r.creditCode ? `Return completed — store credit ${r.creditCode}` : "Return completed — exchange dispatched", { creditAmount: r.creditAmount });
-  refresh(id); return { ok: true, values: { message: r.creditCode ? `Store credit ${r.creditCode} (AED ${r.creditAmount?.toFixed(2)}) was issued and sent to the customer.` : "Exchange recorded and replacement stock taken." } };
+  await audit(user, "return.completed", "return", id, r.creditCode ? `Return completed — store credit ${r.creditCode}` : r.creditAmount != null ? `Return completed — web credit AED ${r.creditAmount.toFixed(2)}` : "Return completed — exchange dispatched", { creditAmount: r.creditAmount });
+  refresh(id); return { ok: true, values: { message: r.creditCode ? `Store credit ${r.creditCode} (AED ${r.creditAmount?.toFixed(2)}) was issued and sent to the customer.` : r.creditAmount != null ? `AED ${r.creditAmount.toFixed(2)} was added to the customer's web credit (valid 90 days) and they were notified.` : "Exchange recorded and replacement stock taken." } };
 }

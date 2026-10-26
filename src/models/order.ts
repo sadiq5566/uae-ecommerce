@@ -2,7 +2,7 @@ import { Schema, model, models, type Model, type Types } from "mongoose";
 
 export const ORDER_STATUSES = ["pending_payment", "confirmed", "processing", "packed", "out_for_delivery", "delivered", "cancelled", "refund_pending", "refunded"] as const;
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
-export const PAYMENT_METHODS = ["card", "apple_pay", "google_pay", "tabby", "cod"] as const;
+export const PAYMENT_METHODS = ["card", "apple_pay", "google_pay", "tabby", "cod", "credit"] as const; // "credit" = fully covered by web credit
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 export const PAYMENT_STATUSES = ["pending", "paid", "failed", "cod_pending", "cod_collected", "refund_pending", "refunded"] as const;
 export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
@@ -34,9 +34,11 @@ const orderSchema = new Schema(
     delivery: { zone: String, zoneName: i18n, estimate: i18n },
     totals: {
       listSubtotal: Number, itemDiscounts: Number, subtotal: Number, couponDiscount: Number, offerDiscount: { type: Number, default: 0 }, deliveryFee: Number, codFee: Number,
-      tax: Number, taxIncluded: Boolean, total: Number, currency: { type: String, default: "AED" },
+      credit: { type: Number, default: 0 }, tax: Number, taxIncluded: Boolean, total: Number, currency: { type: String, default: "AED" },
     },
     coupon: { code: String, discount: Number },
+    // Web credit spent on this order: which lots paid how much (fils), so a cancelled order can give it back exactly once.
+    credit: { _id: false, amountFils: Number, lots: [{ _id: false, lot: Schema.Types.ObjectId, fils: Number }], restoredAt: Date },
     offer: { kind: String, percent: Number, discount: Number }, // automatic offer applied (tier / first_order)
     payment: {
       method: { type: String, enum: PAYMENT_METHODS, required: true },
@@ -62,8 +64,9 @@ export interface OrderDoc {
   items: { productId: Types.ObjectId; sku: string; name: L10n; variantLabel?: L10n; icon?: string; image?: string; qty: number; unitPrice: number; listPrice: number; lineTotal: number; couponShare: number }[];
   address: { recipientName: string; phone: string; emirate: string; area: string; street?: string; building: string; unit?: string; landmark?: string; instructions?: string };
   delivery: { zone: string; zoneName: L10n; estimate: L10n };
-  totals: { listSubtotal: number; itemDiscounts: number; subtotal: number; couponDiscount: number; offerDiscount?: number; deliveryFee: number; codFee: number; tax: number; taxIncluded: boolean; total: number; currency: string };
+  totals: { listSubtotal: number; itemDiscounts: number; subtotal: number; couponDiscount: number; offerDiscount?: number; deliveryFee: number; codFee: number; credit?: number; tax: number; taxIncluded: boolean; total: number; currency: string };
   coupon?: { code: string; discount: number };
+  credit?: { amountFils: number; lots: { lot: Types.ObjectId; fils: number }[]; restoredAt?: Date };
   offer?: { kind: "tier" | "first_order"; percent?: number; discount: number };
   payment: { method: PaymentMethod; status: PaymentStatus; provider?: string; providerRef?: string; amount?: number; paidAt?: Date; failureReason?: string };
   stockReserved: boolean; expiresAt?: Date | null;

@@ -17,6 +17,7 @@ export default async function AccountLayout({ children, params }: LayoutProps<"/
     { href: `/${lang}/account`, label: t.account.profile },
     { href: `/${lang}/account/addresses`, label: t.account.addresses },
     { href: `/${lang}/account/orders`, label: t.account.orders },
+    { href: `/${lang}/account/credit`, label: t.credit.title },
     { href: `/${lang}/wishlist`, label: t.account.wishlist },
   ];
   return (

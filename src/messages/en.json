@@ -211,13 +211,18 @@
     "review_not_eligible": "Only customers who received this product can review it.",
     "review_duplicate": "You have already reviewed this product.",
     "password_wrong": "Your current password is incorrect.",
-    "password_same": "Choose a password different from the current one."
+    "password_same": "Choose a password different from the current one.",
+    "otp_invalid": "That code isn't right. Check the email and try again.",
+    "otp_expired": "This code has expired. Request a new one.",
+    "otp_locked": "Too many wrong codes. Request a new code.",
+    "otp_wait": "Please wait a moment before asking for another code.",
+    "credit_insufficient": "Your web credit changed. Please review your order and try again."
   },
   "auth": {
     "loginTitle": "Sign in",
     "loginSub": "Welcome back",
     "registerTitle": "Create account",
-    "registerSub": "Shop faster and track your orders",
+    "registerSub": "Verify your email to create your account — then track orders, return items and review products.",
     "email": "Email",
     "password": "Password",
     "name": "Full name",
@@ -236,7 +241,15 @@
     "resetDone": "Password updated. Please sign in.",
     "passwordHint": "At least 10 characters",
     "show": "Show",
-    "hide": "Hide"
+    "hide": "Hide",
+    "otpTitle": "Verify your email",
+    "otpSub": "We sent a 6-digit code to {email}. It expires in 10 minutes.",
+    "otpLabel": "6-digit code",
+    "otpCreate": "Verify & create account",
+    "otpVerify": "Verify & sign in",
+    "otpResend": "Resend code",
+    "otpResent": "A new code is on its way.",
+    "otpWrongEmail": "Wrong email? Start again"
   },
   "account": {
     "title": "My account",
@@ -363,14 +376,16 @@
       "card": "Credit / debit card",
       "apple_pay": "Apple Pay",
       "google_pay": "Google Pay",
-      "tabby": "Tabby — Pay in 4"
+      "tabby": "Tabby — Pay in 4",
+      "credit": "Web credit"
     },
     "methodNotes": {
       "cod": "Pay in cash when your order arrives.",
       "card": "Pay securely online.",
       "apple_pay": "Pay with Apple Pay.",
       "google_pay": "Pay with Google Pay.",
-      "tabby": "Split into 4 interest-free payments. No fees when you pay on time."
+      "tabby": "Split into 4 interest-free payments. No fees when you pay on time.",
+      "credit": "Paid in full with your web credit."
     },
     "testMode": "TEST MODE — no real payment is taken",
     "emptyCart": "Your cart is empty",
@@ -543,24 +558,27 @@
   },
   "track": {
     "title": "Track your order",
-    "sub": "Enter your order number and the phone number you used at checkout.",
+    "sub": "Order tracking is in your account. Sign in (or create an account with the email you ordered with) to see all your orders, including earlier ones.",
     "orderNumber": "Order number",
     "phone": "Phone number",
     "submit": "Track order",
     "notFound": "We couldn't find an order with these details. Check the order number and phone number and try again.",
     "rateLimited": "Too many attempts. Please wait a few minutes.",
-    "saveLink": "Bookmark this page or keep your order number — you can check the status any time from Track order.",
+    "saveLink": "Create an account with this email to track this order, return items and review products.",
     "signedInHint": "Have an account? Your orders are also under My account.",
-    "linkInvalid": "This tracking link isn't valid. Use your order number and phone number instead."
+    "linkInvalid": "This order link isn't valid. Sign in to see your orders.",
+    "whyAccount": "Your account also lets you return items for web credit, exchange sizes and colours, and review what you bought.",
+    "accountTitle": "Track, return and review with your account",
+    "accountBody": "Create an account with the email you used for this order (we verify it with a code) and this order — and any earlier ones — will appear there, ready to track, return or review."
   },
   "returns": {
     "title": "Returns & exchanges",
-    "policy": "Free returns within {days} days of delivery. Choose store credit (a coupon for your next order) or a free exchange for another size or colour.",
+    "policy": "Free returns within {days} days of delivery. Choose a refund as web credit (valid 90 days, use it at checkout) or a free exchange for another size or colour.",
     "whichItems": "Which items are you returning?",
     "qty": "Qty",
     "resolution": "What would you like?",
-    "credit": "Store credit coupon",
-    "creditNote": "A coupon worth the item's value, valid for 90 days.",
+    "credit": "Refund as web credit",
+    "creditNote": "The item's value is added to your account's web credit — valid for 90 days.",
     "exchange": "Free exchange",
     "exchangeNote": "Swap for another size or colour — no extra cost.",
     "exchangeFor": "Exchange for",
@@ -599,6 +617,37 @@
       "invalid_exchange": "Choose the size or colour you want instead.",
       "exchange_unavailable": "That size or colour is out of stock — choose another or take store credit.",
       "rate_limited": "Too many requests. Please try again later."
+    },
+    "creditAdded": "{amount} added to your web credit"
+  },
+  "credit": {
+    "title": "Web credit",
+    "line": "Web credit",
+    "useFirst": "Use web credit first",
+    "available": "{amount} available",
+    "validUntil": "valid until {d}",
+    "applying": "Using {amount} on this order",
+    "covers": "Your web credit covers this whole order — no payment needed.",
+    "nextExpiry": "Your soonest credit expires on {d}.",
+    "howItWorks": "Refunds from returns land here as web credit, valid for {days} days.",
+    "expiringSoon": "{amount} expires within 14 days — use it soon.",
+    "shop": "Start shopping",
+    "aboutTitle": "How web credit works",
+    "aboutRefund": "When you return an item for a refund, its value is added here as web credit, valid for {days} days.",
+    "aboutUse": "At checkout, tick “Use web credit first”. Whatever the credit doesn't cover is paid the usual way.",
+    "aboutOldest": "The credit that expires soonest is always used first.",
+    "aboutCancel": "If an order paid with credit is cancelled, the credit comes back to you.",
+    "history": "Credit history",
+    "empty": "No web credit yet. Refunds from returns will appear here.",
+    "fromReturn": "Refund for return {n}",
+    "fromStore": "Credit from the store",
+    "issued": "issued {d}",
+    "expiredOn": "expired {d}",
+    "remaining": "{amount} left",
+    "state": {
+      "active": "Active",
+      "used": "Used",
+      "expired": "Expired"
     }
   }
 }

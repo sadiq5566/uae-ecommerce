@@ -10,6 +10,7 @@ import { Order, type OrderDoc, type PaymentMethod } from "@/models/order";
 import { prepare, type CheckoutError, type InlineAddress } from "@/features/checkout/prepare";
 import { toFils } from "@/features/checkout/money";
 import { captureLead } from "@/features/offers/leads";
+import { restoreOrderCredit, spendCredit } from "@/features/credit/service";
 import { notifyOrder } from "./notify";
 import { releaseStock, reserveStock } from "./stock";
 
@@ -18,7 +19,7 @@ export const newOrderNumber = () => "UAE-" + Array.from(randomBytes(8), (b) => A
 
 export type PlaceInput = {
   userId?: string; guestId?: string; email?: string; locale: "en" | "ar"; addressId?: string; address?: InlineAddress; buy?: { sku: string; qty: number };
-  method: PaymentMethod; couponCode?: string; idempotencyKey: string; expectedTotal?: number; returnBase: string;
+  method: PaymentMethod; couponCode?: string; useCredit?: boolean; idempotencyKey: string; expectedTotal?: number; returnBase: string;
 };
 export type PlaceResult =
   | { ok: true; orderNumber: string; trackToken?: string; guest?: boolean; redirectUrl?: string; duplicate?: boolean; paymentError?: boolean }
@@ -40,21 +41,23 @@ export async function placeOrder(input: PlaceInput): Promise<PlaceResult> {
   const existing = await Order.findOne({ ...mine, idempotencyKey: input.idempotencyKey }).lean();
   if (existing) return { ok: true, orderNumber: existing.orderNumber, trackToken: existing.trackToken, guest: !!existing.guest, duplicate: true };
 
-  const prep = await prepare({ userId: input.userId, guestId: input.guestId, email: input.email, addressId: input.addressId, address: input.address, buy: input.buy, method: input.method, couponCode: input.couponCode });
+  const prep = await prepare({ userId: input.userId, guestId: input.guestId, email: input.email, addressId: input.addressId, address: input.address, buy: input.buy, method: input.method, couponCode: input.couponCode, useCredit: input.useCredit });
   if (!prep.ok) return prep;
   const { p } = prep;
   if (!p.address.recipientName || !p.address.phone || !p.address.area || !p.address.building) return { ok: false, error: "no_address" };
   const guest = !input.userId;
   const trackToken = randomBytes(18).toString("base64url"); // lets anyone holding the link (or order no. + phone) follow the order
-  if (input.expectedTotal != null && toFils(input.expectedTotal) !== toFils(p.totals.total)) return { ok: false, error: "total_changed", total: p.totals.total };
+  if (input.expectedTotal != null && toFils(input.expectedTotal) !== toFils(p.credit.payable)) return { ok: false, error: "total_changed", total: p.credit.payable };
 
-  const online = p.method !== "cod";
+  const covered = p.method === "credit"; // web credit pays the whole order
+  const online = p.method !== "cod" && !covered;
   const provider = online ? getProviderForMethod(p.method) : null;
   if (online && !provider) return { ok: false, error: "method_unavailable" };
   if (p.method === "tabby" && !input.email?.trim()) return { ok: false, error: "email_required" }; // Tabby needs a contact email
 
   const t = p.totals;
   const now = new Date();
+  const creditAed = p.credit.appliedFils / 100;
   const doc: Partial<OrderDoc> & Record<string, unknown> = {
     ...(input.userId ? { user: new Types.ObjectId(input.userId) } : {}), guest, trackToken, source: p.source,
     email: input.email?.trim().toLowerCase() || undefined, locale: input.locale, idempotencyKey: input.idempotencyKey,
@@ -69,12 +72,12 @@ export async function placeOrder(input: PlaceInput): Promise<PlaceResult> {
       building: p.address.building, unit: p.address.unit, landmark: p.address.landmark, instructions: p.address.instructions,
     },
     delivery: { zone: p.zone.key, zoneName: p.zone.name, estimate: p.zone.estimate },
-    totals: { listSubtotal: t.listSubtotal, itemDiscounts: t.itemDiscounts, subtotal: t.subtotal, couponDiscount: t.couponDiscount, offerDiscount: t.offerDiscount, deliveryFee: t.deliveryFee, codFee: t.codFee, tax: t.tax, taxIncluded: t.taxIncluded, total: t.total, currency: "AED" },
+    totals: { listSubtotal: t.listSubtotal, itemDiscounts: t.itemDiscounts, subtotal: t.subtotal, couponDiscount: t.couponDiscount, offerDiscount: t.offerDiscount, deliveryFee: t.deliveryFee, codFee: t.codFee, credit: creditAed, tax: t.tax, taxIncluded: t.taxIncluded, total: p.credit.payable, currency: "AED" },
     coupon: p.coupon ? { code: p.coupon.rule.code, discount: t.couponDiscount } : undefined,
     offer: t.offer && t.offer.kind !== "coupon" ? { kind: t.offer.kind, percent: t.offer.percent, discount: t.offerDiscount } : undefined,
-    payment: { method: p.method, status: online ? "pending" : "cod_pending", provider: provider?.id, amount: t.total },
+    payment: covered ? { method: "credit", status: "paid", amount: 0, paidAt: now } : { method: p.method, status: online ? "pending" : "cod_pending", provider: provider?.id, amount: p.credit.payable },
     expiresAt: online ? new Date(now.getTime() + p.settings.pendingPaymentMinutes * 60_000) : undefined,
-    timeline: [{ status: online ? "pending_payment" : "confirmed", at: now, by: "customer", note: online ? "Order placed, awaiting payment" : "Order placed (cash on delivery)" }],
+    timeline: [{ status: online ? "pending_payment" : "confirmed", at: now, by: "customer", note: online ? "Order placed, awaiting payment" : covered ? "Order placed (paid with web credit)" : "Order placed (cash on delivery)" }],
   };
 
   let order;
@@ -100,6 +103,17 @@ export async function placeOrder(input: PlaceInput): Promise<PlaceResult> {
     return { ok: false, error: "out_of_stock", detail: reserved.sku };
   }
 
+  // Spend web credit (soonest-expiring first). The order remembers which lots paid, so a cancelled order can give it back.
+  if (p.credit.appliedFils > 0) {
+    const spent = await spendCredit(input.userId!, p.credit.appliedFils);
+    if (!spent.ok) {
+      await releaseStock(order._id, "order_cancelled");
+      await Order.deleteOne({ _id: order._id });
+      return { ok: false, error: "credit_insufficient" };
+    }
+    await Order.updateOne({ _id: order._id }, { $set: { credit: { amountFils: p.credit.appliedFils, lots: spent.lots } } });
+  }
+
   // Claim the coupon use atomically (usage limit) and record the per-customer redemption.
   if (p.coupon) {
     const c = p.coupon.doc;
@@ -116,6 +130,7 @@ export async function placeOrder(input: PlaceInput): Promise<PlaceResult> {
       }
     }
     if (!ok) {
+      await restoreOrderCredit(order._id);
       await releaseStock(order._id, "order_cancelled");
       await Order.deleteOne({ _id: order._id });
       return { ok: false, error: "coupon_used_up" };

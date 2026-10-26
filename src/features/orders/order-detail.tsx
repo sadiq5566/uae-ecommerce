@@ -19,7 +19,7 @@ export function OrderDetail({ o, lang, t, placed, back, guestToken, extra }: {
 }) {
   const fdate = new Intl.DateTimeFormat(lang === "ar" ? "ar-AE" : "en-AE", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Dubai" });
   const awaiting = o.status === "pending_payment";
-  const online = o.payment.method !== "cod";
+  const online = o.payment.method !== "cod" && o.payment.method !== "credit";
   const expired = o.status === "cancelled" && online && o.payment.status !== "paid" && o.payment.status !== "refund_pending";
   const stepIdx = STEPS.indexOf(o.status as (typeof STEPS)[number]);
   const cancelled = o.status === "cancelled" || o.status === "refund_pending" || o.status === "refunded";
@@ -94,6 +94,7 @@ export function OrderDetail({ o, lang, t, placed, back, guestToken, extra }: {
             <div className={row}><dt>{t.checkout.delivery}</dt><dd>{T.deliveryFee === 0 ? t.checkout.free : formatAED(T.deliveryFee, lang)}</dd></div>
             {T.codFee > 0 && <div className={row}><dt>{t.checkout.codFee}</dt><dd>{formatAED(T.codFee, lang)}</dd></div>}
             {T.tax > 0 && <div className={`${row} text-muted`}><dt>{T.taxIncluded ? t.checkout.taxIncl : t.checkout.tax}</dt><dd>{formatAED(T.tax, lang)}</dd></div>}
+            {(T.credit ?? 0) > 0 && <div className={row}><dt>{t.credit.line}</dt><dd className="text-brand">−{formatAED(T.credit ?? 0, lang)}</dd></div>}
             <div className="flex justify-between border-t border-line pt-3 font-bold"><dt>{t.checkout.total}</dt><dd className="text-lg">{formatAED(T.total, lang)}</dd></div>
           </dl>
         </section>

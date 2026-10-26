@@ -1,5 +1,5 @@
 import "server-only";
-import { randomBytes, timingSafeEqual } from "node:crypto";
+import { timingSafeEqual } from "node:crypto";
 import { connectDb } from "@/lib/db";
 import { Order, type OrderDoc } from "@/models/order";
 import { Product } from "@/models/product";
@@ -67,15 +67,4 @@ export async function getOrderByToken(orderNumber: string, token: string) {
   const o = await Order.findOne({ orderNumber }).lean();
   if (!o?.trackToken || !sameToken(o.trackToken, token)) return null;
   return withImages(view(o));
-}
-
-/** Order number + the phone it was delivered to → the tracking token (created on demand for older orders). */
-export async function findTrackToken(orderNumber: string, phone: string): Promise<string | null> {
-  await connectDb();
-  const o = await Order.findOne({ orderNumber: orderNumber.trim().toUpperCase(), "address.phone": phone }).select("trackToken").lean();
-  if (!o) return null;
-  if (o.trackToken) return o.trackToken;
-  const token = randomBytes(18).toString("base64url");
-  await Order.updateOne({ _id: o._id, trackToken: { $exists: false } }, { $set: { trackToken: token } });
-  return (await Order.findById(o._id).select("trackToken").lean())?.trackToken ?? null;
 }

@@ -11,7 +11,7 @@ const up = await mongoose.connect(process.env.MONGODB_URI, { dbName: "souq_uae_t
 
 const { placeOrder } = await import("@/features/orders/place");
 const { updateOrderStatus } = await import("@/features/orders/lifecycle");
-const { getOrderByToken, findTrackToken } = await import("@/features/orders/queries");
+const { getOrderByToken } = await import("@/features/orders/queries");
 const { createReturn, reviewReturn, receiveReturn, completeReturn, returnWindow } = await import("@/features/returns/service");
 const { captureLead } = await import("@/features/offers/leads");
 const { Category } = await import("@/models/category");
@@ -148,7 +148,7 @@ describe.skipIf(!up)("guest checkout, offers, tracking and returns (real MongoDB
   });
 
   describe("order tracking", () => {
-    it("returns the order only to someone holding its token, or order number + phone", async () => {
+    it("returns the order only to someone holding its token", async () => {
       await mkProduct("P1", 10, 100);
       const r = await guestOrder({ buy: { sku: "P1", qty: 1 } }) as { orderNumber: string; trackToken: string };
       const o = await getOrderByToken(r.orderNumber, r.trackToken);
@@ -157,21 +157,12 @@ describe.skipIf(!up)("guest checkout, offers, tracking and returns (real MongoDB
       expect(await getOrderByToken(r.orderNumber, "x".repeat(24))).toBeNull();
       expect(await getOrderByToken(r.orderNumber, "")).toBeNull();
       expect(await getOrderByToken("UAE-ZZZZZZZZ", r.trackToken)).toBeNull();
-      expect(await findTrackToken(r.orderNumber, "+971501234567")).toBe(r.trackToken);
-      expect(await findTrackToken(r.orderNumber, "+971509999999")).toBeNull(); // wrong phone
-      expect(await findTrackToken("UAE-ZZZZZZZZ", "+971501234567")).toBeNull();
     });
     it("shows the status the admin sets", async () => {
       await mkProduct("P1", 10, 100);
       const r = await guestOrder({ buy: { sku: "P1", qty: 1 } }) as { orderNumber: string; trackToken: string };
       await updateOrderStatus({ orderNumber: r.orderNumber, to: "processing", actor: "staff", notify: false });
       expect(await getOrderByToken(r.orderNumber, r.trackToken)).toMatchObject({ status: "processing" });
-    });
-    it("creates a token on demand for orders that pre-date tracking", async () => {
-      await Order.create({ orderNumber: "UAE-LEGACY01", user: new Types.ObjectId(), status: "confirmed", idempotencyKey: key(), items: [], address: ADDR, delivery: {}, totals: { total: 1 }, payment: { method: "cod", status: "cod_pending" } });
-      const t = await findTrackToken("uae-legacy01", "+971501234567");
-      expect(t).toBeTruthy();
-      expect(await getOrderByToken("UAE-LEGACY01", t!)).toMatchObject({ orderNumber: "UAE-LEGACY01" });
     });
   });
 

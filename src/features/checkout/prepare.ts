@@ -12,7 +12,8 @@ import { Product } from "@/models/product";
 import { baseName } from "@/lib/variant-name";
 import { Settings } from "@/models/settings";
 import type { PaymentMethod } from "@/models/order";
-import { toFils } from "./money";
+import { fromFils, toFils } from "./money";
+import { creditSummary } from "@/features/credit/service";
 import { Order } from "@/models/order";
 import { computeTotals, type AutoOffer, type CouponRule, type PriceLine, type Rules, type Totals, type Zone } from "./pricing";
 import { toRow } from "@/features/catalog/row";
@@ -22,7 +23,7 @@ type L10n = { en: string; ar: string };
 export type CheckoutError =
   | "empty_cart" | "cart_issues" | "no_address" | "below_minimum" | "method_unavailable" | "cod_limit"
   | "email_required" | "coupon_invalid" | "coupon_expired" | "coupon_used_up" | "coupon_customer_limit" | "coupon_min_subtotal" | "coupon_not_eligible"
-  | "no_zone" | "total_changed" | "out_of_stock" | "invalid";
+  | "no_zone" | "credit_insufficient" | "total_changed" | "out_of_stock" | "invalid";
 
 export type LineMeta = { sku: string; productId: string; name: L10n; variantLabel?: L10n; icon: string; image?: string };
 export type InlineAddress = { recipientName: string; phone: string; emirate: string; area: string; street?: string | null; building: string; unit?: string | null; landmark?: string | null; instructions?: string | null };
@@ -35,6 +36,8 @@ export type Prepared = {
   rules: Rules; settings: { codEnabled: boolean; codMaxOrder: number; pendingPaymentMinutes: number };
   lines: PriceLine[]; meta: LineMeta[]; coupon: { doc: CouponDoc & { _id: Types.ObjectId }; rule: CouponRule } | null;
   totals: Totals;
+  /** Web credit applied to this order. `payable` is what is still to be paid (totals.total minus the credit). */
+  credit: { balanceFils: number; appliedFils: number; payable: number };
 };
 
 export const getSettings = cache(async () => {
@@ -102,7 +105,7 @@ export const ruleOf = (d: CouponDoc): CouponRule => ({
  */
 export type PrepareInput = {
   userId?: string; guestId?: string; email?: string; phone?: string; addressId?: string; address?: InlineAddress; emirate?: string;
-  buy?: { sku: string; qty: number }; method: PaymentMethod; couponCode?: string;
+  buy?: { sku: string; qty: number }; method: PaymentMethod; couponCode?: string; useCredit?: boolean;
 };
 export async function prepare(input: PrepareInput): Promise<{ ok: true; p: Prepared } | { ok: false; error: CheckoutError; detail?: string }> {
   await connectDb();
@@ -155,18 +158,34 @@ export async function prepare(input: PrepareInput): Promise<{ ok: true; p: Prepa
   };
   const zone = { key: zoneDoc.key, name: zoneDoc.name, estimate: zoneDoc.estimate, rule: { feeFils: toFils(zoneDoc.fee), freeThresholdFils: zoneDoc.freeThreshold != null ? toFils(zoneDoc.freeThreshold) : null } };
   const firstOrder = await isFirstOrder({ userId, phone: addr?.phone ?? input.phone, email: input.email });
-  const totals = computeTotals({ lines, coupon: coupon?.rule, auto: autoOffersOf(settings, firstOrder), zone: zone.rule, method, rules });
+  const couponRule = coupon?.rule;
+  let totals = computeTotals({ lines, coupon: couponRule, auto: autoOffersOf(settings, firstOrder), zone: zone.rule, method, rules });
   if (totals.couponBeaten) coupon = null; // a better automatic offer applies; the coupon stays unused
 
   if (coupon && totals.couponProblem) return { ok: false, error: totals.couponProblem === "min_subtotal" ? "coupon_min_subtotal" : "coupon_not_eligible" };
   if (totals.belowMinimum) return { ok: false, error: "below_minimum" };
-  if (method === "cod" && settings.codMaxOrder > 0 && totals.total > settings.codMaxOrder) return { ok: false, error: "cod_limit" };
 
-  if (!addr) return { ok: true, p: { buyer: { userId, guestId: input.guestId, email: input.email }, userId, method, source: input.buy ? "buy_now" : "cart", firstOrder, address: { recipientName: "", phone: "", emirate, area: "", building: "" }, zone, rules, settings: { codEnabled: settings.codEnabled, codMaxOrder: settings.codMaxOrder, pendingPaymentMinutes: settings.pendingPaymentMinutes }, lines, meta, coupon, totals } };
+  // Web credit (signed-in customers only): spent before any other payment. If it covers everything, the order needs no
+  // payment method at all (and no COD fee), so the totals are priced again as a credit order.
+  let payMethod: PaymentMethod = method;
+  const balanceFils = userId ? (await creditSummary(userId)).balanceFils : 0;
+  let appliedFils = 0;
+  if (input.useCredit && balanceFils > 0) {
+    if (balanceFils >= toFils(totals.total)) {
+      payMethod = "credit";
+      totals = computeTotals({ lines, coupon: couponRule, auto: autoOffersOf(settings, firstOrder), zone: zone.rule, method: payMethod, rules });
+    }
+    appliedFils = Math.min(balanceFils, toFils(totals.total));
+  }
+  const payable = fromFils(toFils(totals.total) - appliedFils);
+  const credit = { balanceFils, appliedFils, payable };
+  if (payMethod === "cod" && settings.codMaxOrder > 0 && payable > settings.codMaxOrder) return { ok: false, error: "cod_limit" };
+
+  if (!addr) return { ok: true, p: { buyer: { userId, guestId: input.guestId, email: input.email }, userId, method: payMethod, source: input.buy ? "buy_now" : "cart", firstOrder, address: { recipientName: "", phone: "", emirate, area: "", building: "" }, zone, rules, settings: { codEnabled: settings.codEnabled, codMaxOrder: settings.codMaxOrder, pendingPaymentMinutes: settings.pendingPaymentMinutes }, lines, meta, coupon, totals, credit } };
   return { ok: true, p: {
-    buyer: { userId, guestId: input.guestId, email: input.email }, userId, method, source: input.buy ? "buy_now" : "cart", firstOrder,
+    buyer: { userId, guestId: input.guestId, email: input.email }, userId, method: payMethod, source: input.buy ? "buy_now" : "cart", firstOrder,
     address: { id: addr._id ? String(addr._id) : undefined, recipientName: addr.recipientName, phone: addr.phone, emirate: addr.emirate, area: addr.area, street: addr.street ?? undefined, building: addr.building, unit: addr.unit ?? undefined, landmark: addr.landmark ?? undefined, instructions: addr.instructions ?? undefined },
     zone, rules, settings: { codEnabled: settings.codEnabled, codMaxOrder: settings.codMaxOrder, pendingPaymentMinutes: settings.pendingPaymentMinutes },
-    lines, meta, coupon, totals,
+    lines, meta, coupon, totals, credit,
   } };
 }

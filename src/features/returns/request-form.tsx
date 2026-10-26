@@ -10,14 +10,14 @@ import { submitReturnAction, type ReturnFormState } from "./actions";
 export type ReturnLine = { sku: string; name: string; variant?: string; image?: string; max: number; options: { sku: string; label: string; stock: number }[] };
 const REASONS = ["wrong_size", "wrong_color", "defective", "not_as_described", "changed_mind", "other"] as const;
 
-export function ReturnForm({ orderNumber, token, lines, t }: { orderNumber: string; token?: string; lines: ReturnLine[]; locale: Locale; t: Dictionary }) {
+export function ReturnForm({ orderNumber, lines, t }: { orderNumber: string; lines: ReturnLine[]; locale: Locale; t: Dictionary }) {
   const [s, action, pending] = useActionState<ReturnFormState, FormData>(submitReturnAction, {});
   const [resolution, setResolution] = useState<"credit" | "exchange">("credit");
   const canExchange = lines.some((l) => l.options.length > 0);
   if (s.ok) return <p role="status" className="rounded-xl bg-brand-soft px-4 py-3 text-sm font-medium text-brand">✓ {fmt(t.returns.submitted, { n: s.number ?? "" })}</p>;
   return (
     <form action={action} className="flex flex-col gap-4" noValidate>
-      <input type="hidden" name="orderNumber" value={orderNumber} />{token && <input type="hidden" name="token" value={token} />}
+      <input type="hidden" name="orderNumber" value={orderNumber} />
       {s.error && <p role="alert" className="rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger">{t.returns.errors[s.error as keyof typeof t.returns.errors] ?? t.errors.generic}</p>}
       <fieldset className="flex flex-col gap-3">
         <legend className="mb-1 text-sm font-semibold">{t.returns.whichItems}</legend>

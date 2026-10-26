@@ -1,5 +1,4 @@
 "use server";
-import { timingSafeEqual } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth/session";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
@@ -8,20 +7,17 @@ import { cancelReturn, createReturn, orderForReturns } from "./service";
 
 export type ReturnFormState = { ok?: boolean; number?: string; error?: string };
 
-const sameToken = (a?: string | null, b?: string) => !!a && !!b && a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
-
-/** Owner (signed in) or holder of the order's secret tracking token. Returns the order or null. */
-async function authorizedOrder(orderNumber: string, token: string) {
-  const order = await orderForReturns(orderNumber);
-  if (!order) return null;
+/** Returns need an account: only the signed-in owner of the order may open or withdraw a request. */
+async function authorizedOrder(orderNumber: string) {
   const user = await getCurrentUser();
-  if (user && order.user && String(order.user) === user.id) return order;
-  return sameToken(order.trackToken, token) ? order : null;
+  if (!user) return null;
+  const order = await orderForReturns(orderNumber);
+  return order?.user && String(order.user) === user.id ? order : null;
 }
 
 export async function submitReturnAction(_: ReturnFormState, fd: FormData): Promise<ReturnFormState> {
-  const orderNumber = String(fd.get("orderNumber") ?? ""); const token = String(fd.get("token") ?? "");
-  const order = await authorizedOrder(orderNumber, token);
+  const orderNumber = String(fd.get("orderNumber") ?? "");
+  const order = await authorizedOrder(orderNumber);
   if (!order) return { error: "not_found" };
   if (!(await rateLimit(`return:${orderNumber}:${await clientIp()}`, 6, 3600)).ok) return { error: "rate_limited" };
 
@@ -33,13 +29,13 @@ export async function submitReturnAction(_: ReturnFormState, fd: FormData): Prom
   });
   const r = await createReturn({ order, items, resolution, reason, note: String(fd.get("note") ?? "").trim().slice(0, 500) });
   if (!r.ok) return { error: r.error };
-  revalidatePath("/[lang]/track/[number]", "page"); revalidatePath("/[lang]/account/orders/[number]", "page");
+  revalidatePath("/[lang]/account/orders/[number]", "page");
   return { ok: true, number: r.number };
 }
 
 export async function cancelReturnAction(fd: FormData) {
-  const order = await authorizedOrder(String(fd.get("orderNumber") ?? ""), String(fd.get("token") ?? ""));
+  const order = await authorizedOrder(String(fd.get("orderNumber") ?? ""));
   if (!order) return;
   await cancelReturn(String(fd.get("id") ?? ""), order._id);
-  revalidatePath("/[lang]/track/[number]", "page"); revalidatePath("/[lang]/account/orders/[number]", "page");
+  revalidatePath("/[lang]/account/orders/[number]", "page");
 }

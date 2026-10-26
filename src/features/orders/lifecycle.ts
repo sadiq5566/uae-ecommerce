@@ -5,6 +5,7 @@ import { Coupon } from "@/models/coupon";
 import { CouponRedemption } from "@/models/coupon-redemption";
 import { Order, type OrderDoc, type OrderStatus, type PaymentStatus } from "@/models/order";
 import { notifyOrder } from "./notify";
+import { restoreOrderCredit } from "@/features/credit/service";
 import { releaseStock } from "./stock";
 import { canTransition, isPaid } from "./status";
 
@@ -24,7 +25,7 @@ export async function updateOrderStatus(input: { orderNumber: string; to: OrderS
   const set: Record<string, unknown> = { status: input.to };
   let paymentStatus: PaymentStatus | undefined;
   if (input.to === "delivered" && cur.payment.method === "cod") { paymentStatus = "cod_collected"; set["payment.paidAt"] = new Date(); } // cash is collected on delivery
-  if (input.to === "cancelled" && isPaid(cur.payment.status)) paymentStatus = "refund_pending"; // money taken → needs a refund
+  if (input.to === "cancelled" && isPaid(cur.payment.status)) paymentStatus = cur.payment.method === "credit" ? "refunded" : "refund_pending"; // money taken → needs a refund (web credit goes straight back to the wallet)
   if (input.to === "refund_pending") paymentStatus = "refund_pending";
   if (input.to === "refunded") paymentStatus = "refunded";
   if (paymentStatus) set["payment.status"] = paymentStatus;
@@ -40,6 +41,7 @@ export async function updateOrderStatus(input: { orderNumber: string; to: OrderS
   if (input.to === "cancelled") {
     await releaseStock(cur._id, input.actor === "system" ? "order_expired" : "order_cancelled", input.actor);
     const red = await CouponRedemption.findOneAndDelete({ order: cur._id });
+    await restoreOrderCredit(cur._id); // web credit spent on the order goes back to the customer
     if (red) await Coupon.updateOne({ _id: red.coupon, usedCount: { $gt: 0 } }, { $inc: { usedCount: -1 } }); // coupon use is given back
   }
   if (input.notify !== false && input.to !== "pending_payment") await notifyOrder(updated, "status");

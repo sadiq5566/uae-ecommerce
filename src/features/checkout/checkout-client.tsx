@@ -20,9 +20,11 @@ type Item = { sku: string; name: string; variant?: string; qty: number; icon: st
 
 type Guest = Record<"recipientName" | "phone" | "email" | "emirate" | "area" | "street" | "building" | "unit" | "landmark" | "instructions", string>;
 
-export function CheckoutClient({ locale, t, addresses, methods, items, testMode, guest, buy, offers, coupons = [], defaultName, defaultPhone }: {
+export function CheckoutClient({ locale, t, addresses, methods, items, testMode, guest, buy, offers, coupons = [], defaultName, defaultPhone, credit }: {
   locale: Locale; t: Dictionary; addresses: AddressView[]; methods: Method[]; items: Item[]; testMode: boolean;
   guest: boolean; buy?: { sku: string; qty: number }; offers: PublicOffers; coupons?: PublicCoupon[]; defaultName?: string; defaultPhone?: string;
+  /** Signed-in customer's spendable web credit (AED) and when the soonest lot expires. */
+  credit?: { balance: number; expiresAt?: string };
 }) {
   // No saved addresses to pick from (guests, or members who have none): type the delivery details right here.
   const inline = guest || addresses.length === 0;
@@ -38,6 +40,7 @@ export function CheckoutClient({ locale, t, addresses, methods, items, testMode,
   const [coupon, setCoupon] = useState("");
   const [applied, setApplied] = useState("");
   const [couponError, setCouponError] = useState<string>();
+  const [useCredit, setUseCredit] = useState(true); // "use web credit first" is on by default whenever there is a balance
   const [quote, setQuote] = useState<Quote | null>(null);
   const [adding, setAdding] = useState(false);
   const [quoting, startQuote] = useTransition();
@@ -48,12 +51,12 @@ export function CheckoutClient({ locale, t, addresses, methods, items, testMode,
   const requote = useCallback((a: string, m: string, c: string, extra: { emirate?: string; phone?: string; email?: string }) => {
     const id = ++seq.current;
     startQuote(async () => {
-      const q = await quoteAction({ addressId: a || undefined, method: m, couponCode: c || undefined, buy, ...extra });
+      const q = await quoteAction({ addressId: a || undefined, method: m, couponCode: c || undefined, useCredit: !!credit && useCredit, buy, ...extra });
       if (id !== seq.current) return; // ignore out-of-order responses
       setQuote(q);
       if (!q.ok && c && q.error.startsWith("coupon")) { setCouponError(q.error); setApplied(""); }
     });
-  }, [buy]);
+  }, [buy, credit, useCredit]);
   useEffect(() => {
     if (!method) return;
     if (inline) { if (g.emirate) requote("", method, applied, { emirate: g.emirate, phone: dPhone, email: dEmail }); }
@@ -173,6 +176,25 @@ export function CheckoutClient({ locale, t, addresses, methods, items, testMode,
         </section>
         )}
 
+        {credit && credit.balance > 0 && (
+          <section aria-labelledby="cr-h" className="rounded-2xl border border-brand/40 bg-brand-soft p-4">
+            <label className="flex cursor-pointer items-start gap-3 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-brand">
+              <input type="checkbox" checked={useCredit} onChange={(e) => setUseCredit(e.target.checked)} className="mt-1 size-4 accent-[var(--brand)]" />
+              <span>
+                <span id="cr-h" className="block font-display text-lg font-bold">💳 {t.credit.useFirst}</span>
+                <span className="block text-sm text-brand">{fmt(t.credit.available, { amount: formatAED(credit.balance, locale) })}{credit.expiresAt ? ` · ${fmt(t.credit.validUntil, { d: fdate.format(new Date(credit.expiresAt)) })}` : ""}</span>
+                {useCredit && q && q.creditApplied > 0 && <span className="mt-1 block text-sm font-semibold">{fmt(t.credit.applying, { amount: formatAED(q.creditApplied, locale) })}</span>}
+              </span>
+            </label>
+          </section>
+        )}
+
+        {q?.creditCovers ? (
+          <section aria-labelledby="pay-h">
+            <h2 id="pay-h" className="mb-3 font-display text-xl font-bold">{t.checkout.payment}</h2>
+            <p role="status" className="rounded-2xl border border-brand bg-brand-soft p-4 text-sm font-medium text-brand">✓ {t.credit.covers}</p>
+          </section>
+        ) : (
         <section aria-labelledby="pay-h">
           <h2 id="pay-h" className="mb-3 font-display text-xl font-bold">{t.checkout.payment}</h2>
           {methods.length === 0 ? <p role="alert" className="text-sm text-danger">{t.checkout.noMethods}</p> : (
@@ -185,9 +207,10 @@ export function CheckoutClient({ locale, t, addresses, methods, items, testMode,
               ))}
             </div>
           )}
-          {method && method !== "cod" && <p className="mt-3 text-xs text-muted">🔒 {t.checkout.secureNote}</p>}
+          {method && method !== "cod" && !q?.creditCovers && <p className="mt-3 text-xs text-muted">🔒 {t.checkout.secureNote}</p>}
           {testMode && method && method !== "cod" && <p className="mt-2 inline-block rounded-full bg-gold-soft px-3 py-1 text-xs font-bold text-gold-ink">⚠ {t.checkout.testMode}</p>}
         </section>
+        )}
 
         <details aria-labelledby="cp-h" open={!!applied || coupons.length > 0}>
           <summary id="cp-h" className="cursor-pointer font-display text-xl font-bold">{t.checkout.coupon}</summary>
@@ -252,6 +275,7 @@ export function CheckoutClient({ locale, t, addresses, methods, items, testMode,
                 <Row label={`${t.checkout.delivery} · ${q.zoneName[locale]}`} value={q.deliveryFee === 0 ? t.checkout.free : formatAED(q.deliveryFee, locale)} accent={q.deliveryFee === 0} />
                 {q.codFee > 0 && <Row label={t.checkout.codFee} value={formatAED(q.codFee, locale)} />}
                 {q.tax > 0 && <Row label={q.taxIncluded ? t.checkout.taxIncl : t.checkout.tax} value={formatAED(q.tax, locale)} muted />}
+                {q.creditApplied > 0 && <Row label={t.credit.line} value={`−${formatAED(q.creditApplied, locale)}`} accent />}
                 <div className="mt-2 flex items-baseline justify-between border-t border-line pt-3"><dt className="font-semibold">{t.checkout.total}</dt><dd className="text-2xl font-bold">{formatAED(q.total, locale)}</dd></div>
               </dl>
               {q.deliveryFee > 0 && offers.freeDelivery.enabled && q.discountedSubtotal < offers.freeDelivery.min && <p className="mt-2 text-xs font-medium text-brand">🚚 {fmt(t.offers.progressFree, { amount: formatAED(offers.freeDelivery.min - q.discountedSubtotal, locale) })}</p>}
@@ -280,14 +304,14 @@ export function CheckoutClient({ locale, t, addresses, methods, items, testMode,
           {buy && <><input type="hidden" name="buySku" value={buy.sku} /><input type="hidden" name="buyQty" value={buy.qty} /></>}
           <input type="hidden" name="locale" value={locale} /><input type="hidden" name="idempotencyKey" value={idempotencyKey} />
           {!inline && <input type="hidden" name="addressId" value={addressId} />}<input type="hidden" name="method" value={method} />
-          <input type="hidden" name="couponCode" value={applied} /><input type="hidden" name="expectedTotal" value={q?.total ?? ""} />
+          <input type="hidden" name="useCredit" value={credit && useCredit ? "1" : "0"} /><input type="hidden" name="couponCode" value={applied} /><input type="hidden" name="expectedTotal" value={q?.total ?? ""} />
           {state.error && (
             <p role="alert" className="rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger">
               {er[state.error] ?? er.generic}{state.total !== undefined && <> {fmt(t.checkout.updatedTotal, { total: formatAED(state.total, locale) })}</>}
               {(state.error === "cart_issues" || state.error === "out_of_stock") && <> <Link href={`/${locale}/cart`} className="font-semibold underline">{t.checkout.cartLink}</Link></>}
             </p>
           )}
-          <SubmitButton pending={placing}>{!q || !method ? t.checkout.place : method === "cod" ? t.checkout.place : t.checkout.placeCard}</SubmitButton>
+          <SubmitButton pending={placing}>{!q || !method ? t.checkout.place : method === "cod" || q.creditCovers ? t.checkout.place : t.checkout.placeCard}</SubmitButton>
           <Link href={`/${locale}/cart`} className="text-center text-sm text-muted hover:text-brand">{t.checkout.cartLink}</Link>
         </form>
         {(!q || (!addressId && !inline) || !method) && <p className="sr-only">{err(state.error)}</p>}

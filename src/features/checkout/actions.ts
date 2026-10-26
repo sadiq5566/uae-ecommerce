@@ -18,6 +18,8 @@ export type Quote = {
   tax: number; taxIncluded: boolean; total: number; freeDelivery: boolean; zoneName: { en: string; ar: string }; estimate: { en: string; ar: string };
   couponCode?: string;
   offerDiscount: number; offer?: { kind: "coupon" | "tier" | "first_order"; code?: string; percent?: number }; couponBeaten: boolean; autoBest: number; autoBestOffer?: { kind: "coupon" | "tier" | "first_order"; percent?: number }; firstOrder: boolean;
+  /** Web credit: the customer's spendable balance, what this order uses of it, and whether it pays for everything. */
+  creditBalance: number; creditApplied: number; creditCovers: boolean;
 } | { ok: false; error: CheckoutError; minOrder?: number };
 
 const buyOf = (v: unknown): { sku: string; qty: number } | undefined => {
@@ -28,7 +30,7 @@ const buyOf = (v: unknown): { sku: string; qty: number } | undefined => {
 const method = (v: unknown): PaymentMethod | null => (PAYMENT_METHODS as readonly string[]).includes(String(v)) ? (v as PaymentMethod) : null;
 
 /** Server-computed price breakdown for the checkout summary. Display only — placing the order recomputes it all. */
-export async function quoteAction(raw: { addressId?: string; emirate?: string; method: string; couponCode?: string; phone?: string; email?: string; buy?: { sku: string; qty: number } }): Promise<Quote> {
+export async function quoteAction(raw: { addressId?: string; emirate?: string; method: string; couponCode?: string; useCredit?: boolean; phone?: string; email?: string; buy?: { sku: string; qty: number } }): Promise<Quote> {
   const user = await getCurrentUser();
   const buy = buyOf(raw?.buy);
   // "Buy now" can arrive before the visitor has any cart cookie.
@@ -46,10 +48,10 @@ export async function quoteAction(raw: { addressId?: string; emirate?: string; m
   const emirate = typeof raw?.emirate === "string" && raw.emirate.length < 30 ? raw.emirate : undefined;
   const phone = typeof raw?.phone === "string" ? normalizeUaePhone(raw.phone) ?? undefined : undefined;
   const email = user?.email ?? (typeof raw?.email === "string" && raw.email.length < 255 && z.email().safeParse(raw.email.trim()).success ? raw.email.trim() : undefined);
-  const r = await prepare({ userId: user?.id, guestId, email, phone, addressId: input.addressId, emirate, buy, method: m, couponCode: input.couponCode });
+  const r = await prepare({ userId: user?.id, guestId, email, phone, addressId: input.addressId, emirate, buy, method: m, couponCode: input.couponCode, useCredit: raw?.useCredit === true });
   if (!r.ok) return { ok: false, error: r.error };
   const t = r.p.totals;
-  return { ok: true, subtotal: t.subtotal, itemDiscounts: t.itemDiscounts, couponDiscount: t.couponDiscount, discountedSubtotal: t.discountedSubtotal, deliveryFee: t.deliveryFee, codFee: t.codFee, tax: t.tax, taxIncluded: t.taxIncluded, total: t.total, freeDelivery: t.freeDelivery, zoneName: r.p.zone.name, estimate: r.p.zone.estimate, couponCode: r.p.coupon?.rule.code, offerDiscount: t.offerDiscount, offer: t.offer, couponBeaten: t.couponBeaten, autoBest: t.autoBest, autoBestOffer: t.autoBestOffer, firstOrder: r.p.firstOrder };
+  return { ok: true, subtotal: t.subtotal, itemDiscounts: t.itemDiscounts, couponDiscount: t.couponDiscount, discountedSubtotal: t.discountedSubtotal, deliveryFee: t.deliveryFee, codFee: t.codFee, tax: t.tax, taxIncluded: t.taxIncluded, total: r.p.credit.payable, freeDelivery: t.freeDelivery, zoneName: r.p.zone.name, estimate: r.p.zone.estimate, couponCode: r.p.coupon?.rule.code, offerDiscount: t.offerDiscount, offer: t.offer, couponBeaten: t.couponBeaten, autoBest: t.autoBest, autoBestOffer: t.autoBestOffer, firstOrder: r.p.firstOrder, creditBalance: r.p.credit.balanceFils / 100, creditApplied: r.p.credit.appliedFils / 100, creditCovers: r.p.method === "credit" };
 }
 
 export async function checkCouponAction(code: string): Promise<{ ok: boolean; error?: CheckoutError }> {
@@ -107,7 +109,7 @@ export async function placeOrderAction(_: PlaceState, fd: FormData): Promise<Pla
   const expected = Number(fd.get("expectedTotal"));
   const res = await placeOrder({
     userId: user?.id, guestId: guestId ?? (buy ? `buy-${owner}` : undefined), email, locale, addressId: address ? undefined : String(fd.get("addressId") ?? ""), address, buy, method: m,
-    couponCode: String(fd.get("couponCode") ?? "").slice(0, 40) || undefined, idempotencyKey: String(fd.get("idempotencyKey") ?? ""),
+    useCredit: !!user && fd.get("useCredit") === "1", couponCode: String(fd.get("couponCode") ?? "").slice(0, 40) || undefined, idempotencyKey: String(fd.get("idempotencyKey") ?? ""),
     expectedTotal: Number.isFinite(expected) ? expected : undefined, returnBase,
   });
   if (!res.ok) return { error: res.error, detail: res.detail, total: res.total };
