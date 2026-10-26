@@ -29,6 +29,7 @@ export function Footer({ locale, t, menu }: { locale: Locale; t: Dictionary; men
           <div><p className={h}>{t.footer.help}</p>
             <ul className={col}>
               <li><Link href={`/${locale}/track`}>{t.nav.track}</Link></li>
+              <li><Link href={`/${locale}/account/orders`}>{t.nav.orderHistory}</Link></li>
               <li><Link href={`/${locale}/contact`}>{t.footer.contact}</Link></li>
               <li><Link href={`/${locale}/faq`}>{t.footer.faq}</Link></li>
               <li><Link href={`/${locale}/delivery`}>{t.footer.shipping}</Link></li>

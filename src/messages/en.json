@@ -24,7 +24,8 @@
     "mobile": "Mobile",
     "suggestions": "Search suggestions",
     "categoryTag": "Category",
-    "track": "Track order"
+    "track": "Track order",
+    "orderHistory": "Order history"
   },
   "topbar": {
     "shipping": "Free delivery across the UAE on orders over AED 200",
