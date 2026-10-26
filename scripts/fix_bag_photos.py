@@ -59,6 +59,23 @@ def find_filler(coll, min_products, min_cats):
             if e["primary"] == 0 and e["n"] >= min_products and len(e["cats"]) >= min_cats}
 
 
+def load_env_file():
+    """Fill missing env vars from .env.local / .env (project root, or current dir)."""
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    for base in (os.getcwd(), root):
+        for name in (".env.local", ".env"):
+            p = os.path.join(base, name)
+            if not os.path.isfile(p):
+                continue
+            for line in open(p, encoding="utf-8"):
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                k, v = line.split("=", 1)
+                k = k.strip().removeprefix("export ").strip()
+                os.environ.setdefault(k, v.strip().strip("\"'"))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--apply", action="store_true")
@@ -68,11 +85,13 @@ def main():
     ap.add_argument("--min-categories", type=int, default=3)
     a = ap.parse_args()
 
+    load_env_file()
     uri = os.environ.get("MONGODB_URI")
     if not uri:
         sys.exit("Set MONGODB_URI first (see top of file).")
     client = MongoClient(uri, serverSelectionTimeoutMS=20000)
-    db = client[a.db] if a.db else client.get_default_database()
+    dbname = a.db or os.environ.get("MONGODB_DB")
+    db = client[dbname] if dbname else client.get_default_database()
     names = a.collections.split(",") if a.collections else db.list_collection_names()
     print(f"Database: {db.name}   mode: {'APPLY' if a.apply else 'DRY RUN (no changes)'}\n")
 
