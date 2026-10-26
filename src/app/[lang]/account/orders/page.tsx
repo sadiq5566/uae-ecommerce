@@ -11,8 +11,9 @@ import { privatePage } from "@/lib/page-meta";
 
 export const generateMetadata = privatePage((t) => t.orders.title);
 
-export default async function OrdersPage({ params }: PageProps<"/[lang]/account/orders">) {
+export default async function OrdersPage({ params, searchParams }: PageProps<"/[lang]/account/orders">) {
   const { lang } = await params;
+  const linked = Number((await searchParams).linked) || 0;
   if (!isLocale(lang)) notFound();
   const user = await requireVerifiedUser(lang, `/${lang}/account/orders`);
   const [t, orders] = await Promise.all([getDictionary(lang), listOrdersForUser(user.id)]);
@@ -27,6 +28,8 @@ export default async function OrdersPage({ params }: PageProps<"/[lang]/account/
   }
   const date = new Intl.DateTimeFormat(lang === "ar" ? "ar-AE" : "en-AE", { dateStyle: "medium", timeZone: "Asia/Dubai" });
   return (
+    <>
+    {linked > 0 && <p role="status" className="mb-4 rounded-2xl bg-brand-soft px-4 py-3 text-sm font-medium text-brand">🎉 {fmt(t.account.linkedBanner, { n: linked })}</p>}
     <ul className="flex flex-col gap-4">
       {orders.map((o) => (
         <li key={o.id}>
@@ -43,5 +46,6 @@ export default async function OrdersPage({ params }: PageProps<"/[lang]/account/
         </li>
       ))}
     </ul>
+    </>
   );
 }

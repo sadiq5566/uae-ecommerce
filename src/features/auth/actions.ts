@@ -58,8 +58,9 @@ const verifyUrl = (locale: string, email: string, purpose: OtpPurpose, next: str
 async function startAccountSession(userId: string, email: string, locale: string, next: string): Promise<never> {
   await createSession(userId);
   await mergeGuestCart(userId);
-  await claimGuestOrders(userId, email);
-  redirect(safeNext(next, `/${locale}/account`));
+  const linked = await claimGuestOrders(userId, email);
+  // Earlier guest orders just joined the account: land on the history with a note about it.
+  redirect(safeNext(next, linked > 0 ? `/${locale}/account/orders?linked=${linked}` : `/${locale}/account`));
 }
 
 export async function verifyEmailAction(_: FormState, fd: FormData): Promise<FormState> {

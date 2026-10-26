@@ -8,6 +8,8 @@ import { Card, PageHeader, Pill, aed, btnDanger, btnGhost, dubaiDate } from "@/c
 import { ConfirmButton } from "@/components/admin/confirm-button";
 import { setCustomerStatusAction } from "@/features/admin/people/actions";
 import { maskEmail } from "@/features/admin/people/mask";
+import { GrantCreditForm } from "@/features/admin/credit/grant-form";
+import { creditHistory, creditSummary } from "@/features/credit/service";
 import { Order } from "@/models/order";
 import { User } from "@/models/user";
 
@@ -18,10 +20,11 @@ export default async function CustomerPage({ params }: PageProps<"/admin/custome
   const viewer = await guard("customers:read", `/admin/customers/${id}`);
   if (!Types.ObjectId.isValid(id)) notFound();
   await connectDb();
-  const [u, orders, agg] = await Promise.all([
+  const [u, orders, agg, credit, lots] = await Promise.all([
     User.findById(id).lean(),
     Order.find({ user: id }).sort({ createdAt: -1 }).limit(10).select("orderNumber status totals.total createdAt").lean(),
     Order.aggregate([{ $match: { user: new Types.ObjectId(id), status: { $in: ["confirmed", "processing", "packed", "out_for_delivery", "delivered"] } } }, { $group: { _id: null, n: { $sum: 1 }, spent: { $sum: "$totals.total" } } }]),
+    creditSummary(id), creditHistory(id),
   ]);
   if (!u) notFound();
   const owner = can(viewer.role, "users:manage");
@@ -30,7 +33,7 @@ export default async function CustomerPage({ params }: PageProps<"/admin/custome
     <>
       <PageHeader title={u.name} sub={owner ? u.email : maskEmail(u.email)} actions={<><Pill tone={u.status === "active" ? "green" : "red"}>{u.status}</Pill>{u.role !== "customer" && <Pill tone="dark">{u.role.replace(/_/g, " ")}</Pill>}</>} />
       <div className="grid gap-6 lg:grid-cols-3">
-        <Card title="Account"><dl className="flex flex-col gap-2 text-sm"><div className="flex justify-between"><dt className="text-muted">Joined</dt><dd>{dubaiDate((u as unknown as { createdAt: Date }).createdAt)}</dd></div><div className="flex justify-between"><dt className="text-muted">Last sign-in</dt><dd>{u.lastLoginAt ? dubaiDate(u.lastLoginAt, true) : "—"}</dd></div><div className="flex justify-between"><dt className="text-muted">Language</dt><dd>{u.locale === "ar" ? "Arabic" : "English"}</dd></div><div className="flex justify-between"><dt className="text-muted">Orders (counted)</dt><dd>{stats.n}</dd></div><div className="flex justify-between"><dt className="text-muted">Lifetime spend</dt><dd>{aed(stats.spent)}</dd></div></dl>
+        <Card title="Account"><dl className="flex flex-col gap-2 text-sm"><div className="flex justify-between"><dt className="text-muted">Joined</dt><dd>{dubaiDate((u as unknown as { createdAt: Date }).createdAt)}</dd></div><div className="flex justify-between"><dt className="text-muted">Last sign-in</dt><dd>{u.lastLoginAt ? dubaiDate(u.lastLoginAt, true) : "—"}</dd></div><div className="flex justify-between"><dt className="text-muted">Email</dt><dd>{u.emailVerifiedAt ? "✓ verified" : "not verified"}</dd></div><div className="flex justify-between"><dt className="text-muted">Language</dt><dd>{u.locale === "ar" ? "Arabic" : "English"}</dd></div><div className="flex justify-between"><dt className="text-muted">Orders (counted)</dt><dd>{stats.n}</dd></div><div className="flex justify-between"><dt className="text-muted">Lifetime spend</dt><dd>{aed(stats.spent)}</dd></div></dl>
           {owner && u.role === "customer" && String(u._id) !== viewer.id && (
             <form action={setCustomerStatusAction} className="mt-5"><input type="hidden" name="id" value={id} /><input type="hidden" name="status" value={u.status === "active" ? "disabled" : "active"} />
               {u.status === "active" ? <ConfirmButton message="Disable this account? They will be signed out everywhere and can't sign in." className={btnDanger}>Disable account</ConfirmButton> : <button className={btnGhost}>Re-enable account</button>}</form>
@@ -41,6 +44,12 @@ export default async function CustomerPage({ params }: PageProps<"/admin/custome
           {orders.length === 0 ? <p className="text-sm text-muted">No orders yet.</p> : <ul className="flex flex-col gap-2 text-sm">{orders.map((o) => <li key={o.orderNumber} className="flex justify-between gap-3"><Link href={`/admin/orders/${o.orderNumber}`} className="font-mono text-xs font-semibold hover:text-brand">{o.orderNumber}</Link><span className="text-muted">{o.status.replace(/_/g, " ")} · {aed(o.totals?.total ?? 0)} · {dubaiDate(o.createdAt)}</span></li>)}</ul>}
         </Card>
       </div>
+      <Card title={`Web credit · ${aed(credit.balance)} available`} className="mt-6">
+        {lots.length === 0 ? <p className="text-sm text-muted">No web credit issued yet.</p> : (
+          <ul className="flex flex-col gap-2 text-sm">{lots.slice(0, 10).map((l) => <li key={l.id} className="flex flex-wrap justify-between gap-3"><span>{l.source === "return" ? `Return ${l.ref ?? ""}` : "Added by staff"} · {aed(l.amount)}</span><span className="text-muted">{l.state === "active" ? `${aed(l.remaining)} left · expires ${dubaiDate(l.expiresAt)}` : l.state}</span></li>)}</ul>
+        )}
+        {can(viewer.role, "orders:write") && u.role === "customer" && (u.emailVerifiedAt ? <div className="mt-5 border-t border-line pt-5"><GrantCreditForm id={id} /></div> : <p className="mt-4 text-xs text-muted">Credit can only be added once the customer has verified their email.</p>)}
+      </Card>
     </>
   );
 }

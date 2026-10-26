@@ -24,6 +24,12 @@ const copy = {
 };
 
 /** SMS provider interface — no SMS gateway is configured, so this only logs in development. */
+/** Guest orders get an invitation to keep their orders in an account (the email in the order is the one they will verify). */
+const ACCOUNT_CTA = {
+  en: { p: "Want to track this order, see your order history, return or exchange items and earn web credit refunds? Create a free account with this email.", b: "Create my account" },
+  ar: { p: "تريد تتبّع هذا الطلب وعرض سجل طلباتك وإرجاع المنتجات أو استبدالها والحصول على استرداد كرصيد في المتجر؟ أنشئ حساباً مجانياً بهذا البريد.", b: "إنشاء حسابي" },
+} as const;
+
 export interface SmsProvider { send(to: string, text: string): Promise<{ sent: boolean }>; }
 const devSms: SmsProvider = { async send(to, text) { if (process.env.NODE_ENV !== "production") console.info(`[sms:dev — NOT SENT] ${to}: ${text}`); return { sent: false }; } };
 
@@ -63,15 +69,16 @@ async function orderEmail(order: NotifyOrder, kind: Kind, subject: string, l: Lo
         ...(t ? [[c.delivery, t.deliveryFee ? money(t.deliveryFee) : c.free] as [string, string]] : []),
         ...(t?.codFee ? [[c.cod, money(t.codFee)] as [string, string]] : []),
         ...(t && !t.taxIncluded && t.tax ? [[c.tax, money(t.tax)] as [string, string]] : []),
-        [c.total, `<span style="font-size:17px;color:#0b6b57">${money(t?.total ?? 0)}</span>`],
         ...(t?.credit ? [[l === "ar" ? "رصيد المتجر" : "Web credit", `-${money(t.credit)}`] as [string, string]] : []),
+        [c.total, `<span style="font-size:17px;color:#0b6b57">${money(t?.total ?? 0)}</span>`],
       ])
       + rows([
         [c.ship, [a?.recipientName, [a?.building, a?.unit, a?.street].filter(Boolean).join(", "), [a?.area, a?.emirate].filter(Boolean).join(", "), a?.phone].filter(Boolean).map((x) => esc(x)).join("<br>")],
         ...(order.delivery?.estimate?.[l] ? [[c.est, esc(order.delivery.estimate[l])] as [string, string]] : []),
         [c.pay, esc(pay)],
       ])
-      + button(link, c.track);
+      + button(link, c.track)
+      + (order.guest ? p(ACCOUNT_CTA[l].p) + button(`${siteUrl()}/${l}/register?next=${encodeURIComponent(`/${l}/account/orders/${order.orderNumber}`)}`, ACCOUNT_CTA[l].b) : "");
   } else if (kind === "payment_failed") {
     pre = c.failedTitle;
     body = h(c.failedTitle) + p(c.hi(esc(name))) + p(c.failedBody(esc(order.orderNumber))) + button(link, c.view);

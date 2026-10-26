@@ -25,7 +25,7 @@ export default async function AccountLayout({ children, params }: LayoutProps<"/
       <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="font-display text-3xl font-bold">{t.account.title}</h1>
-          <p className="text-sm text-muted">{user.name} · {user.email}</p>
+          <p className="text-sm text-muted">{user.name} · {user.email}{user.emailVerified && <span className="ms-2 rounded-full bg-brand-soft px-2 py-0.5 text-xs font-semibold text-brand">✓ {t.account.emailVerified}</span>}</p>
         </div>
         <form action={logoutAction}><input type="hidden" name="locale" value={lang} />
           <button className="rounded-full border border-line px-5 py-2 text-sm font-medium transition hover:border-danger hover:text-danger">{t.auth.signOut}</button>

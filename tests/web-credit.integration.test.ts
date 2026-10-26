@@ -8,7 +8,8 @@ vi.mock("server-only", () => ({}));
 const sent: { to: string; subject: string; text: string }[] = [];
 vi.mock("@/lib/mailer", () => ({ getMailer: () => ({ send: async (m: { to: string; subject: string; text: string }) => { sent.push(m); return { sent: true }; } }) }));
 const sessions: string[] = [];
-vi.mock("@/lib/auth/session", () => ({ createSession: async (id: string) => { sessions.push(id); }, getCurrentUser: async () => null, destroySession: async () => {}, destroyAllSessions: async () => {} }));
+const who = vi.hoisted(() => ({ user: null as null | { id: string; email: string; role: string } }));
+vi.mock("@/lib/auth/session", () => ({ createSession: async (id: string) => { sessions.push(id); }, getCurrentUser: async () => who.user, destroySession: async () => {}, destroyAllSessions: async () => {} }));
 vi.mock("@/features/cart/service", () => ({ mergeGuestCart: async () => {} }));
 vi.mock("next/headers", () => ({ headers: async () => new Headers({ "x-forwarded-for": "9.9.9.9" }), cookies: async () => ({ get: () => undefined, set: () => {}, delete: () => {} }) }));
 vi.mock("next/navigation", () => ({ redirect: (u: string) => { throw new Error(`REDIRECT:${u}`); } }));
@@ -24,6 +25,8 @@ const { placeOrder } = await import("@/features/orders/place");
 const { updateOrderStatus } = await import("@/features/orders/lifecycle");
 const { sendOtp, checkOtp, claimGuestOrders, OTP_MAX_ATTEMPTS } = await import("@/features/auth/otp");
 const { registerAction, verifyEmailAction, resendOtpAction, loginAction } = await import("@/features/auth/actions");
+const { sendExpiryReminders } = await import("@/features/credit/reminders");
+const { grantCreditAction } = await import("@/features/admin/credit/actions");
 const { issueCredit, spendCredit, restoreOrderCredit, creditSummary, creditHistory, CREDIT_VALID_DAYS } = await import("@/features/credit/service");
 const { createReturn, reviewReturn, receiveReturn, completeReturn } = await import("@/features/returns/service");
 const { Category } = await import("@/models/category");
@@ -129,8 +132,8 @@ describe.skipIf(!up)("accounts with email OTP, web credit and refunds (real Mong
       expect(await Order.countDocuments({ user: u._id })).toBe(0); // not claimed yet
       await redirectOf(loginAction({}, fd({ locale: "en", email: "old@x.com", password: "correct-horse-battery", next: "" })));
       expect(await Order.countDocuments({ user: u._id })).toBe(0); // signing in does not claim either
-      await redirectOf(verify("old@x.com", "verify"));
-      expect(await Order.countDocuments({ user: u._id })).toBe(1); // verified → linked
+      expect(await redirectOf(verify("old@x.com", "verify"))).toBe("/en/account/orders?linked=1"); // verified → linked, and the history says so
+      expect(await Order.countDocuments({ user: u._id })).toBe(1);
     });
 
     it("a wrong code changes nothing; a VERIFIED email cannot be registered again", async () => {
@@ -404,6 +407,49 @@ describe.skipIf(!up)("accounts with email OTP, web credit and refunds (real Mong
       await reviewReturn(String(ret._id), "approved", "staff"); await receiveReturn(String(ret._id), "staff", false);
       const done = await completeReturn(String(ret._id), "staff");
       expect((done as { creditCode?: string }).creditCode).toMatch(/^CR-/);
+    });
+  });
+
+  describe("expiry reminders", () => {
+    const lot = (user: Types.ObjectId, days: number, fils = 5000) => CreditLot.create({ user, amountFils: fils, remainingFils: fils, expiresAt: new Date(Date.now() + days * 86_400_000), source: "admin" });
+
+    it("emails once per customer for credit expiring within 7 days, then never again", async () => {
+      const a = await mkUser("a@x.com"); const b = await mkUser("b@x.com"); const c = await mkUser("c@x.com", false);
+      await lot(a._id, 3, 4000); await lot(a._id, 5, 1000); // same customer: one email, summed
+      await lot(b._id, 30); // far away: not yet
+      await lot(c._id, 2); // unverified: skipped
+      await CreditLot.create({ user: b._id, amountFils: 900, remainingFils: 0, expiresAt: new Date(Date.now() + 86_400_000), source: "admin" }); // already spent
+      const r = await sendExpiryReminders();
+      expect(r).toMatchObject({ customers: 1, lots: 2 });
+      const mails = sent.filter((m) => /expires soon|ينتهي قريباً/.test(m.subject));
+      expect(mails).toHaveLength(1);
+      expect(mails[0].to).toBe("a@x.com");
+      expect(mails[0].subject).toContain("50");
+      expect(await sendExpiryReminders()).toMatchObject({ customers: 0 });
+    });
+  });
+
+  describe("manual credit from the admin", () => {
+    const owner = { id: String(new Types.ObjectId()), email: "owner@x.com", role: "owner" };
+    const grant = (id: unknown, amount: string, note = "Late delivery apology") => grantCreditAction({}, fd({ id: String(id), amount, note }));
+
+    it("a staff member adds credit: a 90-day lot, the customer is emailed, and invalid requests are refused", async () => {
+      const u = await mkUser("cust@x.com");
+      who.user = null;
+      expect(await grant(u._id, "25")).toMatchObject({ error: expect.stringMatching(/permission/i) });
+      who.user = { id: "1".repeat(24), email: "cust2@x.com", role: "customer" };
+      expect(await grant(u._id, "25")).toMatchObject({ error: expect.stringMatching(/permission/i) }); // customers can't
+      who.user = owner;
+      expect(await grant(u._id, "0")).toMatchObject({ fieldErrors: expect.anything() });
+      expect(await grant(u._id, "25", "x")).toMatchObject({ fieldErrors: expect.anything() });
+      expect(await grant(u._id, "25")).toMatchObject({ ok: true });
+      const s = await creditSummary(String(u._id));
+      expect(s.balance).toBe(25);
+      expect(Math.round((s.nextExpiry!.getTime() - Date.now()) / 86_400_000)).toBe(90);
+      expect(sent.some((m) => m.to === "cust@x.com" && /web credit/i.test(m.subject))).toBe(true);
+      const unverified = await mkUser("nv@x.com", false);
+      expect(await grant(unverified._id, "10")).toMatchObject({ error: expect.stringMatching(/verified/i) });
+      who.user = null;
     });
   });
 

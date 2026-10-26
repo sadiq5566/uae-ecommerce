@@ -279,7 +279,9 @@
     "changePassword": "Change password",
     "currentPassword": "Current password",
     "newPassword": "New password",
-    "passwordChanged": "Password updated. You were signed out of other devices."
+    "passwordChanged": "Password updated. You were signed out of other devices.",
+    "linkedBanner": "We found {n} earlier order(s) placed with your email and added them to your history.",
+    "emailVerified": "Email verified"
   },
   "address": {
     "add": "Add address",

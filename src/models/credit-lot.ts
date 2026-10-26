@@ -16,6 +16,7 @@ const schema = new Schema(
     source: { type: String, enum: CREDIT_SOURCES, required: true },
     ref: String, // return number, or the staff member's note
     note: { en: String, ar: String },
+    reminderSentAt: Date, // the "expires soon" email went out
   },
   { timestamps: true },
 );
