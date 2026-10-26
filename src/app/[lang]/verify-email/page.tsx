@@ -17,14 +17,15 @@ export default async function VerifyEmailPage({ params, searchParams }: PageProp
   const sp = await searchParams;
   const email = typeof sp.email === "string" ? sp.email.trim().toLowerCase().slice(0, 254) : "";
   const next = typeof sp.next === "string" ? safeNext(sp.next, "") : "";
-  if (await getCurrentUser()) redirect(next || `/${lang}/account`);
+  const me = await getCurrentUser();
+  if (me?.emailVerified) redirect(next || `/${lang}/account`);
   if (!email.includes("@")) redirect(`/${lang}/register`);
   const purpose = sp.purpose === "verify" ? "verify" : "register";
   const t = await getDictionary(lang);
   return (
     <AuthShell title={t.auth.otpTitle} sub={fmt(t.auth.otpSub, { email })}
       footer={<Link href={`/${lang}/${purpose === "register" ? "register" : "login"}`} className="font-semibold text-brand hover:underline">{t.auth.otpWrongEmail}</Link>}>
-      <VerifyForm locale={lang} t={t} email={email} purpose={purpose} next={next} />
+      <VerifyForm locale={lang} t={t} email={email} purpose={purpose} next={next} skipHref={me ? next || `/${lang}/account` : undefined} />
     </AuthShell>
   );
 }

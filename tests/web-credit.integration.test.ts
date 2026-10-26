@@ -37,7 +37,7 @@ const { ReturnRequest } = await import("@/models/return-request");
 const { Settings } = await import("@/models/settings");
 const { User } = await import("@/models/user");
 const { InventoryMovement } = await import("@/models/inventory-movement");
-const { hashPassword } = await import("@/lib/auth/password");
+const { hashPassword, verifyPassword } = await import("@/lib/auth/password");
 
 const ADDR = { recipientName: "Sara Ali", phone: "+971501234567", emirate: "dubai", area: "Marina", building: "B1" };
 let n = 0;
@@ -105,81 +105,97 @@ describe.skipIf(!up)("accounts with email OTP, web credit and refunds (real Mong
     });
   });
 
-  describe("register → verify → sign-in", () => {
+  describe("register (verify now or later) → verify → gated features", () => {
     const reg = (email = "new@x.com") => registerAction({}, fd({ locale: "en", name: "New Buyer", email, password: "correct-horse-battery", next: "" }));
+    const verify = (email: string, purpose: "register" | "verify", code = lastCode()) => verifyEmailAction({}, fd({ locale: "en", email, purpose, code }));
 
-    it("creates NO account until the code is entered; then creates a verified one and starts a session", async () => {
-      expect(await redirectOf(reg())).toBe("/en/verify-email?email=new%40x.com");
-      expect(await User.countDocuments()).toBe(0);
-      const done = await redirectOf(verifyEmailAction({}, fd({ locale: "en", email: "new@x.com", purpose: "register", code: lastCode() })));
-      expect(done).toBe("/en/account");
-      const u = await User.findOne({ email: "new@x.com" }).select("+passwordHash").lean();
-      expect(u?.emailVerifiedAt).toBeInstanceOf(Date);
-      expect(u?.passwordHash).not.toBe("correct-horse-battery"); // hashed
-      expect(sessions).toEqual([String(u!._id)]);
+    it("creates the account straight away (unverified, signed in) and mails a code; verifying marks it verified", async () => {
+      expect(await redirectOf(reg())).toBe("/en/verify-email?email=new%40x.com&purpose=verify");
+      const u0 = await User.findOne({ email: "new@x.com" }).lean();
+      expect(u0).toBeTruthy();
+      expect(u0?.emailVerifiedAt).toBeUndefined();
+      expect(sessions).toEqual([String(u0!._id)]); // can already shop and check out
+      expect(sent).toHaveLength(1);
+      expect(await redirectOf(verify("new@x.com", "verify"))).toBe("/en/account");
+      expect((await User.findOne({ email: "new@x.com" }).lean())?.emailVerifiedAt).toBeInstanceOf(Date);
       expect(await EmailOtp.countDocuments()).toBe(0);
     });
 
-    it("a wrong code creates nothing and a taken email is refused up-front", async () => {
+    it("skipping verification keeps the account usable, but earlier guest orders do NOT follow an unverified email", async () => {
+      const g = await order({ guestId: "g".repeat(24), email: "old@x.com" });
+      expect(g.ok).toBe(true);
+      await redirectOf(reg("old@x.com"));
+      const u = (await User.findOne({ email: "old@x.com" }).lean())!;
+      expect(await Order.countDocuments({ user: u._id })).toBe(0); // not claimed yet
+      await redirectOf(loginAction({}, fd({ locale: "en", email: "old@x.com", password: "correct-horse-battery", next: "" })));
+      expect(await Order.countDocuments({ user: u._id })).toBe(0); // signing in does not claim either
+      await redirectOf(verify("old@x.com", "verify"));
+      expect(await Order.countDocuments({ user: u._id })).toBe(1); // verified → linked
+    });
+
+    it("a wrong code changes nothing; a VERIFIED email cannot be registered again", async () => {
       await redirectOf(reg("w@x.com"));
       const code = lastCode(); const bad = code === "123456" ? "654321" : "123456";
-      expect(await verifyEmailAction({}, fd({ locale: "en", email: "w@x.com", purpose: "register", code: bad }))).toMatchObject({ error: "otp_invalid" });
-      expect(await User.countDocuments()).toBe(0);
-      await mkUser("taken@x.com");
-      expect(await reg("taken@x.com")).toMatchObject({ fieldErrors: { email: "email_taken" } });
+      expect(await verify("w@x.com", "verify", bad)).toMatchObject({ error: "otp_invalid" });
+      expect((await User.findOne({ email: "w@x.com" }).lean())?.emailVerifiedAt).toBeUndefined();
+      await redirectOf(verify("w@x.com", "verify", code));
+      expect(await reg("w@x.com")).toMatchObject({ fieldErrors: { email: "email_taken" } });
     });
 
-    it("links EARLIER guest orders placed with the same email — but only once the email is verified", async () => {
-      const g1 = await order({ guestId: "g".repeat(24), email: "old@x.com" });
-      const g2 = await order({ guestId: "g".repeat(24), email: "OLD@x.com" });
-      const other = await order({ guestId: "h".repeat(24), email: "someone-else@x.com" });
-      expect(g1.ok && g2.ok && other.ok).toBe(true);
-      expect(await Order.countDocuments({ user: { $exists: true } })).toBe(0);
-      await redirectOf(reg("old@x.com"));
-      expect(await Order.countDocuments({ user: { $exists: true } })).toBe(0); // not yet: nothing proven
-      await redirectOf(verifyEmailAction({}, fd({ locale: "en", email: "old@x.com", purpose: "register", code: lastCode() })));
-      const u = (await User.findOne({ email: "old@x.com" }).lean())!;
-      const mine = await Order.find({ user: u._id }).lean();
-      expect(mine).toHaveLength(2);
-      expect(mine.every((o) => o.guest === false)).toBe(true);
-      expect(await Order.countDocuments({ email: "someone-else@x.com", user: { $exists: false } })).toBe(1);
-    });
-
-    it("an older, unverified customer account must verify at sign-in (and then gets their orders)", async () => {
+    it("signing in with an unverified account works and does not force a code", async () => {
       await User.create({ email: "legacy@x.com", name: "Legacy", passwordHash: await hashPassword("correct-horse-battery"), locale: "en" });
-      await order({ guestId: "g".repeat(24), email: "legacy@x.com" });
       const to = await redirectOf(loginAction({}, fd({ locale: "en", email: "legacy@x.com", password: "correct-horse-battery", next: "" })));
-      expect(to).toBe("/en/verify-email?email=legacy%40x.com&purpose=verify");
-      expect(sessions).toHaveLength(0); // no session before the code
-      const done = await redirectOf(verifyEmailAction({}, fd({ locale: "en", email: "legacy@x.com", purpose: "verify", code: lastCode() })));
-      expect(done).toBe("/en/account");
-      const u = (await User.findOne({ email: "legacy@x.com" }).lean())!;
-      expect(u.emailVerifiedAt).toBeInstanceOf(Date);
-      expect(await Order.countDocuments({ user: u._id })).toBe(1);
-    });
-
-    it("staff are not forced through the email code (a mail outage can't lock the owner out)", async () => {
-      await User.create({ email: "boss@x.com", name: "Boss", passwordHash: await hashPassword("correct-horse-battery"), role: "owner" });
-      const to = await redirectOf(loginAction({}, fd({ locale: "en", email: "boss@x.com", password: "correct-horse-battery", next: "" })));
       expect(to).toBe("/en/account");
       expect(sent).toHaveLength(0);
+      expect(sessions).toHaveLength(1);
     });
 
-    it("resend works only for something that is actually waiting", async () => {
-      expect(await resendOtpAction({}, fd({ locale: "en", email: "nobody@x.com", purpose: "register" }))).toMatchObject({ error: "otp_expired" });
+    it("an UNVERIFIED account can be taken over only by whoever proves the inbox (old sessions are cut)", async () => {
+      const squatter = await User.create({ email: "victim@x.com", name: "Squatter", passwordHash: await hashPassword("squatter-password-1"), locale: "en" });
+      expect(await redirectOf(reg("victim@x.com"))).toBe("/en/verify-email?email=victim%40x.com"); // register-purpose code, nothing changed yet
+      expect((await User.findById(squatter._id).select("+passwordHash").lean())?.name).toBe("Squatter");
+      expect(await verify("victim@x.com", "register", "000000")).toMatchObject({ error: "otp_invalid" });
+      expect(await redirectOf(verify("victim@x.com", "register"))).toBe("/en/account");
+      const u = (await User.findOne({ email: "victim@x.com" }).select("+passwordHash").lean())!;
+      expect(String(u._id)).toBe(String(squatter._id));
+      expect(u.name).toBe("New Buyer");
+      expect(u.emailVerifiedAt).toBeInstanceOf(Date);
+      expect(await verifyPassword("squatter-password-1", u.passwordHash)).toBe(false);
+      expect(await verifyPassword("correct-horse-battery", u.passwordHash)).toBe(true);
+    });
+
+    it("a verified or staff account is never taken over", async () => {
+      await mkUser("real@x.com", true);
+      expect(await reg("real@x.com")).toMatchObject({ fieldErrors: { email: "email_taken" } });
+      await User.create({ email: "boss@x.com", name: "Boss", passwordHash: "x", role: "owner" });
+      expect(await reg("boss@x.com")).toMatchObject({ fieldErrors: { email: "email_taken" } });
+    });
+
+    it("sign-in sends nothing for staff, and resend only works for something waiting", async () => {
+      await User.create({ email: "boss2@x.com", name: "Boss", passwordHash: await hashPassword("correct-horse-battery"), role: "owner" });
+      expect(await redirectOf(loginAction({}, fd({ locale: "en", email: "boss2@x.com", password: "correct-horse-battery", next: "" })))).toBe("/en/account");
+      expect(sent).toHaveLength(0);
+      expect(await resendOtpAction({}, fd({ locale: "en", email: "nobody@x.com", purpose: "verify" }))).toMatchObject({ error: "otp_expired" });
       await redirectOf(reg("r@x.com"));
       await EmailOtp.updateOne({ email: "r@x.com" }, { sentAt: new Date(Date.now() - 60_000) });
-      expect(await resendOtpAction({}, fd({ locale: "en", email: "r@x.com", purpose: "register" }))).toMatchObject({ ok: true });
-      expect(sent).toHaveLength(2);
-      expect(await resendOtpAction({}, fd({ locale: "en", email: "r@x.com", purpose: "register" }))).toMatchObject({ error: "otp_wait" });
+      expect(await resendOtpAction({}, fd({ locale: "en", email: "r@x.com", purpose: "verify" }))).toMatchObject({ ok: true });
+      expect(await resendOtpAction({}, fd({ locale: "en", email: "r@x.com", purpose: "verify" }))).toMatchObject({ error: "otp_wait" });
     });
 
     it("OTP guessing is rate-limited per email across fresh codes", async () => {
       await redirectOf(reg("rl@x.com"));
       let last: unknown;
-      for (let i = 0; i < 14; i++) last = await verifyEmailAction({}, fd({ locale: "en", email: "rl@x.com", purpose: "register", code: "000000" }));
+      for (let i = 0; i < 14; i++) last = await verify("rl@x.com", "verify", "000000");
       expect(last).toMatchObject({ error: "rate_limited" });
       await RateLimit.deleteMany({});
+    });
+
+    it("reviews need a verified email (sessions expose the flag)", async () => {
+      const { reviewEligibility } = await import("@/features/reviews/service");
+      const p = (await Product.findOne({ sku: SKU }).lean())!;
+      const un = await mkUser("un@x.com", false); const ve = await mkUser("ve@x.com", true);
+      expect((await reviewEligibility(String(un._id), String(p._id))).state).toBe("unverified");
+      expect((await reviewEligibility(String(ve._id), String(p._id))).state).not.toBe("unverified");
     });
   });
 

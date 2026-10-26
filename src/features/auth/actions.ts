@@ -3,7 +3,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { redirect } from "next/navigation";
 import { connectDb } from "@/lib/db";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
-import { createSession, destroyAllSessions, destroySession } from "@/lib/auth/session";
+import { createSession, destroyAllSessions, destroySession, getCurrentUser } from "@/lib/auth/session";
 import { safeNext } from "@/lib/auth/guard";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { getMailer } from "@/lib/mailer";
@@ -26,11 +26,29 @@ export async function registerAction(_: FormState, fd: FormData): Promise<FormSt
   const [byIp, byEmail] = await Promise.all([rateLimit(`register:${await clientIp()}`, 10, 3600), rateLimit(`register-email:${parsed.data.email}`, 5, 3600)]);
   if (!byIp.ok || !byEmail.ok) return { error: "rate_limited", values: echo(fd) };
   await connectDb();
-  if (await User.exists({ email: parsed.data.email })) return { fieldErrors: { email: "email_taken" }, values: echo(fd) };
-  // The account is NOT created yet: the details wait (hashed password) beside a 6-digit code mailed to the address.
+  const existing = await User.findOne({ email: parsed.data.email }).select("role emailVerifiedAt").lean();
+  if (existing && (existing.emailVerifiedAt || existing.role !== "customer")) return { fieldErrors: { email: "email_taken" }, values: echo(fd) };
   const next = safeNext(str(fd, "next"), "");
-  await sendOtp(parsed.data.email, "register", locale, { name: parsed.data.name, passwordHash: await hashPassword(parsed.data.password), locale, next }, { force: true });
-  redirect(verifyUrl(locale, parsed.data.email, "register", next));
+  const passwordHash = await hashPassword(parsed.data.password);
+  if (existing) {
+    // An UNVERIFIED account already holds this email (someone may have typed it without owning it): only the person who proves the
+    // inbox can take it over, so the new details wait beside a code and nothing about the old account changes until it is entered.
+    await sendOtp(parsed.data.email, "register", locale, { name: parsed.data.name, passwordHash, locale, next }, { force: true });
+    redirect(verifyUrl(locale, parsed.data.email, "register", next));
+  }
+  // New customers get their account straight away (they can shop and check out); a code is mailed to verify the email, which is
+  // needed for tracking orders, returns and reviews. They may skip it and verify later from the account.
+  let user;
+  try {
+    user = await User.create({ name: parsed.data.name, email: parsed.data.email, passwordHash, locale });
+  } catch (e) {
+    if ((e as { code?: number }).code === 11000) return { fieldErrors: { email: "email_taken" }, values: echo(fd) }; // lost a race
+    throw e;
+  }
+  await createSession(String(user._id));
+  await mergeGuestCart(String(user._id));
+  await sendOtp(parsed.data.email, "verify", locale, { next }, { force: true });
+  redirect(verifyUrl(locale, parsed.data.email, "verify", next));
 }
 
 const verifyUrl = (locale: string, email: string, purpose: OtpPurpose, next: string) =>
@@ -59,14 +77,22 @@ export async function verifyEmailAction(_: FormState, fd: FormData): Promise<For
   if (purpose === "register") {
     const p = r.pending;
     if (!p?.name || !p.passwordHash) return { error: "otp_expired" };
+    // The proven owner of the inbox takes over an unverified account that someone else registered with this email.
+    const held = await User.findOne({ email }).select("role emailVerifiedAt");
     let user;
-    try {
-      user = await User.create({ email, name: p.name, passwordHash: p.passwordHash, locale: p.locale ?? locale, emailVerifiedAt: new Date() });
-    } catch (e) {
-      if ((e as { code?: number }).code === 11000) return { error: "email_taken" }; // registered meanwhile
-      throw e;
+    if (held) {
+      if (held.emailVerifiedAt || held.role !== "customer") return { error: "email_taken" };
+      user = await User.findOneAndUpdate({ _id: held._id }, { $set: { name: p.name, passwordHash: p.passwordHash, locale: p.locale ?? locale, emailVerifiedAt: new Date() } }, { returnDocument: "after" });
+      await destroyAllSessions(String(held._id)); // whoever used the account before is signed out
+    } else {
+      try {
+        user = await User.create({ email, name: p.name, passwordHash: p.passwordHash, locale: p.locale ?? locale, emailVerifiedAt: new Date() });
+      } catch (e) {
+        if ((e as { code?: number }).code === 11000) return { error: "email_taken" }; // registered meanwhile
+        throw e;
+      }
     }
-    return startAccountSession(String(user._id), email, locale, next);
+    return startAccountSession(String(user!._id), email, locale, next);
   }
   const user = await User.findOneAndUpdate({ email, status: "active" }, { $set: { emailVerifiedAt: new Date(), lastLoginAt: new Date() } }, { returnDocument: "after" });
   if (!user) return { error: "otp_expired" };
@@ -100,15 +126,10 @@ export async function loginAction(_: FormState, fd: FormData): Promise<FormState
   const valid = await verifyPassword(password, user?.passwordHash);
   if (!user || !valid || user.status !== "active") return { error: "invalid_credentials", values: echo(fd) }; // same message for every failure
   const next = safeNext(str(fd, "next"), "");
-  // Customers must have proven their email (older accounts are asked once, right here). Staff are exempt so a mail outage can't lock the owner out.
-  if (user.role === "customer" && !user.emailVerifiedAt) {
-    await sendOtp(email, "verify", user.locale ?? locale, { next }, { force: true });
-    redirect(verifyUrl(user.locale ?? locale, email, "verify", next));
-  }
   await User.updateOne({ _id: user._id }, { lastLoginAt: new Date() });
   await createSession(String(user._id));
   await mergeGuestCart(String(user._id));
-  if (user.emailVerifiedAt) await claimGuestOrders(String(user._id), email);
+  if (user.emailVerifiedAt) await claimGuestOrders(String(user._id), email); // earlier guest orders only follow a VERIFIED email
   redirect(safeNext(next, `/${user.locale ?? locale}/account`));
 }
 
@@ -156,4 +177,16 @@ export async function resetPasswordAction(_: FormState, fd: FormData): Promise<F
   await User.updateOne({ _id: rec.user, emailVerifiedAt: { $exists: false } }, { emailVerifiedAt: new Date() }); // the reset link reached their inbox
   await destroyAllSessions(String(rec.user)); // sign out everywhere
   redirect(`/${locale}/login?reset=1`);
+}
+
+/** Signed-in but unverified: mail a code (once per cooldown) and open the code page. */
+export async function sendVerifyCodeAction(fd: FormData) {
+  const user = await getCurrentUser();
+  const locale = loc(fd);
+  const next = safeNext(str(fd, "next"), "");
+  if (!user) redirect(`/${locale}/login`);
+  if (user.emailVerified) redirect(safeNext(next, `/${locale}/account`));
+  const [byIp, byEmail] = await Promise.all([rateLimit(`otp-send-ip:${await clientIp()}`, 20, 3600), rateLimit(`otp-send:${user.email}`, 6, 3600)]);
+  if (byIp.ok && byEmail.ok) await sendOtp(user.email, "verify", user.locale, { next }); // inside the cooldown a code was just sent: just open the page
+  redirect(verifyUrl(locale, user.email, "verify", next));
 }

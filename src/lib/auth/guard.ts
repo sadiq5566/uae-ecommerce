@@ -13,6 +13,13 @@ export async function requireUser(locale: string, next?: string): Promise<Sessio
   return user;
 }
 
+/** Signed in AND email verified (order tracking, returns and reviews need it). Unverified customers are sent to the page that mails them a code. */
+export async function requireVerifiedUser(locale: string, next: string): Promise<SessionUser> {
+  const user = await requireUser(locale, next);
+  if (!user.emailVerified) redirect(`/${locale}/account/verify?next=${encodeURIComponent(next)}`);
+  return user;
+}
+
 export class ForbiddenError extends Error { constructor() { super("FORBIDDEN"); } }
 
 /** Server-side authorization for staff actions. Never rely on hidden UI. */

@@ -3,6 +3,7 @@ import { Types } from "mongoose";
 import { connectDb } from "@/lib/db";
 import { Order } from "@/models/order";
 import { Product } from "@/models/product";
+import { User } from "@/models/user";
 import { Review, ReviewVote } from "@/models/review";
 
 /** Policy switch: only customers whose order containing the product was delivered may review it (verified purchase). */
@@ -35,11 +36,13 @@ export async function getReviews(productId: string, sort: ReviewSort, page: numb
   return { items, distribution, total, avg, pages: Math.max(1, Math.ceil(total / size)) };
 }
 
-export type Eligibility = "guest" | "can_review" | "already" | "not_purchased";
+export type Eligibility = "guest" | "unverified" | "can_review" | "already" | "not_purchased";
 
 export async function reviewEligibility(userId: string | undefined, productId: string): Promise<{ state: Eligibility; orderId?: string }> {
   if (!userId) return { state: "guest" };
   await connectDb();
+  // Reviews need a verified email (staff are exempt), so they come from real inboxes.
+  if (!(await User.exists({ _id: userId, $or: [{ emailVerifiedAt: { $exists: true } }, { role: { $ne: "customer" } }] }))) return { state: "unverified" };
   if (await Review.exists({ product: productId, user: userId })) return { state: "already" };
   const order = await Order.findOne({ user: userId, status: "delivered", "items.productId": productId }).select("_id").lean();
   if (order) return { state: "can_review", orderId: String(order._id) };

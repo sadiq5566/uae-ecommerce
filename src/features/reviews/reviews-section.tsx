@@ -46,6 +46,7 @@ export async function ReviewsSection({ productId, slug, locale, t, sort, page }:
         <h3 className="mb-3 font-semibold">{t.reviews.write}</h3>
         {elig.state === "can_review" && <ReviewForm productId={productId} t={t} />}
         {elig.state === "guest" && <p className="text-sm"><Link href={`/${locale}/login?next=${encodeURIComponent(`/${locale}/p/${slug}`)}`} className="font-semibold text-brand hover:underline">{t.reviews.signIn}</Link></p>}
+        {elig.state === "unverified" && <p className="text-sm"><span className="text-muted">{t.reviews.verifyFirst} </span><Link href={`/${locale}/account/verify?next=${encodeURIComponent(`/${locale}/p/${slug}#reviews`)}`} className="font-semibold text-brand hover:underline">{t.auth.verifySend}</Link></p>}
         {elig.state === "not_purchased" && <p className="text-sm text-muted">{t.reviews.notPurchased}</p>}
         {elig.state === "already" && <p className="text-sm text-muted">{t.reviews.already}</p>}
       </div>

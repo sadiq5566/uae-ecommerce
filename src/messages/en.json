@@ -216,13 +216,14 @@
     "otp_expired": "This code has expired. Request a new one.",
     "otp_locked": "Too many wrong codes. Request a new code.",
     "otp_wait": "Please wait a moment before asking for another code.",
-    "credit_insufficient": "Your web credit changed. Please review your order and try again."
+    "credit_insufficient": "Your web credit changed. Please review your order and try again.",
+    "verify_required": "Please verify your email first (from your account) to write a review."
   },
   "auth": {
     "loginTitle": "Sign in",
     "loginSub": "Welcome back",
     "registerTitle": "Create account",
-    "registerSub": "Verify your email to create your account — then track orders, return items and review products.",
+    "registerSub": "Create your account now and start shopping. Verify your email with a code to track orders, return items and write reviews.",
     "email": "Email",
     "password": "Password",
     "name": "Full name",
@@ -249,7 +250,14 @@
     "otpVerify": "Verify & sign in",
     "otpResend": "Resend code",
     "otpResent": "A new code is on its way.",
-    "otpWrongEmail": "Wrong email? Start again"
+    "otpWrongEmail": "Wrong email? Start again",
+    "otpSkip": "Skip for now",
+    "otpSkipNote": "You can verify later from your account. Tracking orders, returns and reviews need a verified email.",
+    "verifyNeededTitle": "Verify your email to continue",
+    "verifyNeededBody": "Order tracking, returns and reviews need a verified email address. We will send a 6-digit code to:",
+    "verifySend": "Send verification code",
+    "verifyBanner": "Your email isn't verified yet. Verify it to track orders, return items and write reviews.",
+    "verifyBannerBtn": "Verify now"
   },
   "account": {
     "title": "My account",
@@ -512,7 +520,8 @@
     },
     "stars": "{n} stars",
     "star": "{n} star",
-    "more": "More reviews"
+    "more": "More reviews",
+    "verifyFirst": "Verify your email to write a review."
   },
   "offers": {
     "freeDelivery": "Free delivery on orders over {min}",

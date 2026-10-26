@@ -29,6 +29,7 @@ export async function submitReviewAction(_: FormState, fd: FormData): Promise<Fo
   if (!product) return { error: "not_found" };
   const elig = await reviewEligibility(user.id, productId); // eligibility is decided on the server, never by the form
   if (elig.state === "already") return { error: "review_duplicate" };
+  if (elig.state === "unverified") return { error: "verify_required" };
   if (elig.state !== "can_review") return { error: "review_not_eligible" };
   try {
     await Review.create({ product: productId, user: user.id, order: elig.orderId, rating, title: title ? cleanText(title) : undefined, body, authorName: displayName(user.name), verified: !!elig.orderId, status: "pending" });

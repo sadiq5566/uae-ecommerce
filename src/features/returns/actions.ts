@@ -10,7 +10,7 @@ export type ReturnFormState = { ok?: boolean; number?: string; error?: string };
 /** Returns need an account: only the signed-in owner of the order may open or withdraw a request. */
 async function authorizedOrder(orderNumber: string) {
   const user = await getCurrentUser();
-  if (!user) return null;
+  if (!user || !user.emailVerified) return null; // returns need a verified email
   const order = await orderForReturns(orderNumber);
   return order?.user && String(order.user) === user.id ? order : null;
 }

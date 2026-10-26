@@ -65,7 +65,7 @@ export function ResetForm({ locale, t, token }: P & { token: string }) {
 }
 
 /** Step 2 of sign-up (and of first sign-in for older accounts): the 6-digit code that was emailed. */
-export function VerifyForm({ locale, t, email, purpose, next }: P & { email: string; purpose: "register" | "verify" }) {
+export function VerifyForm({ locale, t, email, purpose, next, skipHref }: P & { email: string; purpose: "register" | "verify"; skipHref?: string }) {
   const [s, action, pending] = useActionState(verifyEmailAction, init);
   const [r, resend, resending] = useActionState(resendOtpAction, init);
   const [wait, setWait] = useState(45); // a code was just sent when this page opened
@@ -91,6 +91,7 @@ export function VerifyForm({ locale, t, email, purpose, next }: P & { email: str
           {wait > 0 ? `${t.auth.otpResend} (${wait})` : t.auth.otpResend}
         </button>
       </form>
+      {skipHref && <p className="rounded-xl bg-surface-2 px-4 py-3 text-center text-xs text-muted"><Link href={skipHref} className="font-semibold text-brand hover:underline">{t.auth.otpSkip}</Link><br />{t.auth.otpSkipNote}</p>}
     </div>
   );
 }

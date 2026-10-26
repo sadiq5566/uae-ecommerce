@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { getDictionary } from "@/lib/dictionaries";
 import { formatAED, isLocale } from "@/lib/i18n";
 import { fmt } from "@/lib/format";
-import { requireUser } from "@/lib/auth/guard";
+import { requireVerifiedUser } from "@/lib/auth/guard";
 import { listOrdersForUser } from "@/features/orders/queries";
 import { StatusBadge } from "@/features/orders/status-badge";
 import { privatePage } from "@/lib/page-meta";
@@ -14,7 +14,7 @@ export const generateMetadata = privatePage((t) => t.orders.title);
 export default async function OrdersPage({ params }: PageProps<"/[lang]/account/orders">) {
   const { lang } = await params;
   if (!isLocale(lang)) notFound();
-  const user = await requireUser(lang, `/${lang}/account/orders`);
+  const user = await requireVerifiedUser(lang, `/${lang}/account/orders`);
   const [t, orders] = await Promise.all([getDictionary(lang), listOrdersForUser(user.id)]);
   if (orders.length === 0) {
     return (
