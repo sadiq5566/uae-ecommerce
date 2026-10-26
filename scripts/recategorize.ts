@@ -4,7 +4,7 @@ import mongoose from "mongoose";
 import { resolveCategory } from "../lib/category";
 
 // One-off clean-up: anything outside these is re-classified from the product text (falls back to "general").
-const KEEP = new Set(["watches", "jewelry", "bags", "perfume", "accessories"]);
+const KEEP = new Set(["watches", "jewelry", "bags", "perfume", "accessories", "glasses", "caps"]);
 
 async function main() {
   await mongoose.connect(process.env.MONGODB_URI!, { dbName: process.env.MONGODB_DB || undefined });

@@ -7,6 +7,8 @@ const HINTS: [string, RegExp][] = [
   ["jewelry", /\b(jewel(l)?ery|rings?|necklaces?|earrings?|bracelets?|bangles?|pendants?|anklets?|brooch(es)?|chokers?|messika)\b/i],
   ["bags", /\b(bags?|handbags?|totes?|clutch(es)?|backpacks?|wallets?|purses?|satchels?|hobo|birkin|kelly|flap|evelyne|capucines|onthego|crossbody|cross body|shoulder)\b/i],
   ["footwear", /\b(footwear|shoes?|sneakers?|trainers?|loafers?|sandals?|slippers?|heels?|boots?|mules?|espadrilles?|moccasins?|slingbacks?)\b/i],
+  ["glasses", /\b(sunglasses|glasses|eyewear|eyeglasses|spectacles?)\b/i],
+  ["caps", /\b(caps?|hats?|beanies?)\b/i],
   ["accessories", /\b(keychains?|key chains?|scarf|scarves|sunglasses|belts?)\b/i],
 ];
 

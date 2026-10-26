@@ -43,7 +43,6 @@ export function Footer({ locale, t, menu }: { locale: Locale; t: Dictionary; men
         </div>
         <div className="mt-12 flex flex-col justify-between gap-2 border-t border-line pt-6 text-xs text-muted sm:flex-row">
           <p>© {new Date().getFullYear()} {t.brand}. {t.footer.rights}</p>
-          <p>{t.footer.demo}</p>
         </div>
       </div>
     </footer>

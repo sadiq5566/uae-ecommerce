@@ -7,12 +7,14 @@ export const MAIN_CATEGORIES = [
   { slug: "perfume", label: { en: "Perfume", ar: "العطور" }, tagline: { en: "Signature scents", ar: "عطور مميزة" }, hue: 320 },
   { slug: "watches", label: { en: "Watches", ar: "الساعات" }, tagline: { en: "Time, beautifully worn", ar: "الوقت بأناقة" }, hue: 200 },
   { slug: "bags", label: { en: "Bags", ar: "الحقائب" }, tagline: { en: "Carry your style", ar: "احمل أناقتك" }, hue: 345 },
+  { slug: "glasses", label: { en: "Glasses", ar: "النظارات" }, tagline: { en: "Sunglasses & frames", ar: "نظارات شمسية وإطارات" }, hue: 215 },
+  { slug: "caps", label: { en: "Caps", ar: "القبعات" }, tagline: { en: "Finish the look", ar: "أكمل إطلالتك" }, hue: 25 },
 ] as const;
 export const MAIN_SLUGS: string[] = MAIN_CATEGORIES.map((c) => c.slug);
 
 /** Smaller shop-by-type categories and brand collections shown under "More" (everything else, e.g. scraper leftovers, stays reachable by URL only). */
 const MORE: Record<string, { en: string; ar: string }> = {
-  accessories: { en: "Accessories", ar: "إكسسوارات" }, "all-footwear": { en: "Footwear", ar: "أحذية" }, footwear: { en: "Footwear", ar: "أحذية" }, "all-glasses": { en: "Glasses", ar: "نظارات" }, pouches: { en: "Pouches", ar: "حافظات" },
+  accessories: { en: "Accessories", ar: "إكسسوارات" }, "all-footwear": { en: "Footwear", ar: "أحذية" }, footwear: { en: "Footwear", ar: "أحذية" }, pouches: { en: "Pouches", ar: "حافظات" },
 };
 /** `kind: "brand"` items link to /brands/<slug>; the rest are categories (/c/<slug>). */
 export type MenuItem = { slug: string; name: { en: string; ar: string }; image?: string; count: number; kind?: "brand" };
