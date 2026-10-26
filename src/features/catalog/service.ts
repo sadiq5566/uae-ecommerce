@@ -39,7 +39,7 @@ type Doc = Record<string, any>; // eslint-disable-line @typescript-eslint/no-exp
 const ACTIVE = { status: "active", mergedInto: null } as const;
 const clean = <T,>(o: T): T => JSON.parse(JSON.stringify(o));
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-const ICONS: Record<string, string> = { watches: "⌚", jewelry: "💍", bags: "👜", perfume: "🧴", accessories: "🕶️", glasses: "🕶️", caps: "🧢" };
+const ICONS: Record<string, string> = { watches: "⌚", jewelry: "💍", bags: "👜", perfume: "🧴", accessories: "🕶️", glasses: "🕶️", footwear: "👟", caps: "🧢" };
 const hueOf = (s: string) => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
 
 function card(p: Doc): ProductCardData {
