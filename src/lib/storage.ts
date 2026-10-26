@@ -12,7 +12,7 @@ export interface ImageStorage { put(data: Buffer, ext: "png" | "jpg" | "webp"): 
 
 const local: ImageStorage = {
   async put(data, ext) {
-    const dir = path.join(process.cwd(), "public", "uploads");
+    const dir = path.join(/*turbopackIgnore: true*/ process.cwd(), "public", "uploads");
     await mkdir(dir, { recursive: true });
     const name = `${randomBytes(12).toString("hex")}.${ext}`;
     await writeFile(path.join(dir, name), data);
