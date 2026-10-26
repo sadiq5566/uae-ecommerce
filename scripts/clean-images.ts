@@ -39,7 +39,8 @@ const toPublic = args.includes("--public") || local;
 const limit = Number(args.find((a) => a.startsWith("--limit="))?.split("=")[1]) || 0;
 
 type Img = { url: string; alt?: string; publicId?: string };
-type Doc = { _id: unknown; images?: Img[] };
+type Variant = { image?: string; [k: string]: unknown };
+type Doc = { _id: unknown; images?: Img[]; variants?: Variant[] };
 
 async function download(url: string) {
   if (url.startsWith("/uploads/")) return readFile(path.join(CONFIG.uploadsDir, path.basename(url)));
@@ -74,7 +75,8 @@ async function main() {
   const products = (await (limit ? found.limit(limit) : found).toArray()) as unknown as Doc[];
 
   const wanted = (u?: string) => !!u && ((/^https?:/.test(u) && CONFIG.urlMatch.test(u)) || (local && /^\/uploads\/[a-f0-9]{24}\.(webp|png|jpg)$/.test(u)));
-  const urls = [...new Set(products.flatMap((p) => p.images ?? []).map((i) => srcOf(i.url)).filter(wanted))];
+  // Colour / size variants can carry their own photo (variants[].image): those are cleaned and re-pointed too.
+  const urls = [...new Set(products.flatMap((p) => [...(p.images ?? []).map((i) => i.url), ...(p.variants ?? []).map((v) => v.image ?? "")]).map(srcOf).filter(wanted))];
   console.log(`${products.length} product(s), ${urls.length} image(s) to check${apply ? " (APPLY)" : preview ? " (PREVIEW)" : " (DRY RUN)"}\n`);
   if (preview) await mkdir(CONFIG.previewDir, { recursive: true });
   if (apply && toPublic) await mkdir(CONFIG.uploadsDir, { recursive: true });
@@ -120,9 +122,12 @@ async function main() {
   let updated = 0;
   for (const p of products) {
     const images = (p.images ?? []).map((i) => ({ ...i, url: map[srcOf(i.url)] ?? i.url }));
-    if (!images.some((i, k) => i.url !== p.images?.[k]?.url)) continue;
+    const variants = (p.variants ?? []).map((v) => (v.image && map[srcOf(v.image)] ? { ...v, image: map[srcOf(v.image)] } : v));
+    const imagesChanged = images.some((i, k) => i.url !== p.images?.[k]?.url);
+    const variantsChanged = variants.some((v, k) => v !== (p.variants ?? [])[k]);
+    if (!imagesChanged && !variantsChanged) continue;
     updated++;
-    if (apply) await col.updateOne({ _id: p._id } as never, { $set: { images } });
+    if (apply) await col.updateOne({ _id: p._id } as never, { $set: { ...(imagesChanged && { images }), ...(variantsChanged && { variants }) } });
   }
 
   console.log(

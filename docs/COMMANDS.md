@@ -75,3 +75,18 @@ Format spec: `C:\Users\butts\projects\scrapper\CSV_FORMAT.md`. Run it with its c
 | `npm run remove-images -- word1,word2 --apply` | same, with explicit words |
 
 CSV/JSONL imports also skip any image URL containing an `IMAGE_BLOCKLIST` word, so they don't come back. Restart `npm run dev` after editing `.env.local`.
+
+
+npm run clean-images -- --limit=20 --preview     # 1. test: 20 products clean karke scripts/clean-images.preview/ mein save
+npm run clean-images -- --apply --limit=20       # 2. pehle 20 products par asal apply
+npm run clean-images -- --apply                  # 3. sab remote images (Amara/Lune/WG/Rimal hosts)
+npm run clean-images -- --apply --local          # 4. public/uploads mein pehle se saved images bhi
+
+# 1. Pehle sirf dekhein, kuch change nahi hota (counts aur examples dikhata hai)
+npx tsx --env-file=.env scripts/separate-brands.ts
+
+# 2. Theek lage to asal change
+npx tsx --env-file=.env scripts/separate-brands.ts --apply
+
+# 3. (Optional) khali "All Cartier" jaise purane category pages bhi hata do
+npx tsx --env-file=.env scripts/separate-brands.ts --apply --remove-empty-collections
