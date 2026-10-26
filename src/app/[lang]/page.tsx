@@ -17,7 +17,7 @@ export default async function Home({ params }: PageProps<"/[lang]">) {
   const [t, categories, showcase, cfg, articles] = await Promise.all([getDictionary(lang), getCategories(), getShowcase(), getHomeConfig(), listArticles(3)]);
   const menu = buildMenu(categories, showcase, await getStoreBrands().catch(() => []));
   const sec = cfg.sections;
-  // Every row below is limited to the lead categories (jewelry, perfume, watches, bags).
+  // Every row below is limited to the lead categories (jewelry, perfume, watches, bags, glasses, caps).
   const [deals, trending, bestSellers, newest, ...perCategory] = await Promise.all([
     sec.deals ? getCollection("deals", 4, MAIN_SLUGS) : [], sec.mostViewed ? getCollection("viewed", 4, MAIN_SLUGS) : [],
     sec.popular ? getCollection("popular", 4, MAIN_SLUGS) : [], sec.newArrivals ? getCollection("new", 4, MAIN_SLUGS) : [],
@@ -40,7 +40,7 @@ export default async function Home({ params }: PageProps<"/[lang]">) {
       <TrustBar t={t} />
       <CategoryShowcase {...p} menu={menu} />
       {menu.main.map((c, i) => c.slug === "perfume" && <CategorySpotlight key={c.slug} {...p} eyebrow={ar ? "عطور مختارة" : "Signature scents"} title={c.name[lang]} sub={ar ? "عطور فاخرة من أشهر الدور العالمية، بأحجام مناسبة للهدية والاستخدام اليومي." : "Luxury fragrances from the most loved houses, in sizes made for gifting and everyday wear."} items={perCategory[i]} href={`/${lang}/c/${c.slug}`} image={c.image} />)}
-      <ProductSection {...p} title={t.sections.deals} sub={t.sections.dealsSub} items={deals} href={`/${lang}/deals`} countdown />
+      <ProductSection {...p} title={t.sections.deals} sub={t.sections.dealsSub} items={deals} href={`/${lang}/deals`} />
       <ProductSection {...p} title={t.catalog.popular} sub={t.catalog.popularSub} items={trending} />
       {menu.main.map((c, i) => c.slug !== "perfume" && <ProductSection key={c.slug} {...p} title={c.name[lang]} sub={c.tagline[lang]} items={perCategory[i]} href={`/${lang}/c/${c.slug}`} />)}
       <ProductSection {...p} title={t.catalog.bestSellers} sub={t.catalog.bestSellersSub} items={bestSellers} />

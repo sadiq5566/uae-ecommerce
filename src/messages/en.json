@@ -85,7 +85,7 @@
     "email": "Email address",
     "subscribe": "Subscribe",
     "invalid": "Please enter a valid email",
-    "thanks": "Thanks! (demo — not stored yet)"
+    "thanks": "Thanks for subscribing!"
   },
   "footer": {
     "shop": "Shop",
@@ -98,8 +98,7 @@
     "about": "About",
     "privacy": "Privacy",
     "terms": "Terms",
-    "rights": "All rights reserved.",
-    "demo": "Demo store — sample data only."
+    "rights": "All rights reserved."
   },
   "notFound": {
     "title": "Page not found",

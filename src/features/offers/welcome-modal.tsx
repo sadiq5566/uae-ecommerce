@@ -43,15 +43,15 @@ export function WelcomeModal({ locale, version, delaySeconds, collectLeads, line
   return (
     <dialog
       ref={ref} aria-labelledby="wm-title" onClick={(e) => e.target === ref.current && close()}
-      className="m-auto w-[min(92vw,30rem)] overflow-hidden rounded-3xl border border-line bg-surface p-0 text-fg shadow-card backdrop:bg-black/60 backdrop:backdrop-blur-sm"
+      className="wm-dialog mx-auto mb-0 mt-auto w-full max-w-none flex-col overflow-hidden rounded-b-none rounded-t-3xl border border-line bg-surface p-0 text-fg shadow-card backdrop:bg-black/60 backdrop:backdrop-blur-sm open:flex max-h-[92dvh] sm:m-auto sm:w-[min(92vw,30rem)] sm:rounded-3xl sm:max-h-[min(90dvh,44rem)]"
     >
-      <div className="relative bg-brand px-6 pb-6 pt-8 text-brand-fg">
-        <button type="button" onClick={close} aria-label={labels.close} className="absolute end-3 top-3 grid size-9 place-items-center rounded-full bg-white/15 text-lg hover:bg-white/25">✕</button>
+      <div className="relative shrink-0 bg-brand px-5 pb-5 pt-7 text-brand-fg sm:px-6 sm:pb-6 sm:pt-8">
+        <button type="button" onClick={close} aria-label={labels.close} className="absolute end-3 top-3 grid size-10 sm:size-9 place-items-center rounded-full bg-white/15 text-lg hover:bg-white/25">✕</button>
         <p className="text-xs font-bold uppercase tracking-widest opacity-90">{labels.eyebrow}</p>
-        <h2 id="wm-title" className="mt-1 font-display text-3xl font-bold leading-tight">{title || labels.title}</h2>
+        <h2 id="wm-title" className="mt-1 pe-10 font-display text-2xl font-bold leading-tight sm:text-3xl">{title || labels.title}</h2>
         <p className="mt-2 text-sm opacity-90">{body || labels.lead}</p>
       </div>
-      <div className="flex flex-col gap-5 p-6">
+      <div className="themed-scroll flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overscroll-contain p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:p-6">
         <ul className="grid gap-2">
           {lines.filter((l) => l.key !== "cod").map((l) => (
             <li key={l.key} className="flex items-center gap-3 rounded-2xl bg-brand-soft px-4 py-3 text-sm font-semibold text-brand"><span className="text-xl" aria-hidden>{l.icon}</span>{l.text}</li>
@@ -70,7 +70,7 @@ export function WelcomeModal({ locale, version, delaySeconds, collectLeads, line
             <button disabled={pending} className="rounded-xl border border-brand px-5 py-3 text-sm font-semibold text-brand transition hover:bg-brand-soft disabled:opacity-60">{labels.submit}</button>
           </form>
         ))}
-        <div className="flex flex-wrap gap-2">
+        <div className="sticky bottom-0 -mx-1 flex flex-wrap gap-2 bg-surface px-1 pb-1 pt-2">
           <Link href={`/${locale}/deals`} onClick={close} className="flex-1 rounded-xl bg-brand px-5 py-3 text-center text-sm font-semibold text-brand-fg transition hover:brightness-110">{labels.cta}</Link>
           <button type="button" onClick={close} className="rounded-xl px-5 py-3 text-sm font-medium text-muted hover:text-fg">{labels.dismiss}</button>
         </div>

@@ -24,7 +24,9 @@
     "copy-db": "tsx --env-file=.env.local scripts/copy-db.ts",
     "db:init": "tsx --env-file=.env.local scripts/db-init.ts",
     "db:recategorize": "tsx --env-file=.env.local scripts/recategorize.ts",
-    "db:merge-variants": "tsx --env-file=.env.local scripts/merge-variants.ts"
+    "db:merge-variants": "tsx --env-file=.env.local scripts/merge-variants.ts",
+    "fix-bag-photos": "python scripts/fix_bag_photos.py",
+    "fix-bag-photos:apply": "python scripts/fix_bag_photos.py --apply"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^7.0.0",
