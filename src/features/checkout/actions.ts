@@ -6,6 +6,8 @@ import { getGuestId } from "@/features/cart/service";
 import { getOrderByToken } from "@/features/orders/queries";
 import { addressSchema, fieldErrors, normalizeUaePhone } from "@/features/auth/schemas";
 import { z } from "zod";
+import { connectDb } from "@/lib/db";
+import { Address } from "@/models/address";
 import { isLocale } from "@/lib/i18n";
 import { rateLimit } from "@/lib/rate-limit";
 import { placeOrder, startPaymentFor } from "@/features/orders/place";
@@ -74,6 +76,18 @@ const guestSchema = addressSchema.omit({ label: true, isDefault: true }).extend(
   }),
 });
 
+const MAX_SAVED_ADDRESSES = 10;
+/** Saves the typed address to the account unless the same one is already there (or the account is full). */
+async function saveCheckoutAddress(userId: string, a: InlineAddress) {
+  await connectDb();
+  const em = a.emirate as (typeof Address.schema.paths.emirate.options.enum)[number];
+  const same = await Address.exists({ user: userId, phone: a.phone, emirate: em, area: a.area, building: a.building, unit: a.unit ?? null });
+  if (same) return;
+  const count = await Address.countDocuments({ user: userId });
+  if (count >= MAX_SAVED_ADDRESSES) return;
+  await Address.create({ ...a, emirate: em, user: userId, isDefault: count === 0 });
+}
+
 export async function placeOrderAction(_: PlaceState, fd: FormData): Promise<PlaceState> {
   const user = await getCurrentUser();
   const guestId = user ? undefined : await getGuestId();
@@ -113,6 +127,8 @@ export async function placeOrderAction(_: PlaceState, fd: FormData): Promise<Pla
     expectedTotal: Number.isFinite(expected) ? expected : undefined, returnBase,
   });
   if (!res.ok) return { error: res.error, detail: res.detail, total: res.total };
+  // A signed-in customer who typed their delivery details here can keep them for next time (becomes the default if it is their first).
+  if (user && address && fd.get("saveAddress") === "1") await saveCheckoutAddress(user.id, address).catch((e) => console.warn("[checkout] saving the address failed:", (e as Error).message));
   if (res.redirectUrl) redirect(res.redirectUrl);
   redirect(res.guest ? `/${locale}/track/${res.orderNumber}?k=${res.trackToken}&placed=1` : `/${locale}/account/orders/${res.orderNumber}?placed=1`);
 }

@@ -155,6 +155,7 @@ export function CheckoutClient({ locale, t, addresses, methods, items, testMode,
                   {gf("instructions", t.address.instructions, { span: true })}
                 </div>
               </details>
+              {!guest && <label className="flex items-start gap-2 text-sm text-muted sm:col-span-2"><input type="checkbox" name="saveAddress" value="1" form="checkout-form" defaultChecked className="mt-0.5 size-4 accent-[var(--brand)]" />{t.checkout.saveAddress}</label>}
             </div>
           </section>
         ) : (

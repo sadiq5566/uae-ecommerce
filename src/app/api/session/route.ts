@@ -8,7 +8,7 @@ export async function GET() {
   const user = await getCurrentUser();
   const [cartCount, wishlist] = await Promise.all([getCartCount(), user ? getWishlistIds(user.id) : Promise.resolve([])]);
   return NextResponse.json(
-    { user: user ? { name: user.name, role: user.role } : null, cartCount, wishlist },
+    { user: user ? { name: user.name, role: user.role, avatar: user.avatar } : null, cartCount, wishlist },
     { headers: { "Cache-Control": "no-store" } },
   );
 }

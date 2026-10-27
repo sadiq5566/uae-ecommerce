@@ -282,7 +282,12 @@
     "newPassword": "New password",
     "passwordChanged": "Password updated. You were signed out of other devices.",
     "linkedBanner": "We found {n} earlier order(s) placed with your email and added them to your history.",
-    "emailVerified": "Email verified"
+    "emailVerified": "Email verified",
+    "avatarAdd": "Add a photo",
+    "avatarChange": "Change photo",
+    "avatarRemove": "Remove",
+    "avatarHint": "JPG, PNG or WebP. It is shrunk to a small square before it is saved.",
+    "avatarError": "We could not save that picture. Try another image."
   },
   "address": {
     "add": "Add address",
@@ -419,7 +424,8 @@
     "codFast": "Pay cash when it arrives — no card needed.",
     "savedWith": "You're saving {amount} on this order",
     "pickEmirate": "Choose your emirate to see delivery fees and your total.",
-    "offerTierShort": "{pct}% spend discount"
+    "offerTierShort": "{pct}% spend discount",
+    "saveAddress": "Save this address to my account for next time"
   },
   "orders": {
     "title": "My orders",

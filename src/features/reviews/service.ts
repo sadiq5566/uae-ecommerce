@@ -6,8 +6,8 @@ import { Product } from "@/models/product";
 import { User } from "@/models/user";
 import { Review, ReviewVote } from "@/models/review";
 
-/** Policy switch: only customers whose order containing the product was delivered may review it (verified purchase). */
-export const REQUIRE_VERIFIED_PURCHASE = true;
+/** Any customer with a verified email may review; the "Verified buyer" badge (and the thank-you coupon) still go only to those with a delivered order. */
+export const REQUIRE_VERIFIED_PURCHASE = false;
 export const REVIEW_SORTS = ["helpful", "newest", "highest", "lowest"] as const;
 export type ReviewSort = (typeof REVIEW_SORTS)[number];
 const SORT = { helpful: { helpfulCount: -1, createdAt: -1 }, newest: { createdAt: -1 }, highest: { rating: -1, createdAt: -1 }, lowest: { rating: 1, createdAt: -1 } } as const;

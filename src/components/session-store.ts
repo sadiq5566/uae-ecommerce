@@ -3,7 +3,7 @@ import { useEffect, useSyncExternalStore } from "react";
 
 // Client mirror of per-user state (cart count, wishlist, who's signed in). The server is the source of truth;
 // pages stay cacheable and this is hydrated from /api/session after load and updated from action results.
-export type SessionState = { loaded: boolean; user: { name: string; role: string } | null; cartCount: number; wishlist: string[] };
+export type SessionState = { loaded: boolean; user: { name: string; role: string; avatar?: string } | null; cartCount: number; wishlist: string[] };
 const initial: SessionState = { loaded: false, user: null, cartCount: 0, wishlist: [] };
 let state = initial;
 const listeners = new Set<() => void>();

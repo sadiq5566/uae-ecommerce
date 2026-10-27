@@ -4,6 +4,7 @@ import { isLocale } from "@/lib/i18n";
 import { requireUser } from "@/lib/auth/guard";
 import { isStaff } from "@/lib/auth/permissions";
 import { PasswordForm, ProfileForm } from "@/features/account/profile-form";
+import { AvatarUploader } from "@/features/account/avatar-uploader";
 import { privatePage } from "@/lib/page-meta";
 
 export const generateMetadata = privatePage((t) => t.account.title);
@@ -16,6 +17,7 @@ export default async function AccountPage({ params }: PageProps<"/[lang]/account
   return (
     <>
       {isStaff(user.role) && <p className="mb-6 inline-block rounded-full bg-gold-soft px-4 py-1.5 text-xs font-semibold text-gold-ink">{t.account.staff}: {user.role}</p>}
+      <div className="mb-8"><AvatarUploader t={t} name={user.name} avatar={user.avatar} /></div>
       <ProfileForm t={t} user={{ name: user.name, email: user.email, phone: user.phone, locale: user.locale }} />
       <h2 className="mb-4 mt-12 font-display text-xl font-bold">{t.account.security}</h2>
       <PasswordForm t={t} />
