@@ -14,6 +14,7 @@ const userSchema = new Schema(
     locale: { type: String, enum: ["en", "ar"], default: "en" },
     // Bounded list (see WISHLIST_MAX) — avoids unbounded embedded arrays.
     wishlist: [{ type: Schema.Types.ObjectId, ref: "Product" }],
+    referralCode: { type: String, uppercase: true, trim: true, index: { unique: true, sparse: true } }, // "invite a friend" code, made on first use
     emailVerifiedAt: Date, // proven by a one-time code; web credit and old-order linking require it
     lastLoginAt: Date,
   },

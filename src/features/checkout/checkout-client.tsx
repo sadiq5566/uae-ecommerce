@@ -14,6 +14,7 @@ import type { PublicOffers } from "@/features/offers/shared";
 import type { PublicCoupon } from "@/features/offers/service";
 import type { AddressView } from "@/features/account/service";
 import { placeOrderAction, quoteAction, type PlaceState, type Quote } from "./actions";
+import { rememberCartEmailAction } from "@/features/growth/actions";
 
 type Method = "card" | "apple_pay" | "google_pay" | "tabby" | "cod";
 type Item = { sku: string; name: string; variant?: string; qty: number; icon: string; hue: number; image?: string; unitPrice: number; listPrice: number; lineTotal: number };
@@ -33,6 +34,8 @@ export function CheckoutClient({ locale, t, addresses, methods, items, testMode,
   const [dPhone, setDPhone] = useState(""); const [dEmail, setDEmail] = useState("");
   useEffect(() => { const id = setTimeout(() => { setDPhone(g.phone); setDEmail(g.email); }, 500); return () => clearTimeout(id); }, [g.phone, g.email]);
   const router = useRouter();
+  // Guests: remember the typed email so an abandoned bag can be followed up (once, after an hour).
+  useEffect(() => { if (guest && /^\S+@\S+\.\S+$/.test(dEmail)) void rememberCartEmailAction(dEmail, locale); }, [guest, dEmail, locale]);
   // One key per mounted checkout: re-submitting this form can never create a second order.
   const [idempotencyKey] = useState(() => crypto.randomUUID());
   const [addressId, setAddressId] = useState(addresses.find((a) => a.isDefault)?.id ?? addresses[0]?.id ?? "");

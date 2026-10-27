@@ -189,7 +189,7 @@
     "required": "This field is required.",
     "too_long": "Too long.",
     "reset_invalid": "This reset link is invalid or has expired.",
-    "not_found": "Not found.",
+    "not_found": "We couldn't find this product.",
     "address_limit": "You can save up to 10 addresses.",
     "auth": "Please sign in first.",
     "empty_cart": "Your cart is empty.",
@@ -218,7 +218,8 @@
     "otp_locked": "Too many wrong codes. Request a new code.",
     "otp_wait": "Please wait a moment before asking for another code.",
     "credit_insufficient": "Your web credit changed. Please review your order and try again.",
-    "verify_required": "Please verify your email first (from your account) to write a review."
+    "verify_required": "Please verify your email first (from your account) to write a review.",
+    "in_stock": "Good news — it's back in stock right now."
   },
   "auth": {
     "loginTitle": "Sign in",
@@ -661,5 +662,25 @@
       "used": "Used",
       "expired": "Expired"
     }
+  },
+  "growth": {
+    "notifyTitle": "Sold out? We'll email you the moment it's back.",
+    "notifyEmail": "Your email",
+    "notifyBtn": "Notify me",
+    "notifyBtnTo": "Notify me at {email}",
+    "notifyDone": "Done! We'll email you when it's back in stock.",
+    "inviteTab": "Invite friends",
+    "inviteTitle": "Invite a friend",
+    "inviteHead": "Give a friend {amount}, get {amount}",
+    "inviteBody": "When a friend places their first order with your link and it is delivered, you both get {amount} of web credit.",
+    "inviteCopy": "Copy link",
+    "inviteCode": "Your invite code",
+    "inviteEarned": "Credit earned",
+    "invitePaid": "Friends rewarded",
+    "invitePending": "Waiting for delivery",
+    "inviteVerify": "Verify your email to get your invite link.",
+    "inviteRule1": "The reward is for a friend's FIRST order; it is paid after that order is delivered.",
+    "inviteRule2": "You can't use your own link, and each order rewards once.",
+    "inviteRule3": "Web credit is valid for 90 days and is used first at checkout."
   }
 }

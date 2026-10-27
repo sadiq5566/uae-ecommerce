@@ -13,9 +13,13 @@ export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
   if (pathname === "/admin" || pathname.startsWith("/admin/")) return; // admin is English-only and lives outside /[lang]
   const hasLocale = locales.some((l) => pathname === `/${l}` || pathname.startsWith(`/${l}/`));
-  if (hasLocale) return;
+  // A friend's invite link (?ref=CODE): remember it for 30 days so it still counts at checkout. A bad value is ignored.
+  const ref = req.nextUrl.searchParams.get("ref");
+  const refCookie = ref && /^[A-Z0-9-]{4,16}$/i.test(ref) ? ref.toUpperCase() : null;
+  const withRef = (res: NextResponse) => { if (refCookie) res.cookies.set("ref", refCookie, { path: "/", maxAge: 30 * 86400, sameSite: "lax", httpOnly: true }); return res; };
+  if (hasLocale) return refCookie ? withRef(NextResponse.next()) : undefined;
   req.nextUrl.pathname = `/${pickLocale(req)}${pathname === "/" ? "" : pathname}`;
-  return NextResponse.redirect(req.nextUrl);
+  return withRef(NextResponse.redirect(req.nextUrl));
 }
 
 export const config = {

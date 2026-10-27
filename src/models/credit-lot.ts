@@ -1,6 +1,6 @@
 import { Schema, model, models, type Model, type Types } from "mongoose";
 
-export const CREDIT_SOURCES = ["return", "admin"] as const;
+export const CREDIT_SOURCES = ["return", "admin", "referral"] as const;
 export type CreditSource = (typeof CREDIT_SOURCES)[number];
 
 /**

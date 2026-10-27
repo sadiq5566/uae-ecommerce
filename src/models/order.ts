@@ -38,6 +38,9 @@ const orderSchema = new Schema(
     },
     coupon: { code: String, discount: Number },
     // Web credit spent on this order: which lots paid how much (fils), so a cancelled order can give it back exactly once.
+    // A first order that came through a friend's invite link: both get web credit once it is delivered.
+    referral: { _id: false, code: String, referrer: Schema.Types.ObjectId, rewardedAt: Date },
+    reviewRequestedAt: Date, // the "how was it? write a review" email went out
     credit: { _id: false, amountFils: Number, lots: [{ _id: false, lot: Schema.Types.ObjectId, fils: Number }], restoredAt: Date },
     offer: { kind: String, percent: Number, discount: Number }, // automatic offer applied (tier / first_order)
     payment: {
@@ -66,6 +69,8 @@ export interface OrderDoc {
   delivery: { zone: string; zoneName: L10n; estimate: L10n };
   totals: { listSubtotal: number; itemDiscounts: number; subtotal: number; couponDiscount: number; offerDiscount?: number; deliveryFee: number; codFee: number; credit?: number; tax: number; taxIncluded: boolean; total: number; currency: string };
   coupon?: { code: string; discount: number };
+  referral?: { code: string; referrer: Types.ObjectId; rewardedAt?: Date };
+  reviewRequestedAt?: Date;
   credit?: { amountFils: number; lots: { lot: Types.ObjectId; fils: number }[]; restoredAt?: Date };
   offer?: { kind: "tier" | "first_order"; percent?: number; discount: number };
   payment: { method: PaymentMethod; status: PaymentStatus; provider?: string; providerRef?: string; amount?: number; paidAt?: Date; failureReason?: string };

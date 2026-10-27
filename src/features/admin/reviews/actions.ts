@@ -5,6 +5,7 @@ import { actor } from "@/lib/admin/guard";
 import { audit } from "@/lib/admin/audit";
 import { connectDb } from "@/lib/db";
 import { recalcRating } from "@/features/reviews/service";
+import { rewardApprovedReview } from "@/features/growth/reviews";
 import { Review, REVIEW_STATUSES, type ReviewStatus } from "@/models/review";
 
 /** Approve / reject / hide a review. Ratings on the product are recalculated from approved reviews. */
@@ -16,6 +17,7 @@ export async function moderateReviewAction(fd: FormData) {
   const r = await Review.findByIdAndUpdate(id, { status: to, moderatedBy: user.id, moderatedAt: new Date(), ...(to === "approved" ? { flagCount: 0 } : {}) }, { returnDocument: "after" });
   if (!r) return;
   await recalcRating(r.product);
+  if (to === "approved") await rewardApprovedReview(r._id).catch((e) => console.warn("[growth] review reward failed:", (e as Error).message)); // verified purchase → thank-you coupon
   await audit(user, `review.${to}`, "review", id, `Review set to ${to}`);
   revalidatePath("/admin/reviews"); revalidatePath("/[lang]/p/[slug]", "page"); revalidatePath("/[lang]", "layout");
 }

@@ -11,9 +11,10 @@ import { fmt } from "@/lib/format";
 import type { Dictionary } from "@/lib/dictionaries";
 import { colorInStock, pickVariant, sizeInStock, swatchFor, variantOptions } from "../../../lib/variants";
 import type { ProductDetail } from "./service";
+import { NotifyWhenBack } from "@/features/growth/notify-form";
 
 /** Price/stock display and add-to-cart. Display-only: the server recomputes everything at checkout (Phase 4). */
-export function ProductBuy({ p, locale, t, vi, setVi }: { p: ProductDetail; locale: Locale; t: Dictionary; vi: number; setVi: (i: number) => void }) {
+export function ProductBuy({ p, locale, t, vi, setVi, email }: { p: ProductDetail; locale: Locale; t: Dictionary; vi: number; setVi: (i: number) => void; email?: string }) {
   const toast = useToast();
   const router = useRouter();
   const [qty, setQty] = useState(1);
@@ -91,6 +92,7 @@ export function ProductBuy({ p, locale, t, vi, setVi }: { p: ProductDetail; loca
           <output aria-live="polite" className="w-8 text-center font-semibold tabular-nums">{q}</output>
           <button type="button" aria-label="+" disabled={q >= max} onClick={() => setQty(q + 1)} className="size-11 text-lg disabled:opacity-40">+</button>
         </div>
+        {stock === 0 && <div className="w-full"><NotifyWhenBack sku={v?.sku ?? p.sku} locale={locale} t={t} email={email} /></div>}
         <button
           disabled={stock === 0 || pending}
           onClick={() => start(async () => {

@@ -1,5 +1,5 @@
 "use server";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/session";
 import { getGuestId } from "@/features/cart/service";
@@ -109,7 +109,7 @@ export async function placeOrderAction(_: PlaceState, fd: FormData): Promise<Pla
   const expected = Number(fd.get("expectedTotal"));
   const res = await placeOrder({
     userId: user?.id, guestId: guestId ?? (buy ? `buy-${owner}` : undefined), email, locale, addressId: address ? undefined : String(fd.get("addressId") ?? ""), address, buy, method: m,
-    useCredit: !!user && fd.get("useCredit") === "1", couponCode: String(fd.get("couponCode") ?? "").slice(0, 40) || undefined, idempotencyKey: String(fd.get("idempotencyKey") ?? ""),
+    useCredit: !!user && fd.get("useCredit") === "1", referralCode: (await cookies()).get("ref")?.value, couponCode: String(fd.get("couponCode") ?? "").slice(0, 40) || undefined, idempotencyKey: String(fd.get("idempotencyKey") ?? ""),
     expectedTotal: Number.isFinite(expected) ? expected : undefined, returnBase,
   });
   if (!res.ok) return { error: res.error, detail: res.detail, total: res.total };

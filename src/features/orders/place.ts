@@ -11,6 +11,7 @@ import { prepare, type CheckoutError, type InlineAddress } from "@/features/chec
 import { toFils } from "@/features/checkout/money";
 import { captureLead } from "@/features/offers/leads";
 import { restoreOrderCredit, spendCredit } from "@/features/credit/service";
+import { resolveReferrer } from "@/features/growth/referrals";
 import { notifyOrder } from "./notify";
 import { releaseStock, reserveStock } from "./stock";
 
@@ -19,7 +20,7 @@ export const newOrderNumber = () => "UAE-" + Array.from(randomBytes(8), (b) => A
 
 export type PlaceInput = {
   userId?: string; guestId?: string; email?: string; locale: "en" | "ar"; addressId?: string; address?: InlineAddress; buy?: { sku: string; qty: number };
-  method: PaymentMethod; couponCode?: string; useCredit?: boolean; idempotencyKey: string; expectedTotal?: number; returnBase: string;
+  method: PaymentMethod; couponCode?: string; useCredit?: boolean; referralCode?: string; idempotencyKey: string; expectedTotal?: number; returnBase: string;
 };
 export type PlaceResult =
   | { ok: true; orderNumber: string; trackToken?: string; guest?: boolean; redirectUrl?: string; duplicate?: boolean; paymentError?: boolean }
@@ -55,6 +56,7 @@ export async function placeOrder(input: PlaceInput): Promise<PlaceResult> {
   if (online && !provider) return { ok: false, error: "method_unavailable" };
   if (p.method === "tabby" && !input.email?.trim()) return { ok: false, error: "email_required" }; // Tabby needs a contact email
 
+  const referrer = input.referralCode && p.firstOrder ? await resolveReferrer(input.referralCode, { userId: input.userId, email: input.email }) : null;
   const t = p.totals;
   const now = new Date();
   const creditAed = p.credit.appliedFils / 100;
@@ -74,6 +76,8 @@ export async function placeOrder(input: PlaceInput): Promise<PlaceResult> {
     delivery: { zone: p.zone.key, zoneName: p.zone.name, estimate: p.zone.estimate },
     totals: { listSubtotal: t.listSubtotal, itemDiscounts: t.itemDiscounts, subtotal: t.subtotal, couponDiscount: t.couponDiscount, offerDiscount: t.offerDiscount, deliveryFee: t.deliveryFee, codFee: t.codFee, credit: creditAed, tax: t.tax, taxIncluded: t.taxIncluded, total: p.credit.payable, currency: "AED" },
     coupon: p.coupon ? { code: p.coupon.rule.code, discount: t.couponDiscount } : undefined,
+    // A friend's invite link counts only on a first order, never for the buyer's own code; the reward is paid after delivery.
+    ...(referrer ? { referral: { code: input.referralCode!.toUpperCase(), referrer: new Types.ObjectId(referrer) } } : {}),
     offer: t.offer && t.offer.kind !== "coupon" ? { kind: t.offer.kind, percent: t.offer.percent, discount: t.offerDiscount } : undefined,
     payment: covered ? { method: "credit", status: "paid", amount: 0, paidAt: now } : { method: p.method, status: online ? "pending" : "cod_pending", provider: provider?.id, amount: p.credit.payable },
     expiresAt: online ? new Date(now.getTime() + p.settings.pendingPaymentMinutes * 60_000) : undefined,
