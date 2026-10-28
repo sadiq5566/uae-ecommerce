@@ -24,9 +24,9 @@
     "copy-db": "tsx --env-file=.env.local scripts/copy-db.ts",
     "db:init": "tsx --env-file=.env.local scripts/db-init.ts",
     "db:recategorize": "tsx --env-file=.env.local scripts/recategorize.ts",
-    "db:seo-fix": "tsx --env-file=.env.local scripts/seo-fix.ts",
-    "db:seo-rename": "tsx --env-file=.env.local scripts/seo-rename.ts",
-    "db:add-belts": "tsx --env-file=.env.local scripts/add-belts.ts",
+    "db:seo-fix": "tsx --env-file=.env scripts/seo-fix.ts",
+    "db:seo-rename": "tsx --env-file=.env scripts/seo-rename.ts",
+    "db:add-belts": "tsx --env-file=.env scripts/add-belts.ts",
     "db:merge-variants": "tsx --env-file=.env.local scripts/merge-variants.ts",
     "fix-bag-photos": "python scripts/fix_bag_photos.py",
     "fix-bag-photos:apply": "python scripts/fix_bag_photos.py --apply"
