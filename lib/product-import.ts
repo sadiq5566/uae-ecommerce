@@ -5,6 +5,7 @@ import { slugify } from "./utils";
 import { guessCategory, resolveCategory } from "./category";
 import { brandFromCategorySlug, inferBrand, isPlaceholderBrand, looksLikeBrand } from "./brands";
 import { VARIANTS_FIELD } from "./import-group";
+import { STORE_NAME, cleanName, hasSupplierName, productCopy, resolveBrand, stripSupplier } from "./seo-copy";
 
 export type ImportItem = { line: number; record: Record<string, string> };
 export type RowResult = {
@@ -108,7 +109,7 @@ export async function validateRecords(items: ImportItem[]): Promise<RowResult[]>
     seenSku.add(sku.toLowerCase());
 
     const old = existing.get(sku);
-    const input: Record<string, any> = old ? baseFromExisting(old) : { sku, brand: "Carts Heaven", status: "draft", currency: "AED", variants: [], highlights: [], isNewArrival: false, isFeatured: false, isMostWanted: false, seo: {} };
+    const input: Record<string, any> = old ? baseFromExisting(old) : { sku, brand: STORE_NAME, status: "draft", currency: "AED", variants: [], highlights: [], isNewArrival: false, isFeatured: false, isMostWanted: false, seo: {} };
     const has = (k: string) => (r[k] ?? "") !== "";
 
     if (has("name")) input.name = clip(r.name, 200);
@@ -133,6 +134,11 @@ export async function validateRecords(items: ImportItem[]): Promise<RowResult[]>
     if (has("highlights")) input.highlights = split(r.highlights);
     if (has("tags")) input.tags = split(r.tags);
     if (has("images")) input.images = split(r.images).map((url) => ({ url, alt: input.name ?? "" }));
+    // Supplier files name the shop they were copied from (Rimal, Carts Heaven): never keep that in our catalogue.
+    for (const k of ["brand", "shortDescription", "longDescription", "model", "finish", "subcategory"] as const) if (typeof input[k] === "string") input[k] = stripSupplier(input[k]);
+    if (typeof input.name === "string") input.name = cleanName(input.name);
+    if (has("seo_title")) input.seo = { ...input.seo, title: clip(stripSupplier(r.seo_title), 70) };
+    if (has("seo_description")) input.seo = { ...input.seo, description: clip(stripSupplier(r.seo_description), 160) };
     if (has("currency") && r.currency.toUpperCase() !== "AED") errors.push(`currency: only AED is supported (got "${r.currency}")`);
 
     for (const [col, key] of [["price_from", "priceFrom"], ["price_to", "priceTo"]] as const) {
@@ -200,11 +206,18 @@ export async function validateRecords(items: ImportItem[]): Promise<RowResult[]>
 
     if (!input.shortDescription && input.longDescription) input.shortDescription = String(input.longDescription).slice(0, 160);
     // No brand in the file (or just the shop's own name): take it from the product name ("Zegna Suede Sneakers" -> Zegna).
-    if (!has("brand") && isPlaceholderBrand(input.brand)) input.brand = inferBrand(String(input.name ?? "")) ?? input.brand;
+    if (isPlaceholderBrand(input.brand) || hasSupplierName(input.brand)) input.brand = resolveBrand(input.brand, String(input.name ?? ""));
     if (!input.finish && has("color")) input.finish = r.color;
     else if (!input.finish && input.variants?.[0]?.color) input.finish = input.variants[0].color;
     if (!input.category) input.category = resolveCategory("", [input.name, input.subcategory, ...(input.tags ?? [])].filter(Boolean).join(" "));
     if (!input.subcategory && !old) input.subcategory = "general";
+
+    // Search-engine title and description: whatever the file left empty is written from the name, brand and category.
+    if (input.name && input.category && (!input.seo?.title || !input.seo?.description)) {
+      const colors = (input.variants ?? []).map((v: any) => v.color).filter(Boolean);
+      const c = productCopy({ sku, name: String(input.name), brand: input.brand, category: String(input.category), colors });
+      input.seo = { title: input.seo?.title || c.seoTitle, description: input.seo?.description || c.seoDescription };
+    }
 
     if (!old) {
       const need: [string, unknown][] = [["name", input.name], ["price_to", input.priceTo], ["images", input.images?.length], ["short_description or long_description", input.shortDescription]];

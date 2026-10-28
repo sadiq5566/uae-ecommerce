@@ -35,6 +35,8 @@ const ProductSchema = new Schema(
     viewCount: { type: Number, default: 0 },
     soldCount: { type: Number, default: 0 },
     seo: { title: String, description: String },
+    // Arabic text of the product (the catalogue name/description in English is what search engines see on /en pages; /ar pages show these).
+    nameAr: String, shortDescriptionAr: String, longDescriptionAr: String, seoAr: { title: String, description: String },
   },
   { timestamps: true },
 );

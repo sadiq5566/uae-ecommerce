@@ -1,4 +1,7 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { alternatesFor, homeDescription, homeTitle } from "@/features/catalog/seo";
+import { getBrand } from "@/lib/email";
 import { getDictionary } from "@/lib/dictionaries";
 import { isLocale } from "@/lib/i18n";
 import { getCategories, getCollection, getShowcase } from "@/features/catalog/service";
@@ -9,6 +12,13 @@ import { Hero, type HeroSlide } from "@/features/home/hero";
 import { CategoryShowcase, CategorySpotlight, Journal, ProductSection, TrustBar } from "@/features/home/sections";
 
 export const revalidate = 60; // home content refreshes at most once a minute (admin saves also revalidate it)
+
+export async function generateMetadata({ params }: PageProps<"/[lang]">): Promise<Metadata> {
+  const { lang } = await params;
+  if (!isLocale(lang)) return {};
+  const title = homeTitle(lang, (await getBrand(lang)).name), description = homeDescription(lang);
+  return { title: { absolute: title }, description, alternates: alternatesFor(lang, ""), openGraph: { title, description, url: `/${lang}` }, twitter: { title, description } };
+}
 
 export default async function Home({ params }: PageProps<"/[lang]">) {
   const { lang } = await params;

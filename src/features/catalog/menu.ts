@@ -10,6 +10,7 @@ export const MAIN_CATEGORIES = [
   { slug: "footwear", label: { en: "Shoes", ar: "الأحذية" }, tagline: { en: "Step out in style", ar: "خطوة بأناقة" }, hue: 15 },
   { slug: "glasses", label: { en: "Glasses", ar: "النظارات" }, tagline: { en: "Sunglasses & frames", ar: "نظارات شمسية وإطارات" }, hue: 215 },
   { slug: "caps", label: { en: "Caps", ar: "القبعات" }, tagline: { en: "Finish the look", ar: "أكمل إطلالتك" }, hue: 25 },
+  { slug: "belts", label: { en: "Belts", ar: "الأحزمة" }, tagline: { en: "The detail that completes it", ar: "التفصيل الذي يكمل إطلالتك" }, hue: 30 },
 ] as const;
 export const MAIN_SLUGS: string[] = MAIN_CATEGORIES.map((c) => c.slug);
 

@@ -138,7 +138,7 @@ export async function saveCategoryAction(_: FormState, fd: FormData): Promise<Fo
   if (!parsed.success) return fail(issues(parsed.error), fd);
   const c = parsed.data;
   await connectDb();
-  const base = { slug: c.slug || slugify(c.name), name: c.name, description: c.description, image: c.image || "", type: c.type, parent: c.parent, sortOrder: c.sortOrder };
+  const base = { slug: c.slug || slugify(c.name), name: c.name, description: c.description, image: c.image || "", type: c.type, parent: c.parent, sortOrder: c.sortOrder, seo: { title: c.seoTitle || undefined, description: c.seoDesc || undefined } };
   try {
     if (c.id) {
       if (!Types.ObjectId.isValid(c.id)) return { error: "Not found" };

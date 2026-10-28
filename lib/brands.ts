@@ -8,8 +8,17 @@ const BRANDS: Record<string, string[]> = {
   Goyard: [], Montblanc: [], Polène: ["Polene"], Balenciaga: [], "Bottega Veneta": [], Celine: ["Céline"], Fendi: [], Givenchy: [], Loewe: [],
   "Miu Miu": [], Burberry: [], Versace: [], Valentino: [], Zegna: ["Ermenegildo Zegna"], "Loro Piana": [], "Tom Ford": [], Berluti: [],
   "Jimmy Choo": [], "Christian Louboutin": ["Louboutin"], "Manolo Blahnik": [], "Salvatore Ferragamo": ["Ferragamo"], "Golden Goose": [], Hogan: [],
-  Rimowa: [], "Ray-Ban": [],
+  Rimowa: [], "Ray-Ban": [], "On Cloud": ["On Running"], Nike: ["نايكي"], "Polo Ralph Lauren": ["Ralph Lauren"], "Calvin Klein": ["كالفن كلاين"], Diesel: [], BOSS: ["Hugo Boss"],
+  Coach: [], Dolce: ["Dolce & Gabbana"], Armani: ["Emporio Armani", "Giorgio Armani"], Moncler: [],
 };
+
+/** Arabic spellings used in product names (the shop's data is partly in Arabic). */
+const ARABIC: Record<string, string[]> = {
+  Hermès: ["هيرميس", "هيرمس"], "Louis Vuitton": ["لويس فويتون", "لويس فيتون", "لوي فيتون", "لوي فويتون", "لويس فيتون"], Gucci: ["غوتشي", "قوتشي", "جوتشي"], Cartier: ["كارتييه", "كارتير"], Dior: ["ديور"],
+  Rolex: ["رولكس"], "Loro Piana": ["لورو بيانا"], Goyard: ["جويارد", "غويارد", "جويار"], Zegna: ["زيجنا", "زينيا"], "Audemars Piguet": ["أوديمار بيغيه", "اوديمار بيغيه"], "Patek Philippe": ["باتيك فيليب"],
+  Chanel: ["شانيل"], Prada: ["برادا"], "Saint Laurent": ["سان لوران"], Montblanc: ["مون بلان", "مونت بلانك"], Burberry: ["بربري"], Fendi: ["فندي"], Balenciaga: ["بالنسياغا"],
+};
+for (const [name, aliases] of Object.entries(ARABIC)) BRANDS[name] = [...(BRANDS[name] ?? []), ...aliases];
 
 /** Names a shop uses for itself when a product has no real brand; they count as "no brand". */
 const PLACEHOLDER_BRANDS = ["carts heaven", "rimal uae", "rimal", "lune", "amara", "wrist gallery", ""];

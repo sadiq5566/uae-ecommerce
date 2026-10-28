@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { getDictionary } from "@/lib/dictionaries";
 import { formatAED, isLocale } from "@/lib/i18n";
 import { fmt } from "@/lib/format";
+import { alternatesFor } from "@/features/catalog/seo";
 import { getPublicCoupons, getPublicOffers, offerLines } from "@/features/offers/service";
 import { CopyCode } from "@/features/offers/copy-code";
 
@@ -13,7 +14,7 @@ export async function generateMetadata({ params }: PageProps<"/[lang]/offers">):
   const { lang } = await params;
   if (!isLocale(lang)) return {};
   const t = await getDictionary(lang);
-  return { title: t.offers.page.title, description: t.offers.page.sub, alternates: { canonical: `/${lang}/offers`, languages: { en: "/en/offers", ar: "/ar/offers" } } };
+  return { title: t.offers.page.title, description: t.offers.page.sub, alternates: alternatesFor(lang, "/offers") };
 }
 
 export default async function OffersPage({ params }: PageProps<"/[lang]/offers">) {

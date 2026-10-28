@@ -16,6 +16,8 @@ import { ScrollToAlert } from "@/components/scroll-to-alert";
 import { ScrollToTop } from "@/components/scroll-to-top";
 import { getPublicOffers, offerLines } from "@/features/offers/service";
 import { WelcomeModal } from "@/features/offers/welcome-modal";
+import { alternatesFor, GEO_META, siteJsonLd } from "@/features/catalog/seo";
+import { getBrand } from "@/lib/email";
 
 const latin = Inter({ subsets: ["latin"], variable: "--font-latin", display: "swap" });
 const display = Fraunces({ subsets: ["latin"], variable: "--font-display-latin", display: "swap" });
@@ -33,8 +35,10 @@ export async function generateMetadata({ params }: LayoutProps<"/[lang]">): Prom
     metadataBase: new URL(base),
     title: { default: t.brand, template: `%s · ${t.brand}` },
     description: t.hero.subtitle,
-    alternates: { canonical: `/${lang}`, languages: { en: "/en", ar: "/ar" } },
-    openGraph: { title: t.brand, description: t.hero.subtitle, locale: lang === "ar" ? "ar_AE" : "en_AE", type: "website" },
+    alternates: alternatesFor(lang, ""),
+    openGraph: { siteName: t.brand, title: t.brand, description: t.hero.subtitle, locale: lang === "ar" ? "ar_AE" : "en_AE", alternateLocale: lang === "ar" ? "en_AE" : "ar_AE", type: "website" },
+    twitter: { card: "summary_large_image", title: t.brand, description: t.hero.subtitle },
+    other: GEO_META,
   };
 }
 
@@ -49,10 +53,13 @@ export default async function RootLayout({ children, params }: LayoutProps<"/[la
   const [t, categories, offers] = await Promise.all([getDictionary(lang), getNavCategories(), getPublicOffers()]);
   const menu = buildMenu(categories, await getShowcase().catch(() => ({})), await getStoreBrands().catch(() => []));
   const lines = offerLines(offers, t, lang);
+  const brand = await getBrand(lang);
+  const ld = siteJsonLd({ base: brand.url, name: brand.name, lang, logo: brand.logo, email: brand.supportEmail, whatsapp: process.env.NEXT_PUBLIC_WHATSAPP_NUMBER });
   return (
     <html lang={lang} dir={dirOf(lang)} data-scroll-behavior="smooth" suppressHydrationWarning className={`${latin.variable} ${display.variable} ${arabic.variable}`}>
       <head><script dangerouslySetInnerHTML={{ __html: themeScript }} /></head>
       <body className="flex min-h-dvh flex-col antialiased">
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ld).replace(/</g, "\\u003c") }} />
         <ToastProvider>
           <SessionBootstrap />
           <ScrollToAlert />

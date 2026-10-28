@@ -55,6 +55,7 @@ export const categorySchema = z.object({
   type: z.enum(["category", "style", "finish", "curated"]),
   parent: z.string().trim().toLowerCase().optional().transform((v) => v || undefined),
   sortOrder: int("Order", 10_000).default(0),
+  seoTitle: text(70), seoDesc: text(160),
 }).superRefine((c, ctx) => {
   if (c.type === "category" && !c.parent) ctx.addIssue({ code: "custom", path: ["parent"], message: "A category collection needs the category slug (e.g. watches)" });
 });

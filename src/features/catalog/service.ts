@@ -45,7 +45,7 @@ const hueOf = (s: string) => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) 
 function card(p: Doc): ProductCardData {
   const price = Math.max(p.priceFrom ?? 0, p.priceTo ?? 0);
   return {
-    id: String(p._id), slug: p.slug, sku: p.sku, name: both(p.name), price, finalPrice: p.priceTo,
+    id: String(p._id), slug: p.slug, sku: p.sku, name: { en: p.name, ar: p.nameAr || p.name }, price, finalPrice: p.priceTo,
     icon: ICONS[p.category] ?? "📦", hue: hueOf(p.category ?? ""), ratingAvg: p.ratingAvg ?? 0, ratingCount: p.ratingCount ?? 0, stock: p.stock ?? 0,
     image: p.images?.[0]?.url, image2: p.images?.[1]?.url, brand: p.brand, hasVariants: (p.variants?.length ?? 0) > 0,
   };
@@ -55,6 +55,7 @@ const catView = (slug: string, doc?: Doc): CategoryView => ({
   id: slug, slug, name: both(String(doc?.name ?? categoryLabel(slug)).replace(/^All /, "")), description: doc?.description ? both(doc.description) : undefined, parent: null,
   icon: ICONS[slug] ?? "📦", hue: hueOf(slug), image: doc?.image || undefined,
   attributes: [{ key: "color", label: both("Colour") }, { key: "size", label: both("Size") }],
+  seo: doc?.seo?.title || doc?.seo?.description ? { title: doc.seo.title ? both(doc.seo.title) : undefined, description: doc.seo.description ? both(doc.seo.description) : undefined } : undefined,
 });
 
 // Categories = every category value on a published product, enriched by its Collection document (type "category"). Cached 60 s.
@@ -123,7 +124,7 @@ const SORT = {
 export type Facets = { brands: { value: string; count: number }[]; price: { min: number; max: number }; attrs: Record<string, { value: string; count: number }[]> };
 
 /** Only what a product card shows (first image only) — avoids loading descriptions and every gallery image per row. */
-const CARD_PROJECTION = { slug: 1, sku: 1, name: 1, category: 1, priceFrom: 1, priceTo: 1, ratingAvg: 1, ratingCount: 1, stock: 1, brand: 1, "variants.sku": 1, images: { $slice: 2 } };
+const CARD_PROJECTION = { slug: 1, sku: 1, name: 1, nameAr: 1, category: 1, priceFrom: 1, priceTo: 1, ratingAvg: 1, ratingCount: 1, stock: 1, brand: 1, "variants.sku": 1, images: { $slice: 2 } };
 
 async function computeFacets(base: QueryFilter<Doc>, allowedAttrs: string[]): Promise<Facets> {
   const keys = allowedAttrs.filter((k) => ATTR_FIELD[k]);
@@ -202,13 +203,13 @@ export async function getProductBySlug(slug: string) {
   if (!p) return null;
   const text = p.longDescription || p.shortDescription || "";
   const detail: ProductDetail = {
-    ...card(p), description: both(text), category: p.category, attrs: {},
+    ...card(p), description: { en: text, ar: p.longDescriptionAr || p.shortDescriptionAr || text }, category: p.category, attrs: {},
     variants: (p.variants ?? []).map((v: Doc) => ({
       sku: v.sku, label: both([v.color, v.size].filter(Boolean).join(" / ") || v.sku), stock: v.stock ?? 0, price: v.price ?? p.priceTo,
       image: v.image || undefined, swatch: v.color ? swatchFor(v.color) : undefined, color: v.color || undefined, size: v.size || undefined,
     })),
     specs: [["Brand", p.brand], ["Model", p.model], ["Finish", p.finish]].filter(([, v]) => v).map(([k, v]) => ({ label: both(k), value: both(v) })),
-    lowStockThreshold: p.lowStockThreshold ?? 5, images: (p.images ?? []).map((i: Doc) => ({ url: i.url, alt: both(i.alt || p.name) })), seo: p.seo?.title || p.seo?.description ? { title: p.seo.title ? both(p.seo.title) : undefined, description: p.seo.description ? both(p.seo.description) : undefined } : undefined,
+    lowStockThreshold: p.lowStockThreshold ?? 5, images: (p.images ?? []).map((i: Doc) => ({ url: i.url, alt: both(i.alt || p.name) })), seo: p.seo?.title || p.seo?.description ? { title: p.seo.title ? { en: p.seo.title, ar: p.seoAr?.title || p.seo.title } : undefined, description: p.seo.description ? { en: p.seo.description, ar: p.seoAr?.description || p.seo.description } : undefined } : undefined,
   };
   return clean(detail);
 }
@@ -222,10 +223,10 @@ export async function getRelated(p: ProductDetail, limit = 4) {
 export async function getSitemapEntries() {
   await connectDb();
   const [products, cats] = await Promise.all([
-    ProductModel.find(ACTIVE, { slug: 1, updatedAt: 1 }).limit(5000).lean(),
+    ProductModel.find(ACTIVE, { slug: 1, updatedAt: 1, "images.url": 1 }).sort({ updatedAt: -1 }).limit(40000).lean(), // sitemap files hold at most 50,000 URLs (2 languages each = 80,000 here, so keep well under)
     getCategories(),
   ]);
-  return { products: (products as unknown as { slug: string; updatedAt: Date }[]).map((p) => ({ slug: p.slug, updatedAt: p.updatedAt })), categories: cats.map((c) => c.slug) };
+  return { products: (products as unknown as { slug: string; updatedAt: Date; images?: { url: string }[] }[]).map((p) => ({ slug: p.slug, updatedAt: p.updatedAt, image: p.images?.[0]?.url })), categories: cats.map((c) => c.slug) };
 }
 
 /** Counted view with abuse guard handled by the caller (see api/views). */
@@ -255,7 +256,7 @@ export async function suggest(q: string, limit = 6): Promise<Suggestion[]> {
   const term = q.trim().slice(0, 60);
   if (term.length < 2) return [];
   await connectDb();
-  const proj = { slug: 1, name: 1, category: 1, priceTo: 1, images: { $slice: 1 } } as const;
+  const proj = { slug: 1, name: 1, nameAr: 1, category: 1, priceTo: 1, images: { $slice: 1 } } as const;
   let rows = (await ProductModel.find({ ...ACTIVE, $text: { $search: term } }, proj).sort({ soldCount: -1 }).limit(limit).lean()) as unknown as Doc[];
   if (rows.length < limit) {
     const re = new RegExp(`(^|\\s)${escapeRe(term)}`, "i");
@@ -265,7 +266,7 @@ export async function suggest(q: string, limit = 6): Promise<Suggestion[]> {
   const cats = (await getCategories()).filter((c) => c.name.en.toLowerCase().includes(term.toLowerCase())).slice(0, 2);
   return [
     ...cats.map((c) => ({ type: "category" as const, slug: c.slug, name: c.name, icon: c.icon })),
-    ...rows.map((r) => ({ type: "product" as const, slug: r.slug, name: both(r.name), icon: ICONS[r.category] ?? "📦", price: r.priceTo, image: r.images?.[0]?.url || undefined })),
+    ...rows.map((r) => ({ type: "product" as const, slug: r.slug, name: { en: r.name, ar: r.nameAr || r.name }, icon: ICONS[r.category] ?? "📦", price: r.priceTo, image: r.images?.[0]?.url || undefined })),
   ].slice(0, limit);
 }
 

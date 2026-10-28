@@ -111,7 +111,7 @@ export async function getCategoryForm(id: string): Promise<CategoryFormData | nu
   await connectDb();
   const c = await Category.findById(id).lean();
   if (!c) return null;
-  return { id: String(c._id), slug: c.slug, name: c.name, description: c.description ?? "", image: c.image || undefined, type: c.type, parent: c.parent ?? undefined, sortOrder: c.sortOrder ?? 0 };
+  return { id: String(c._id), slug: c.slug, name: c.name, description: c.description ?? "", image: c.image || undefined, type: c.type, parent: c.parent ?? undefined, sortOrder: c.sortOrder ?? 0, seoTitle: c.seo?.title ?? "", seoDesc: c.seo?.description ?? "" };
 }
 
 export async function listCategoriesAdmin() {

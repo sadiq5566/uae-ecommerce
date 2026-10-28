@@ -1,6 +1,7 @@
 import "server-only";
 import { formatAED, type Locale } from "@/lib/i18n";
 import { getMailer } from "@/lib/mailer";
+import { alertAdminNewOrder } from "@/lib/admin-alert";
 import { absolute, button, emailLayout, esc, getBrand, h, p, rows, siteUrl } from "@/lib/email";
 import type { OrderDoc } from "@/models/order";
 
@@ -97,6 +98,10 @@ export async function notifyOrder(order: NotifyOrder, kind: Kind) {
     const msg = kind === "confirmation" ? c.confirmation(order.orderNumber, formatAED(order.totals?.total ?? 0, l))
       : kind === "payment_failed" ? c.payment_failed(order.orderNumber)
       : c.status(order.orderNumber, c.status_names[order.status] ?? order.status);
+    if (kind === "confirmation") {
+      const a = order.address;
+      await alertAdminNewOrder({ orderNumber: order.orderNumber, total: order.totals?.total ?? 0, name: a?.recipientName, phone: a?.phone, area: [a?.area, a?.emirate].filter(Boolean).join(", "), payment: order.payment?.method, items: (order.items ?? []).map((i) => ({ name: i.name.en, qty: i.qty })) });
+    }
     if (order.email) {
       const mail = await orderEmail(order, kind, msg.subject, l);
       await getMailer().send({ to: order.email, subject: mail.subject, text: msg.text, html: mail.html });

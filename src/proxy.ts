@@ -1,5 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { defaultLocale, isLocale, locales } from "@/lib/i18n";
+import slugRedirects from "@/lib/slug-redirects.json";
+
+/** Old product URLs (transliterated Arabic / import codes) -> current URL, as a real 308 so search engines move their ranking. Written by the slug-rename migration. */
+const moved = slugRedirects as Record<string, string>;
 
 function pickLocale(req: NextRequest) {
   const saved = req.cookies.get("locale")?.value;
@@ -12,6 +16,8 @@ function pickLocale(req: NextRequest) {
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
   if (pathname === "/admin" || pathname.startsWith("/admin/")) return; // admin is English-only and lives outside /[lang]
+  const old = /^\/(en|ar)\/p\/([^/]+)\/?$/.exec(pathname);
+  if (old && moved[old[2]]) { const url = req.nextUrl.clone(); url.pathname = `/${old[1]}/p/${moved[old[2]]}`; return NextResponse.redirect(url, 308); }
   const hasLocale = locales.some((l) => pathname === `/${l}` || pathname.startsWith(`/${l}/`));
   // A friend's invite link (?ref=CODE): remember it for 30 days so it still counts at checkout. A bad value is ignored.
   const ref = req.nextUrl.searchParams.get("ref");

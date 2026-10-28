@@ -6,7 +6,7 @@ import { getDictionary } from "@/lib/dictionaries";
 import { isLocale } from "@/lib/i18n";
 import { isFiltered, parseFilters } from "@/features/catalog/filters";
 import { Listing } from "@/features/catalog/listing";
-import { alternatesFor, noIndexIf } from "@/features/catalog/seo";
+import { alternatesFor, categoryTitle, noIndexIf, uaeDescription } from "@/features/catalog/seo";
 import { findSlugRedirect, getCategoryBySlug, listProducts } from "@/features/catalog/service";
 
 export async function generateMetadata({ params, searchParams }: PageProps<"/[lang]/c/[slug]">): Promise<Metadata> {
@@ -17,9 +17,10 @@ export async function generateMetadata({ params, searchParams }: PageProps<"/[la
   const { cat } = found;
   const f = parseFilters(await searchParams);
   return {
-    title: cat.seo?.title?.[lang] ?? cat.name[lang],
-    description: cat.seo?.description?.[lang] || cat.description?.[lang] || `${cat.name[lang]} — ${(await getDictionary(lang)).hero.subtitle}`,
+    title: cat.seo?.title?.[lang] ? { absolute: cat.seo.title[lang] } : categoryTitle(lang, cat.name[lang]),
+    description: cat.seo?.description?.[lang] || uaeDescription(lang, cat.description?.[lang] || cat.name[lang]),
     alternates: alternatesFor(lang, `/c/${slug}`),
+    openGraph: { title: cat.seo?.title?.[lang] ?? categoryTitle(lang, cat.name[lang]), type: "website", url: `/${lang}/c/${slug}`, ...(cat.image && { images: [cat.image] }) },
     robots: noIndexIf(isFiltered(f)),
   };
 }
@@ -41,7 +42,15 @@ export default async function CategoryPage({ params, searchParams }: PageProps<"
     ...(parent ? [{ label: parent.name[lang], href: `/${lang}/c/${parent.slug}` }] : []),
     { label: cat.name[lang] },
   ];
+  const base = (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, "");
+  const jsonLd = [
+    { "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: crumbs.map((c, i) => ({ "@type": "ListItem", position: i + 1, name: c.label, ...(c.href && { item: `${base}${c.href}` }) })) },
+    { "@context": "https://schema.org", "@type": "CollectionPage", name: cat.name[lang], url: `${base}/${lang}/c/${slug}`, inLanguage: lang === "ar" ? "ar-AE" : "en-AE",
+      mainEntity: { "@type": "ItemList", itemListElement: data.items.slice(0, 24).map((p, i) => ({ "@type": "ListItem", position: i + 1, url: `${base}/${lang}/p/${p.slug}`, name: p.name[lang] })) } },
+  ];
   return (
+    <>
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
     <Listing locale={lang} t={t} title={cat.name[lang]} subtitle={cat.description?.[lang]} crumbs={crumbs} path={`/${lang}/c/${slug}`} f={f} data={data} category={cat}>
       {children.length > 0 && (
         <nav aria-label={t.catalog.subcategories} className="mt-5 flex flex-wrap gap-2">
@@ -53,5 +62,6 @@ export default async function CategoryPage({ params, searchParams }: PageProps<"
         </nav>
       )}
     </Listing>
+    </>
   );
 }

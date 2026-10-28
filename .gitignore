@@ -44,3 +44,6 @@ next-env.d.ts
 
 # dev-only uploaded images (use object storage in production)
 /public/uploads/
+
+# DB backups written by scripts/seo-fix.ts
+/backups/

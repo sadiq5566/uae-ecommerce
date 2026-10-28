@@ -2,5 +2,5 @@
 import type { Model } from "mongoose";
 import { CollectionModel } from "../../lib/models/Collection";
 
-export type CategoryDoc = { slug: string; name: string; description?: string; image?: string; parent?: string; type: "category" | "style" | "finish" | "curated"; sortOrder: number };
+export type CategoryDoc = { slug: string; name: string; description?: string; image?: string; parent?: string; type: "category" | "style" | "finish" | "curated"; sortOrder: number; seo?: { title?: string; description?: string } };
 export const Category = CollectionModel as unknown as Model<CategoryDoc>;

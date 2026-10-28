@@ -29,11 +29,13 @@ export const PRODUCT_COLUMNS: Record<string, string[]> = {
   is_new: ["is_new", "new", "new_arrival"],
   is_featured: ["is_featured", "featured"],
   is_most_wanted: ["is_most_wanted", "most_wanted"],
+  seo_title: ["seo_title", "meta_title", "title_tag"],
+  seo_description: ["seo_description", "meta_description"],
 };
 
 export const PRODUCT_TEMPLATE_HEADERS = [
   "sku", "name", "slug", "category", "subcategory", "brand", "model", "color", "finish", "price_from", "price_to", "currency",
-  "short_description", "long_description", "included_items", "images", "stock", "status", "tags",
+  "short_description", "long_description", "included_items", "images", "stock", "status", "tags", "seo_title", "seo_description",
 ];
 
 const normHeader = (h: string) => h.replace(/^﻿/, "").trim().toLowerCase().replace(/[\s-]+/g, "_");

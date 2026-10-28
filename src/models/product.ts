@@ -10,6 +10,7 @@ export type ProductDoc = {
   stock: number; tags: string[]; isNewArrival?: boolean; isFeatured?: boolean; isMostWanted?: boolean;
   status: "active" | "draft" | "archived"; mergedInto?: string; slugHistory: string[]; lowStockThreshold: number;
   ratingAvg: number; ratingCount: number; viewCount: number; soldCount: number; seo?: { title?: string; description?: string };
+  nameAr?: string; shortDescriptionAr?: string; longDescriptionAr?: string; seoAr?: { title?: string; description?: string };
   createdAt: Date; updatedAt: Date;
 };
 export const Product = ProductModel as unknown as Model<ProductDoc>;

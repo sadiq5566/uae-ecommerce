@@ -8,18 +8,28 @@ import { ProductCard } from "@/components/product-card";
 import { ViewTracker } from "@/components/view-tracker";
 import { Breadcrumbs } from "@/features/catalog/breadcrumbs";
 import { ProductMain } from "@/features/catalog/product-main";
-import { alternatesFor } from "@/features/catalog/seo";
+import { alternatesFor, uaeDescription, uaeTitle } from "@/features/catalog/seo";
+import { getPublicOffers } from "@/features/offers/service";
+import { getSettings } from "@/features/checkout/prepare";
+import { absolute } from "@/lib/email";
 import { findSlugRedirect, getCategories, getProductBySlug, getRelated } from "@/features/catalog/service";
+
+/** Google wants a price expiry; prices are re-rendered at least hourly, so a month ahead is always safe. */
+const validUntil = () => new Date(Date.now() + 30 * 864e5).toISOString().slice(0, 10);
 
 export async function generateMetadata({ params }: PageProps<"/[lang]/p/[slug]">): Promise<Metadata> {
   const { lang, slug } = await params;
   if (!isLocale(lang)) return {};
   const p = await getProductBySlug(slug);
   if (!p) return {};
-  const desc = p.seo?.description?.[lang] ?? p.description[lang];
+  const desc = p.seo?.description?.[lang] ? p.seo.description[lang].slice(0, 160) : uaeDescription(lang, p.description[lang]);
+  const title = p.seo?.title?.[lang] ?? uaeTitle(lang, p.name[lang]);
+  const heading = p.seo?.title?.[lang] ? { absolute: title } : title; // a stored SEO title already ends with the store name
+  const images = p.images.length ? p.images.slice(0, 4).map((i) => ({ url: absolute(i.url)!, alt: i.alt?.[lang] })) : undefined;
   return {
-    title: p.seo?.title?.[lang] ?? p.name[lang], description: desc?.slice(0, 160), alternates: alternatesFor(lang, `/p/${slug}`),
-    openGraph: { title: p.name[lang], description: desc?.slice(0, 160), type: "website", images: p.image ? [p.image] : undefined },
+    title: heading, description: desc, alternates: alternatesFor(lang, `/p/${slug}`),
+    openGraph: { title, description: desc, type: "website", url: `/${lang}/p/${slug}`, images },
+    twitter: { card: "summary_large_image", title, description: desc, images: images?.map((i) => i.url).slice(0, 1) },
   };
 }
 
@@ -35,7 +45,7 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
   const sp = await searchParams;
   const rsort = (REVIEW_SORTS as readonly string[]).includes(String(sp.rsort)) ? (sp.rsort as ReviewSort) : "helpful";
   const rpage = Math.min(50, Math.max(1, Number(sp.rpage) || 1));
-  const [t, related, cats] = await Promise.all([getDictionary(lang), getRelated(p), getCategories()]);
+  const [t, related, cats, offers, settings] = await Promise.all([getDictionary(lang), getRelated(p), getCategories(), getPublicOffers(), getSettings()]);
   const cat = cats.find((c) => c.id === p.category);
   const parent = cat?.parent ? cats.find((c) => c.id === cat.parent) : undefined;
   const crumbs = [
@@ -60,10 +70,22 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
     {
       "@context": "https://schema.org", "@type": "Product", name: p.name[lang], sku: p.sku, description: p.description[lang],
       ...(p.brand && { brand: { "@type": "Brand", name: p.brand } }),
-      ...(p.image && { image: p.image }),
+      ...(p.image && { image: absolute(p.image) }),
       // aggregateRating only when approved reviews exist and are shown on this page.
       ...(p.ratingCount > 0 && { aggregateRating: { "@type": "AggregateRating", ratingValue: p.ratingAvg, reviewCount: p.ratingCount } }),
-      offers: { "@type": "Offer", url: `${base}/${lang}/p/${p.slug}`, priceCurrency: "AED", price: p.finalPrice, availability: p.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock" },
+      ...(p.images.length > 1 && { image: p.images.slice(0, 6).map((i) => absolute(i.url)) }),
+      ...(cat && { category: cat.name[lang] }),
+      offers: {
+        "@type": "Offer", url: `${base}/${lang}/p/${p.slug}`, priceCurrency: "AED", price: p.finalPrice, itemCondition: "https://schema.org/NewCondition",
+        availability: p.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+        priceValidUntil: validUntil(), seller: { "@id": `${base}/#org` },
+        shippingDetails: {
+          "@type": "OfferShippingDetails", shippingDestination: { "@type": "DefinedRegion", addressCountry: "AE" },
+          shippingRate: { "@type": "MonetaryAmount", value: p.finalPrice >= settings.freeDeliveryThreshold && settings.freeDeliveryThreshold > 0 ? 0 : settings.baseDeliveryFee, currency: "AED" },
+          deliveryTime: { "@type": "ShippingDeliveryTime", handlingTime: { "@type": "QuantitativeValue", minValue: 0, maxValue: 1, unitCode: "DAY" }, transitTime: { "@type": "QuantitativeValue", minValue: 1, maxValue: 3, unitCode: "DAY" } },
+        },
+        hasMerchantReturnPolicy: { "@type": "MerchantReturnPolicy", applicableCountry: "AE", returnPolicyCategory: offers.returnDays > 0 ? "https://schema.org/MerchantReturnFiniteReturnWindow" : "https://schema.org/MerchantReturnNotPermitted", ...(offers.returnDays > 0 && { merchantReturnDays: offers.returnDays, returnFees: "https://schema.org/FreeReturn" }) },
+      },
     },
     { "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: crumbs.map((c, i) => ({ "@type": "ListItem", position: i + 1, name: c.label, ...(c.href && { item: `${base}${c.href}` }) })) },
   ];
