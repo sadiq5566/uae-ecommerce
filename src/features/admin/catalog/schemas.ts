@@ -1,3 +1,4 @@
+import { cleanKeywords } from "@/lib/seo-fields";
 import { z } from "zod";
 import { checkbox, int, json, money, objectId, optText, text } from "@/lib/admin/common";
 import { isAllowedImageUrl } from "@/lib/image-url";
@@ -34,7 +35,7 @@ export const productSchema = z.object({
     price: z.preprocess((v) => (v === "" || v == null ? undefined : v), money("Variant price").optional()),
     image: z.string().trim().optional().transform((v) => v || undefined),
   })).max(100, "At most 100 variants"), []),
-  seoTitle: text(70), seoDesc: text(160),
+  seoTitle: text(70), seoDesc: text(160), seoTitleAr: text(70), seoDescAr: text(160), seoKeywords: text(200), seoNoindex: checkbox,
 }).superRefine((p, ctx) => {
   if (p.priceTo > p.priceFrom) ctx.addIssue({ code: "custom", path: ["priceTo"], message: "Selling price can't be higher than the original price" });
   const skus = p.variants.map((v) => v.sku.toUpperCase());
@@ -55,7 +56,7 @@ export const categorySchema = z.object({
   type: z.enum(["category", "style", "finish", "curated"]),
   parent: z.string().trim().toLowerCase().optional().transform((v) => v || undefined),
   sortOrder: int("Order", 10_000).default(0),
-  seoTitle: text(70), seoDesc: text(160),
+  seoTitle: text(70), seoDesc: text(160), seoTitleAr: text(70), seoDescAr: text(160), seoKeywords: text(200), seoNoindex: checkbox,
 }).superRefine((c, ctx) => {
   if (c.type === "category" && !c.parent) ctx.addIssue({ code: "custom", path: ["parent"], message: "A category collection needs the category slug (e.g. watches)" });
 });
@@ -70,6 +71,7 @@ export const brandSchema = z.object({
   image: z.string().trim().max(500).optional().transform((v) => v || ""),
   isFeatured: checkbox,
   isActive: checkbox,
+  seoTitle: text(70), seoDesc: text(160), seoKeywords: text(700).transform(cleanKeywords),
   sortOrder: int("Order", 10_000).default(0),
 });
 

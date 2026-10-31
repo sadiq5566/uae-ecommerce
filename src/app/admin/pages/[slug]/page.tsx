@@ -7,6 +7,8 @@ import { ContentPage, PAGE_SLUGS, type PageSlug } from "@/models/content-page";
 
 export const metadata = { title: "Edit page" };
 
+const l = (x?: { en?: string | null; ar?: string | null } | null) => ({ en: x?.en ?? "", ar: x?.ar ?? "" });
+
 export default async function EditPage({ params }: PageProps<"/admin/pages/[slug]">) {
   const { slug } = await params;
   await guard("articles:write", `/admin/pages/${slug}`);
@@ -16,7 +18,7 @@ export default async function EditPage({ params }: PageProps<"/admin/pages/[slug
   return (
     <>
       <PageHeader title={`Page: ${slug}`} sub={`Public URL: /en/${slug} · /ar/${slug}`} />
-      <PageForm key={slug} page={{ slug, title: { en: p?.title?.en ?? "", ar: p?.title?.ar ?? "" }, body: { en: p?.body?.en ?? "", ar: p?.body?.ar ?? "" }, published: !!p?.published }} />
+      <PageForm key={slug} page={{ slug, title: { en: p?.title?.en ?? "", ar: p?.title?.ar ?? "" }, body: { en: p?.body?.en ?? "", ar: p?.body?.ar ?? "" }, published: !!p?.published, seo: { title: l(p?.seo?.title), description: l(p?.seo?.description), keywords: l(p?.seo?.keywords) } }} />
     </>
   );
 }

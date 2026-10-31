@@ -9,7 +9,7 @@ export type ProductDoc = {
   variants: { sku: string; color?: string; size?: string; price?: number; stock: number; image?: string }[];
   stock: number; tags: string[]; isNewArrival?: boolean; isFeatured?: boolean; isMostWanted?: boolean;
   status: "active" | "draft" | "archived"; mergedInto?: string; slugHistory: string[]; lowStockThreshold: number;
-  ratingAvg: number; ratingCount: number; viewCount: number; soldCount: number; seo?: { title?: string; description?: string };
+  ratingAvg: number; ratingCount: number; viewCount: number; soldCount: number; seo?: { title?: string; description?: string; keywords?: string; noindex?: boolean };
   nameAr?: string; shortDescriptionAr?: string; longDescriptionAr?: string; seoAr?: { title?: string; description?: string };
   createdAt: Date; updatedAt: Date;
 };

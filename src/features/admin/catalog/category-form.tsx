@@ -1,13 +1,13 @@
 "use client";
 import { useActionState } from "react";
-import { SF, TA, TF } from "@/components/admin/fields";
+import { CB, SF, TA, TF } from "@/components/admin/fields";
 import { ImagesEditor } from "@/components/admin/editors";
 import { Card, btnPrimary } from "@/components/admin/ui";
 import type { FormState } from "@/features/auth/schemas";
 import { saveCategoryAction } from "./actions";
 
-export type CategoryFormData = { id?: string; slug: string; name: string; description: string; image?: string; type: string; parent?: string; sortOrder: number; seoTitle: string; seoDesc: string };
-const EMPTY: CategoryFormData = { slug: "", name: "", description: "", type: "category", sortOrder: 50, seoTitle: "", seoDesc: "" };
+export type CategoryFormData = { id?: string; slug: string; name: string; description: string; image?: string; type: string; parent?: string; sortOrder: number; seoTitle: string; seoDesc: string; seoTitleAr: string; seoDescAr: string; seoKeywords: string; seoNoindex: boolean };
+const EMPTY: CategoryFormData = { slug: "", name: "", description: "", type: "category", sortOrder: 50, seoTitle: "", seoDesc: "", seoTitleAr: "", seoDescAr: "", seoKeywords: "", seoNoindex: false };
 
 /** A collection: type "category" lists every product of the category slug in `parent`; style / finish / curated list products tagged with the collection name. */
 export function CategoryForm({ category, parents }: { category?: CategoryFormData; parents: { id: string; name: string }[] }) {
@@ -34,6 +34,10 @@ export function CategoryForm({ category, parents }: { category?: CategoryFormDat
         <div className="grid gap-4">
           <TF s={s} name="seoTitle" label="SEO title" defaultValue={c.seoTitle} hint="Max 70 characters. Example: Buy Watches Online in UAE | Your Store." />
           <TA s={s} name="seoDesc" label="Meta description (max 160 characters)" defaultValue={c.seoDesc} rows={2} />
+          <TF s={s} name="seoTitleAr" label="SEO title (Arabic)" defaultValue={c.seoTitleAr} hint="Shown on the /ar page. Leave empty to reuse the English title." />
+          <TA s={s} name="seoDescAr" label="Meta description (Arabic)" defaultValue={c.seoDescAr} rows={2} />
+          <TF s={s} name="seoKeywords" label="Focus keywords (comma separated)" defaultValue={c.seoKeywords} hint="Up to 200 characters." />
+          <CB s={s} name="seoNoindex" label="Hide this category from Google (noindex)" defaultChecked={c.seoNoindex} />
         </div>
       </Card>
       <Card title="Image"><ImagesEditor name="image" single initial={c.image ? [{ url: c.image, alt: { en: "", ar: "" } }] : []} max={1} />{s.fieldErrors?.image && <p role="alert" className="mt-2 text-sm text-danger">{s.fieldErrors.image}</p>}</Card>

@@ -67,13 +67,10 @@ export async function checkCouponAction(code: string): Promise<{ ok: boolean; er
 
 export type PlaceState = { error?: CheckoutError; detail?: string; total?: number; fieldErrors?: Record<string, string>; values?: Record<string, string> };
 
-// Guest details: same rules as a saved address, plus an optional email for the confirmation.
-const guestSchema = addressSchema.omit({ label: true, isDefault: true }).extend({
-  email: z.string().trim().toLowerCase().max(254, "email_invalid").optional().transform((v, ctx) => {
-    if (!v) return undefined;
-    if (!z.email().safeParse(v).success) { ctx.addIssue({ code: "custom", message: "email_invalid" }); return z.NEVER; }
-    return v;
-  }),
+// Delivery details typed at checkout: same rules as a saved address. Guests also need an email for the confirmation; signed-in customers use their account email.
+const deliverySchema = addressSchema.omit({ label: true, isDefault: true });
+const guestSchema = deliverySchema.extend({
+  email: z.string().trim().min(1, "required").toLowerCase().max(254, "email_invalid").pipe(z.email("email_invalid")),
 });
 
 const MAX_SAVED_ADDRESSES = 10;
@@ -101,13 +98,13 @@ export async function placeOrderAction(_: PlaceState, fd: FormData): Promise<Pla
 
   let address: InlineAddress | undefined; let email = user?.email;
   if (!user || !fd.get("addressId")) {
-    const parsed = guestSchema.safeParse(Object.fromEntries([...fd.entries()].filter(([, v]) => typeof v === "string")));
+    const parsed = (user ? deliverySchema : guestSchema).safeParse(Object.fromEntries([...fd.entries()].filter(([, v]) => typeof v === "string")));
     if (!parsed.success) {
       const values: Record<string, string> = {};
       for (const [k, v] of fd.entries()) if (typeof v === "string" && v.length < 500 && !/^(idempotencyKey|expectedTotal)$/.test(k)) values[k] = v;
       return { error: "invalid", fieldErrors: fieldErrors(parsed.error), values };
     }
-    const { email: e, ...addr } = parsed.data;
+    const { email: e, ...addr } = parsed.data as typeof parsed.data & { email?: string };
     address = addr; email = user?.email ?? e;
   }
   // Guests need a cookie to own the order's idempotency/cart; "buy now" may arrive before any cart exists.

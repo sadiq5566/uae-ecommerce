@@ -15,7 +15,7 @@ export type CouponFormData = {
   id?: string; code: string; desc: { en: string; ar: string }; type: string; value: number; maxDiscount?: number | null; minSubtotal: number; startsAt: string; endsAt: string; active: boolean; isPublic?: boolean;
   usageLimit?: number | null; usedCount?: number; perCustomerLimit: number; stackWithSale: boolean; productSkus: string; excludeSkus: string; categories: string[]; excludeCategories: string[];
 };
-const EMPTY_COUPON: CouponFormData = { code: "", desc: { en: "", ar: "" }, type: "percent", value: 10, minSubtotal: 0, startsAt: "", endsAt: "", active: true, perCustomerLimit: 1, stackWithSale: false, productSkus: "", excludeSkus: "", categories: [], excludeCategories: [] };
+const EMPTY_COUPON: CouponFormData = { code: "", desc: { en: "", ar: "" }, type: "percent", value: 10, minSubtotal: 0, startsAt: "", endsAt: "", active: true, perCustomerLimit: 1, stackWithSale: true, productSkus: "", excludeSkus: "", categories: [], excludeCategories: [] };
 
 export function CouponForm({ coupon, categories }: { coupon?: CouponFormData; categories: { id: string; name: string }[] }) {
   const c = coupon ?? EMPTY_COUPON;

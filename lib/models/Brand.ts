@@ -12,6 +12,7 @@ const BrandSchema = new Schema(
     isFeatured: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
     sortOrder: { type: Number, default: 0 },
+    seo: { title: String, description: String, keywords: String }, // search-result title / description / keywords of the brand page
   },
   { timestamps: true },
 );

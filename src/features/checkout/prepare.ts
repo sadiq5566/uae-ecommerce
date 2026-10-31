@@ -42,7 +42,8 @@ export type Prepared = {
 
 export const getSettings = cache(async () => {
   await connectDb();
-  const s = await Settings.findOneAndUpdate({ key: "store" }, { $setOnInsert: { key: "store" } }, { upsert: true, returnDocument: "after" }).lean();
+  // Read first: the upsert (a database write) is only needed the very first time, not on every page view.
+  const s = (await Settings.findOne({ key: "store" }).lean()) ?? (await Settings.findOneAndUpdate({ key: "store" }, { $setOnInsert: { key: "store" } }, { upsert: true, returnDocument: "after" }).lean());
   return s!;
 });
 

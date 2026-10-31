@@ -10,7 +10,7 @@ import type { FormState } from "@/features/auth/schemas";
 import { Article } from "@/models/article";
 import { ContentPage } from "@/models/content-page";
 import { Homepage } from "@/models/homepage";
-import { articleSchema, bannersSchema, pageSchema } from "./schemas";
+import { articleSchema, bannersSchema, homeSeoSchema, pageSchema } from "./schemas";
 
 export async function saveArticleAction(_: FormState, fd: FormData): Promise<FormState> {
   const user = await actor("articles:write");
@@ -24,7 +24,7 @@ export async function saveArticleAction(_: FormState, fd: FormData): Promise<For
     category: a.category, author: a.author, cover: a.cover, coverAlt: { en: a.coverAlt_en, ar: a.coverAlt_ar }, icon: a.icon, hue: a.hue, status: a.status,
     // Published articles without a date go live immediately; a future date schedules them.
     publishAt: a.status === "published" ? (a.publishAt ?? new Date()) : a.publishAt,
-    seo: { title: { en: a.seoTitle_en, ar: a.seoTitle_ar }, description: { en: a.seoDesc_en, ar: a.seoDesc_ar } },
+    seo: { title: { en: a.seoTitle_en, ar: a.seoTitle_ar }, description: { en: a.seoDesc_en, ar: a.seoDesc_ar }, keywords: { en: a.seoKeywords_en, ar: a.seoKeywords_ar } },
   };
   try {
     if (a.id) {
@@ -58,7 +58,7 @@ export async function savePageAction(_: FormState, fd: FormData): Promise<FormSt
   const p = parsed.data;
   if (p.published && (!p.body_en.trim() || !p.body_ar.trim())) return fail({ body_en: "Published pages need both English and Arabic text" }, fd);
   await connectDb();
-  await ContentPage.updateOne({ slug: p.slug }, { $set: { title: { en: p.title_en, ar: p.title_ar }, body: { en: p.body_en, ar: p.body_ar }, published: p.published, updatedBy: user.id } }, { upsert: true });
+  await ContentPage.updateOne({ slug: p.slug }, { $set: { title: { en: p.title_en, ar: p.title_ar }, body: { en: p.body_en, ar: p.body_ar }, published: p.published, seo: { title: { en: p.seoTitle_en, ar: p.seoTitle_ar }, description: { en: p.seoDesc_en, ar: p.seoDesc_ar }, keywords: { en: p.seoKeywords_en, ar: p.seoKeywords_ar } }, updatedBy: user.id } }, { upsert: true });
   await audit(user, "page.update", "page", p.slug, `Updated page ${p.slug}`, { published: p.published });
   revalidatePath("/admin/pages"); revalidatePath("/[lang]", "layout");
   return { ok: true };
@@ -74,9 +74,13 @@ export async function saveHomepageAction(_: FormState, fd: FormData): Promise<Fo
     const where = typeof first.path[0] === "number" ? `Banner ${first.path[0] + 1}${first.path[1] ? ` (${String(first.path[1])})` : ""}: ` : "";
     return fail({ banners: `${where}${first.message}` }, fd);
   }
+  const seo = homeSeoSchema.safeParse(formObj(fd));
+  if (!seo.success) return fail(issues(seo.error), fd);
+  const h = seo.data;
   const flag = (k: string) => fd.get(k) === "on";
   await connectDb();
   await Homepage.updateOne({ key: "home" }, { $set: {
+    seo: { title: { en: h.seoTitle_en, ar: h.seoTitle_ar }, description: { en: h.seoDesc_en, ar: h.seoDesc_ar }, keywords: { en: h.seoKeywords_en, ar: h.seoKeywords_ar } },
     banners: parsed.data.map((b, i) => ({ ...b, id: b.id || `b${i}`, ctaHref: b.ctaHref || undefined })),
     sections: { deals: flag("s_deals"), featured: flag("s_featured"), newArrivals: flag("s_newArrivals"), popular: flag("s_popular"), mostViewed: flag("s_mostViewed"), journal: flag("s_journal") },
   } }, { upsert: true });

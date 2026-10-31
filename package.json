@@ -26,6 +26,7 @@
     "db:recategorize": "tsx --env-file=.env.local scripts/recategorize.ts",
     "db:seo-fix": "tsx --env-file=.env scripts/seo-fix.ts",
     "db:seo-rename": "tsx --env-file=.env scripts/seo-rename.ts",
+    "db:seed-offers": "tsx --env-file=.env scripts/seed-offers.ts",
     "db:add-belts": "tsx --env-file=.env scripts/add-belts.ts",
     "db:merge-variants": "tsx --env-file=.env.local scripts/merge-variants.ts",
     "fix-bag-photos": "python scripts/fix_bag_photos.py",

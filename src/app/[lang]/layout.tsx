@@ -15,7 +15,8 @@ import { SessionBootstrap } from "@/components/session-store";
 import { ScrollToAlert } from "@/components/scroll-to-alert";
 import { ScrollToTop } from "@/components/scroll-to-top";
 import { getPublicOffers, offerLines } from "@/features/offers/service";
-import { WelcomeModal } from "@/features/offers/welcome-modal";
+import { WhatsAppButton } from "@/components/whatsapp-button";
+import { WelcomeModal } from "@/features/offers/welcome-modal-lazy";
 import { alternatesFor, GEO_META, siteJsonLd } from "@/features/catalog/seo";
 import { getBrand } from "@/lib/email";
 
@@ -50,10 +51,12 @@ export default async function RootLayout({ children, params }: LayoutProps<"/[la
   if (!isLocale(lang)) notFound();
   // Locale chrome loads live MongoDB data, so defer it until a real request.
   await connection();
-  const [t, categories, offers] = await Promise.all([getDictionary(lang), getNavCategories(), getPublicOffers()]);
-  const menu = buildMenu(categories, await getShowcase().catch(() => ({})), await getStoreBrands().catch(() => []));
+  // One round trip for everything the page chrome needs, not a chain of awaits.
+  const [t, categories, offers, showcase, storeBrands, brand] = await Promise.all([
+    getDictionary(lang), getNavCategories(), getPublicOffers(), getShowcase().catch(() => ({})), getStoreBrands().catch(() => []), getBrand(lang),
+  ]);
+  const menu = buildMenu(categories, showcase, storeBrands);
   const lines = offerLines(offers, t, lang);
-  const brand = await getBrand(lang);
   const ld = siteJsonLd({ base: brand.url, name: brand.name, lang, logo: brand.logo, email: brand.supportEmail, whatsapp: process.env.NEXT_PUBLIC_WHATSAPP_NUMBER });
   return (
     <html lang={lang} dir={dirOf(lang)} data-scroll-behavior="smooth" suppressHydrationWarning className={`${latin.variable} ${display.variable} ${arabic.variable}`}>
@@ -67,6 +70,7 @@ export default async function RootLayout({ children, params }: LayoutProps<"/[la
           <Header locale={lang} t={t} menu={menu} offerLines={lines} />
           <main id="main" tabIndex={-1} className="flex-1 outline-none">{children}</main>
           <Footer locale={lang} t={t} menu={menu} />
+          <WhatsAppButton label={lang === "ar" ? "تواصل معنا عبر واتساب" : "Chat on WhatsApp"} />
           {offers.modal.enabled && lines.length > 0 && (
             <WelcomeModal
               locale={lang} version={offers.modal.version} delaySeconds={offers.modal.delaySeconds} collectLeads={offers.modal.collectLeads} lines={lines}

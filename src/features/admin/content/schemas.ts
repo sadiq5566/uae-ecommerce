@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { cleanKeywords } from "@/lib/seo-fields";
 import { checkbox, int, json, optDate, optText, slug, text } from "@/lib/admin/common";
 import { isAllowedImageUrl } from "@/lib/image-url";
 import { PAGE_SLUGS } from "@/models/content-page";
@@ -16,6 +17,7 @@ export const articleSchema = z.object({
   status: z.enum(["draft", "published"], "Choose a status"),
   publishAt: optDate,
   seoTitle_en: text(70), seoTitle_ar: text(70), seoDesc_en: text(160), seoDesc_ar: text(160),
+  seoKeywords_en: text(700).transform(cleanKeywords), seoKeywords_ar: text(700).transform(cleanKeywords),
 }).superRefine((a, ctx) => {
   // One language is enough: the store shows it in both languages when the other is left blank.
   if (a.title_en.length < 2 && a.title_ar.length < 2) ctx.addIssue({ code: "custom", path: ["title_en"], message: "A title is required (English or Arabic)" });
@@ -25,6 +27,14 @@ export const articleSchema = z.object({
 export const pageSchema = z.object({
   slug: z.enum(PAGE_SLUGS), title_en: text(120).min(2, "English title required"), title_ar: text(120).min(2, "Arabic title required"),
   body_en: text(30000), body_ar: text(30000), published: checkbox,
+  seoTitle_en: text(70), seoTitle_ar: text(70), seoDesc_en: text(160), seoDesc_ar: text(160),
+  seoKeywords_en: text(700).transform(cleanKeywords), seoKeywords_ar: text(700).transform(cleanKeywords),
+});
+
+/** The home page's own search-result title, description and keywords. */
+export const homeSeoSchema = z.object({
+  seoTitle_en: text(70), seoTitle_ar: text(70), seoDesc_en: text(160), seoDesc_ar: text(160),
+  seoKeywords_en: text(700).transform(cleanKeywords), seoKeywords_ar: text(700).transform(cleanKeywords),
 });
 
 const href = z.string().trim().max(300).refine((v) => v === "" || /^\/(?!\/)[^\s\\]*$/.test(v) || /^https:\/\/[^\s]+$/.test(v), "Link must start with / (inside the store) or https://");

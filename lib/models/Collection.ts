@@ -8,7 +8,8 @@ const CollectionSchema = new Schema({
   parent: { type: String, lowercase: true, trim: true },
   type: { type: String, enum: ["category", "style", "finish", "curated"], default: "curated" },
   sortOrder: { type: Number, default: 0 },
-  seo: { title: String, description: String }, // search-result title/description of the category page
+  seo: { title: String, description: String, keywords: String, noindex: Boolean }, // search-result title/description, keywords and "hide from Google" of the category page
+  seoAr: { title: String, description: String }, // Arabic page (/ar) versions
 });
 
 export const CollectionModel = (models.Collection as mongoose.Model<unknown>) || model("Collection", CollectionSchema);

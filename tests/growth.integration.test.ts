@@ -23,7 +23,7 @@ const up = await mongoose.connect(process.env.MONGODB_URI, { dbName: "souq_uae_t
 const { sendAbandonedCartReminders } = await import("@/features/growth/abandoned-cart");
 const { subscribeStockAlert, sendBackInStockAlerts } = await import("@/features/growth/stock-alerts");
 const { sendReviewRequests, rewardApprovedReview, REVIEW_REWARD } = await import("@/features/growth/reviews");
-const { getReferralCode, resolveReferrer, payReferralRewards, referralStats, REFERRAL_REWARD } = await import("@/features/growth/referrals");
+const { getReferralCode, resolveReferrer, payReferralRewards, payReferralRepeatRewards, referralStats, referralTree, REFERRAL_REWARD, REFERRAL_REPEAT_REWARD } = await import("@/features/growth/referrals");
 const { GET: restoreCart } = await import("@/app/[lang]/cart/restore/route");
 const { placeOrder } = await import("@/features/orders/place");
 const { updateOrderStatus } = await import("@/features/orders/lifecycle");
@@ -270,6 +270,24 @@ describe.skipIf(!up)("growth features (real MongoDB)", () => {
       const x = await order({ userId: String(d._id), email: d.email, referralCode: code }) as { orderNumber: string };
       await updateOrderStatus({ orderNumber: x.orderNumber, to: "cancelled", actor: "staff", notify: false });
       expect(await payReferralRewards()).toEqual({ paid: 0 });
+    });
+
+    it("the inviter earns the repeat reward on every LATER delivered order of the friend, once per order, never on the first", async () => {
+      const a = await mkUser("a@x.com"); const code = (await getReferralCode(String(a._id)))!;
+      const b = await mkUser("b@x.com");
+      const first = await order({ userId: String(b._id), email: b.email, referralCode: code }) as { orderNumber: string };
+      await deliver(first.orderNumber, 1);
+      expect(await payReferralRewards()).toEqual({ paid: 1 });
+      expect(await payReferralRepeatRewards()).toEqual({ paid: 0 }); // the first order is paid by the invite reward only
+      const second = await order({ userId: String(b._id), email: b.email, referralCode: code }) as { orderNumber: string };
+      expect(await payReferralRepeatRewards()).toEqual({ paid: 0 }); // not delivered yet
+      await deliver(second.orderNumber, 1);
+      expect(await payReferralRepeatRewards()).toEqual({ paid: 1 });
+      expect((await creditSummary(String(a._id))).balance).toBe(REFERRAL_REWARD + REFERRAL_REPEAT_REWARD);
+      expect(await payReferralRepeatRewards()).toEqual({ paid: 0 }); // not twice
+      expect(await referralStats(String(a._id))).toMatchObject({ paid: 1, repeat: 1, earned: REFERRAL_REWARD + REFERRAL_REPEAT_REWARD });
+      expect((await creditSummary(String(b._id))).balance).toBe(REFERRAL_REWARD); // the friend gets nothing extra
+      expect(await referralTree(String(a._id))).toEqual([expect.objectContaining({ state: "rewarded", orders: 2, earned: REFERRAL_REWARD + REFERRAL_REPEAT_REWARD })]);
     });
 
     it("a guest friend is rewarded once a verified account with their email exists — until then it waits", async () => {

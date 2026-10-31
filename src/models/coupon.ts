@@ -19,8 +19,8 @@ const couponSchema = new Schema(
     categories: [{ type: Schema.Types.ObjectId, ref: "Category" }],
     excludeProducts: [{ type: Schema.Types.ObjectId, ref: "Product" }],
     excludeCategories: [{ type: Schema.Types.ObjectId, ref: "Category" }],
-    // Coupons never stack with item sale prices unless explicitly allowed. Only one coupon per order, always.
-    stackWithSale: { type: Boolean, default: false },
+    // Coupons also work on items that are on sale unless the admin turns that off. Only one coupon per order, always.
+    stackWithSale: { type: Boolean, default: true },
   },
   { timestamps: true },
 );

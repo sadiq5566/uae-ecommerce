@@ -21,7 +21,8 @@ export async function generateMetadata({ params, searchParams }: PageProps<"/[la
     description: cat.seo?.description?.[lang] || uaeDescription(lang, cat.description?.[lang] || cat.name[lang]),
     alternates: alternatesFor(lang, `/c/${slug}`),
     openGraph: { title: cat.seo?.title?.[lang] ?? categoryTitle(lang, cat.name[lang]), type: "website", url: `/${lang}/c/${slug}`, ...(cat.image && { images: [cat.image] }) },
-    robots: noIndexIf(isFiltered(f)),
+    ...(cat.seo?.keywords && { keywords: cat.seo.keywords }),
+    robots: cat.seo?.noindex ? { index: false, follow: true } : noIndexIf(isFiltered(f)),
   };
 }
 

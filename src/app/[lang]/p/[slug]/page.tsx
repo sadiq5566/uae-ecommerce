@@ -1,9 +1,13 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { notFound, permanentRedirect } from "next/navigation";
 import { getDictionary } from "@/lib/dictionaries";
 import { REVIEW_SORTS, type ReviewSort } from "@/features/reviews/service";
 import { ReviewsSection } from "@/features/reviews/reviews-section";
-import { isLocale } from "@/lib/i18n";
+import { formatAED, isLocale, type Locale } from "@/lib/i18n";
+import type { Dictionary } from "@/lib/dictionaries";
+import { GridSkeleton } from "@/components/skeletons";
+import { fmt } from "@/lib/format";
 import { ProductCard } from "@/components/product-card";
 import { ViewTracker } from "@/components/view-tracker";
 import { Breadcrumbs } from "@/features/catalog/breadcrumbs";
@@ -28,6 +32,7 @@ export async function generateMetadata({ params }: PageProps<"/[lang]/p/[slug]">
   const images = p.images.length ? p.images.slice(0, 4).map((i) => ({ url: absolute(i.url)!, alt: i.alt?.[lang] })) : undefined;
   return {
     title: heading, description: desc, alternates: alternatesFor(lang, `/p/${slug}`),
+    ...(p.seo?.keywords && { keywords: p.seo.keywords }), ...(p.seo?.noindex && { robots: { index: false, follow: true } }),
     openGraph: { title, description: desc, type: "website", url: `/${lang}/p/${slug}`, images },
     twitter: { card: "summary_large_image", title, description: desc, images: images?.map((i) => i.url).slice(0, 1) },
   };
@@ -45,7 +50,7 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
   const sp = await searchParams;
   const rsort = (REVIEW_SORTS as readonly string[]).includes(String(sp.rsort)) ? (sp.rsort as ReviewSort) : "helpful";
   const rpage = Math.min(50, Math.max(1, Number(sp.rpage) || 1));
-  const [t, related, cats, offers, settings] = await Promise.all([getDictionary(lang), getRelated(p), getCategories(), getPublicOffers(), getSettings()]);
+  const [t, cats, offers, settings] = await Promise.all([getDictionary(lang), getCategories(), getPublicOffers(), getSettings()]);
   const cat = cats.find((c) => c.id === p.category);
   const parent = cat?.parent ? cats.find((c) => c.id === cat.parent) : undefined;
   const crumbs = [
@@ -97,7 +102,11 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
       <Breadcrumbs label={t.catalog.breadcrumb} items={crumbs} />
       <ProductMain p={p} locale={lang} t={t}>
         <div className="rounded-2xl border border-line bg-surface p-4 text-sm">
-          <p className="font-semibold">🚚 {t.catalog.delivery}</p>
+          <p className="flex flex-wrap items-center gap-2 font-semibold">
+            🚚 {t.catalog.delivery}
+            {offers.freeDelivery.enabled && <span className="rounded-full bg-brand px-2.5 py-0.5 text-xs font-bold text-brand-fg">{t.catalog.freeBadge}</span>}
+          </p>
+          {offers.freeDelivery.enabled && <p className="mt-1 font-medium text-brand">{p.finalPrice >= offers.freeDelivery.min ? t.catalog.freeThisItem : fmt(t.catalog.freeOver, { min: formatAED(offers.freeDelivery.min, lang) })}</p>}
           <p className="mt-1 text-muted">{t.catalog.deliveryInfo}</p>
         </div>
       </ProductMain>
@@ -114,13 +123,24 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
           </dl>
         </section>
       </div>
-      <ReviewsSection productId={p.id} slug={p.slug} locale={lang} t={t} sort={rsort} page={rpage} />
-      {related.length > 0 && (
-        <section className="mt-14">
-          <h2 className="mb-6 font-display text-2xl font-bold">{t.catalog.related}</h2>
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">{related.map((r) => <ProductCard key={r.id} p={r} locale={lang} t={t} />)}</div>
-        </section>
-      )}
+      {/* Reviews and related products stream in after the main product is already on screen. */}
+      <Suspense fallback={<div className="skeleton mt-14 h-48 rounded-2xl" aria-hidden />}>
+        <ReviewsSection productId={p.id} slug={p.slug} locale={lang} t={t} sort={rsort} page={rpage} />
+      </Suspense>
+      <Suspense fallback={<div className="mt-14" aria-hidden><GridSkeleton n={4} /></div>}>
+        <Related p={p} lang={lang} t={t} />
+      </Suspense>
     </div>
+  );
+}
+
+async function Related({ p, lang, t }: { p: NonNullable<Awaited<ReturnType<typeof getProductBySlug>>>; lang: Locale; t: Dictionary }) {
+  const related = await getRelated(p);
+  if (!related.length) return null;
+  return (
+    <section className="mt-14">
+      <h2 className="mb-6 font-display text-2xl font-bold">{t.catalog.related}</h2>
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">{related.map((r) => <ProductCard key={r.id} p={r} locale={lang} t={t} />)}</div>
+    </section>
   );
 }

@@ -9,10 +9,25 @@ import { saveArticleAction, saveHomepageAction, savePageAction } from "./actions
 const Banner = ({ s }: { s: FormState }) => (
   <div aria-live="polite">{s.error && <p role="alert" className="rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger">{s.error}</p>}{s.ok && <p role="status" className="rounded-xl bg-brand-soft px-4 py-3 text-sm text-brand">✓ Saved</p>}</div>
 );
+type SeoValues = { title: { en: string; ar: string }; description: { en: string; ar: string }; keywords: { en: string; ar: string } };
+/** Search-engine fields for a page: title, description and keywords / hashtags in both languages. */
+function SeoCard({ s, seo, note }: { s: FormState; seo: SeoValues; note?: string }) {
+  const kw = "Words people search for, separated by commas or #hashtags, e.g. #abaya, summer dresses, dubai. Up to 25.";
+  return (
+    <Card title="Search engines (SEO)">
+      {note && <p className="mb-4 text-xs text-muted">{note}</p>}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <TF s={s} name="seoTitle_en" label="SEO title (EN)" defaultValue={seo.title.en} hint="Max 70 characters. Main words first." /><TF s={s} name="seoTitle_ar" label="SEO title (AR)" defaultValue={seo.title.ar} dir="rtl" />
+        <TA s={s} name="seoDesc_en" label="Meta description (EN, max 160)" defaultValue={seo.description.en} rows={2} /><TA s={s} name="seoDesc_ar" label="Meta description (AR, max 160)" defaultValue={seo.description.ar} rows={2} dir="rtl" />
+        <TA s={s} name="seoKeywords_en" label="Keywords / hashtags (EN)" defaultValue={seo.keywords.en} rows={2} hint={kw} /><TA s={s} name="seoKeywords_ar" label="Keywords / hashtags (AR)" defaultValue={seo.keywords.ar} rows={2} dir="rtl" />
+      </div>
+    </Card>
+  );
+}
 const Save = ({ pending, children }: { pending: boolean; children: React.ReactNode }) => <div className="sticky bottom-3 z-10 flex gap-3 rounded-2xl border border-line bg-surface/95 p-3 shadow-card backdrop-blur"><button disabled={pending} className={btnPrimary}>{pending ? "Saving…" : children}</button></div>;
 
-export type ArticleData = { id?: string; slug: string; title: { en: string; ar: string }; excerpt: { en: string; ar: string }; body: { en: string; ar: string }; category?: string; author?: string; cover?: string; coverAlt: { en: string; ar: string }; icon: string; hue: number; status: string; publishAt: string; seo: { title: { en: string; ar: string }; description: { en: string; ar: string } } };
-const EMPTY_ARTICLE: ArticleData = { slug: "", title: { en: "", ar: "" }, excerpt: { en: "", ar: "" }, body: { en: "", ar: "" }, coverAlt: { en: "", ar: "" }, icon: "📰", hue: 160, status: "draft", publishAt: "", seo: { title: { en: "", ar: "" }, description: { en: "", ar: "" } } };
+export type ArticleData = { id?: string; slug: string; title: { en: string; ar: string }; excerpt: { en: string; ar: string }; body: { en: string; ar: string }; category?: string; author?: string; cover?: string; coverAlt: { en: string; ar: string }; icon: string; hue: number; status: string; publishAt: string; seo: { title: { en: string; ar: string }; description: { en: string; ar: string }; keywords: { en: string; ar: string } } };
+const EMPTY_ARTICLE: ArticleData = { slug: "", title: { en: "", ar: "" }, excerpt: { en: "", ar: "" }, body: { en: "", ar: "" }, coverAlt: { en: "", ar: "" }, icon: "📰", hue: 160, status: "draft", publishAt: "", seo: { title: { en: "", ar: "" }, description: { en: "", ar: "" }, keywords: { en: "", ar: "" } } };
 
 export function ArticleForm({ article }: { article?: ArticleData }) {
   const a = article ?? EMPTY_ARTICLE;
@@ -32,13 +47,14 @@ export function ArticleForm({ article }: { article?: ArticleData }) {
         <SF s={s} name="status" label="Status" defaultValue={a.status}><option value="draft">Draft</option><option value="published">Published</option></SF>
         <TF s={s} name="publishAt" label="Publish at (UAE time, optional)" type="datetime-local" defaultValue={a.publishAt} hint="A future time schedules a published article." /><TF s={s} name="author" label="Author" defaultValue={a.author} />
         <TF s={s} name="seoTitle_en" label="SEO title (EN)" defaultValue={a.seo.title.en} /><TF s={s} name="seoTitle_ar" label="SEO title (AR)" defaultValue={a.seo.title.ar} dir="rtl" /><div />
-        <TA s={s} name="seoDesc_en" label="Meta description (EN)" defaultValue={a.seo.description.en} rows={2} /><TA s={s} name="seoDesc_ar" label="Meta description (AR)" defaultValue={a.seo.description.ar} rows={2} dir="rtl" /></div></Card>
+        <TA s={s} name="seoDesc_en" label="Meta description (EN)" defaultValue={a.seo.description.en} rows={2} /><TA s={s} name="seoDesc_ar" label="Meta description (AR)" defaultValue={a.seo.description.ar} rows={2} dir="rtl" />
+        <TA s={s} name="seoKeywords_en" label="Keywords / hashtags (EN)" defaultValue={a.seo.keywords.en} rows={2} hint="Words people search for, separated by commas or #hashtags. Up to 25. Used as the article's tags." /><TA s={s} name="seoKeywords_ar" label="Keywords / hashtags (AR)" defaultValue={a.seo.keywords.ar} rows={2} dir="rtl" /></div></Card>
       <Save pending={pending}>{a.id ? "Save article" : "Create article"}</Save>
     </form>
   );
 }
 
-export function PageForm({ page }: { page: { slug: string; title: { en: string; ar: string }; body: { en: string; ar: string }; published: boolean } }) {
+export function PageForm({ page }: { page: { slug: string; title: { en: string; ar: string }; body: { en: string; ar: string }; published: boolean; seo: SeoValues } }) {
   const [s, action, pending] = useActionState<FormState, FormData>(savePageAction, {});
   return (
     <form action={action} className="flex flex-col gap-6" noValidate>
@@ -48,6 +64,7 @@ export function PageForm({ page }: { page: { slug: string; title: { en: string; 
         <TA s={s} name="body_en" label="Text (EN)" defaultValue={page.body.en} rows={14} /><TA s={s} name="body_ar" label="Text (AR)" defaultValue={page.body.ar} rows={14} dir="rtl" />
       </div><div className="mt-4"><CB s={s} name="published" label="Published (visible in the store)" defaultChecked={page.published} /></div>
       <p className="mt-3 rounded-xl bg-gold-soft px-4 py-3 text-xs text-gold-ink">Legal and policy text (privacy, terms, returns…) must be written or approved by you. This store doesn&apos;t generate legal copy; Arabic text should be reviewed by a native speaker.</p></Card>
+      <SeoCard s={s} seo={page.seo} />
       <Save pending={pending}>Save page</Save>
     </form>
   );
@@ -57,7 +74,7 @@ type L = { en: string; ar: string };
 export type BannerData = { id: string; active: boolean; order: number; eyebrow: L; title: L; subtitle: L; ctaLabel: L; ctaHref: string; image?: string; hue: number; startsAt: string; endsAt: string };
 const newBanner = (): BannerData => ({ id: `b${Date.now().toString(36)}`, active: true, order: 0, eyebrow: { en: "", ar: "" }, title: { en: "", ar: "" }, subtitle: { en: "", ar: "" }, ctaLabel: { en: "", ar: "" }, ctaHref: "", hue: 160, startsAt: "", endsAt: "" });
 
-export function HomepageForm({ banners: initial, sections }: { banners: BannerData[]; sections: Record<string, boolean> }) {
+export function HomepageForm({ banners: initial, sections, seo }: { banners: BannerData[]; sections: Record<string, boolean>; seo: SeoValues }) {
   const [s, action, pending] = useActionState<FormState, FormData>(saveHomepageAction, {});
   const [banners, setBanners] = useState<BannerData[]>(initial);
   const set = (i: number, p: Partial<BannerData>) => setBanners((b) => b.map((x, k) => (k === i ? { ...x, ...p } : x)));
@@ -88,6 +105,7 @@ export function HomepageForm({ banners: initial, sections }: { banners: BannerDa
         </div>
       </Card>
       <Card title="Home page sections"><div className="grid gap-3 sm:grid-cols-3">{sectionLabels.map(([k, label]) => <CB key={k} s={s} name={`s_${k}`} label={label} defaultChecked={sections[k] !== false} />)}</div><p className="mt-3 text-xs text-muted">Category tiles follow the category sort order (Categories → Sort order).</p></Card>
+      <SeoCard s={s} seo={seo} note="How the store's home page appears on Google, in each language. Leave blank to use the default text." />
       <Save pending={pending}>Save homepage</Save>
     </form>
   );

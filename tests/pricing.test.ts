@@ -88,17 +88,18 @@ describe("coupons", () => {
     expect(t.couponDiscount).toBe(20);
     expect(t.discountedSubtotal).toBe(0);
   });
-  it("does not stack with sale prices by default", () => {
+  it("skips sale prices only when the coupon opts out", () => {
     const sale = line({ unit: 80, list: 100, sku: "S", productId: "sale" });
     const full = line({ unit: 100, sku: "F", productId: "full" });
-    const t = run([sale, full], { coupon: pct });
+    const t = run([sale, full], { coupon: { ...pct, stackWithSale: false } });
     expect(t.couponDiscount).toBe(10); // 10% of the full-price item only
     expect(t.lines.find((l) => l.sku === "S")!.couponShareFils).toBe(0);
   });
-  it("stacks with sale prices only when explicitly allowed", () => {
+  it("applies to sale prices by default", () => {
     const sale = line({ unit: 80, list: 100 });
+    expect(run([sale], { coupon: pct }).couponDiscount).toBe(8);
     expect(run([sale], { coupon: { ...pct, stackWithSale: true } }).couponDiscount).toBe(8);
-    expect(run([sale], { coupon: pct }).couponProblem).toBe("not_eligible");
+    expect(run([sale], { coupon: { ...pct, stackWithSale: false } }).couponProblem).toBe("not_eligible");
   });
   it("limits to included products/categories and honours exclusions", () => {
     const a = line({ sku: "A", productId: "a", categoryId: "cat1", unit: 100 });

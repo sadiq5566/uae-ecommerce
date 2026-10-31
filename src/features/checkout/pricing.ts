@@ -37,7 +37,7 @@ export type Totals = {
 
 function eligible(line: PriceLine, c: CouponRule) {
   if (c.excludeProducts?.includes(line.productId) || c.excludeCategories?.includes(line.categoryId)) return false;
-  if (!c.stackWithSale && line.unitFils < line.listFils) return false; // already discounted → no stacking by default
+  if (c.stackWithSale === false && line.unitFils < line.listFils) return false; // sale items are skipped only when the coupon opts out
   const hasInclude = (c.products?.length ?? 0) + (c.categories?.length ?? 0) > 0;
   if (!hasInclude) return true;
   return !!(c.products?.includes(line.productId) || c.categories?.includes(line.categoryId));

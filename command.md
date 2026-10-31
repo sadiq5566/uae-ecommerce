@@ -185,10 +185,116 @@ If PowerShell drops `-- --apply`, use: `npx tsx --env-file=.env.local scripts/se
 ```
 npm run db:indexes                    # create / verify indexes (run on every deploy)
 npm run db:indexes -- --sync          # also drop indexes that are no longer in the schema
-npm run db:migrate                    # forward-only migrations
+npm run db:migrate                    # forward-only migrations (002 adds the SEO keywords field to existing products and categories)
 npm run clean-images                  # dry run: watermark removal on remote product photos
 npm run clean-images -- --apply       # re-host cleaned images (keeps your own storage, not other shops' links)
 ```
+
+---
+
+## 7b. SEO, offers and referral scripts
+
+These scripts change data in the database in `MONGODB_DB`. Every one of them is a **dry run** (prints a report, writes nothing) until you add `--apply`. They read `MONGODB_URI` from `.env` (so the file must exist where you run them).
+
+```
+npm run db:seo-fix                    # dry run: remove supplier shop names (Rimal...), fix brands, categories, descriptions, SEO titles
+npm run db:seo-fix -- --apply         # backs up products + collections to ./backups first, then writes
+
+npm run db:seo-rename -- translations.json            # dry run: English names + clean URLs for Arabic-named products (old URLs keep redirecting)
+npm run db:seo-rename -- translations.json --apply    # backs up first, then writes
+
+npm run db:add-belts                  # dry run: moves belts out of "accessories" / "general" into their own "belts" category
+npm run db:add-belts -- --apply
+
+npm run db:seed-offers                # dry run: adds the public coupons WELCOME10, SAVE25, SAVE50, SAVE100, VIP15, WEEKEND12
+npm run db:seed-offers -- --apply     # writes them; existing coupons also start to work on sale items
+```
+
+If PowerShell drops `-- --apply`, run the script directly: `npx tsx --env-file=.env scripts/seo-fix.ts --apply` (same for `seo-rename.ts`, `add-belts.ts`, `seed-offers.ts`).
+
+Order to run them on a fresh or imported catalogue: `db:seo-fix` -> `db:add-belts` -> `db:seed-offers`. Take an Atlas snapshot first if the data matters.
+
+Referral amounts (AED 50 for both sides on the friend's first delivered order, AED 10 to the inviter on every later delivered order) are constants in `src/features/growth/referral-amounts.ts`. They are paid by the cron job below, only after an order is DELIVERED.
+
+---
+
+## 7c. Cron job (required)
+
+`/api/cron/maintenance` must be called every 5 minutes. It cancels unpaid online orders and frees their stock, applies sale-price start/end, and sends abandoned-cart, back-in-stock, review-request and credit-expiry emails. It also pays the referral rewards. Without it none of that happens.
+
+Create the secret once (64 random characters), put it in `.env` as `CRON_SECRET=...` and restart the app:
+
+```
+openssl rand -hex 32
+nano .env                             # CRON_SECRET=<the value>
+pm2 restart rayanacollection --update-env
+```
+
+Test it (a wrong or empty secret answers `401 unauthorized`):
+
+```
+curl -i -H "Authorization: Bearer <CRON_SECRET>" http://localhost:3002/api/cron/maintenance
+```
+
+Schedule it with `crontab -e` on the server:
+
+```
+*/5 * * * * curl -s -H "Authorization: Bearer <CRON_SECRET>" http://localhost:3002/api/cron/maintenance > /dev/null
+```
+
+---
+
+## 7d. Sitemap, robots and Google checks
+
+```
+curl -s https://rayanacollection.store/robots.txt | grep -E "cart|track"           # per-language lines like /en/cart$ ; /en/p/cartier-... must NOT be blocked
+curl -s https://rayanacollection.store/sitemap.xml | grep -m2 "image:loc"          # & must appear as &amp;
+curl -s https://rayanacollection.store/sitemap.xml -o /tmp/sitemap.xml && sed -n '5725,5740p' /tmp/sitemap.xml   # look at the line Search Console complains about
+```
+
+- Search Console: submit `https://rayanacollection.store/sitemap.xml`. After a fix use Validate / resubmit; the status changes within a day.
+- Merchant Center feed (free listings): add a scheduled fetch of `https://rayanacollection.store/feed/google.xml`.
+- "Blocked by robots.txt" in Merchant Center clears a day or so after the new robots.txt is live.
+
+---
+
+## 7e. Build error: `Cannot find module '../lightningcss.linux-x64-gnu.node'`
+
+The lockfile was made on Windows and misses the Linux native binaries. On the server:
+
+```
+cd /var/www/rayanacollection
+rm -rf node_modules .next
+npm ci --include=optional
+ls node_modules | grep -E "lightningcss|oxide"        # lightningcss-linux-x64-gnu must be listed
+```
+
+If it is still missing, install it by hand (use the version of `lightningcss` from `package-lock.json`):
+
+```
+V=$(grep -m1 -A1 '"node_modules/lightningcss"' package-lock.json | grep -o '[0-9][0-9.]*' | head -1)
+npm install --no-save lightningcss-linux-x64-gnu@$V @tailwindcss/oxide-linux-x64-gnu
+npm run build
+```
+
+Permanent fix: on the server run `npm install` (not `npm ci`), copy the updated `package-lock.json` back and commit it. Never upload or commit `node_modules`.
+
+---
+
+## 7h. SEO keywords / hashtags: update the database after a deploy
+
+Existing products, categories, brands, articles, pages and the homepage get the new empty `seo.keywords` field with one migration (adds only what is missing, safe to run twice).
+
+```
+cd /var/www/rayanacollection
+git pull
+npm install
+npm run db:migrate                    # applies the seo-keywords migration
+npm run build
+pm2 restart rayanacollection --update-env
+```
+
+On your PC (dev): `npm run db:migrate`, then stop and restart `npm run dev` (Mongoose keeps the old schema in memory until the server restarts). The second `npm run db:migrate` prints `Database is up to date.`
 
 ---
 

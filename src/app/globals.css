@@ -63,7 +63,7 @@
   --shadow-card: var(--shadow);
 }
 
-html { scroll-behavior: smooth; }
+html { scroll-behavior: smooth; overflow-x: clip; /* nothing may widen the page sideways on phones */ }
 body {
   background: var(--bg);
   color: var(--fg);
@@ -126,3 +126,7 @@ body {
   .ticker-track { width: auto !important; flex-wrap: wrap; justify-content: center; }
   .ticker-track > [aria-hidden="true"] { display: none; }
 }
+
+/* Hide the scrollbar on swipe rails and tab rows. */
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }

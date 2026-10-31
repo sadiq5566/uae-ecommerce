@@ -28,8 +28,12 @@ const nextConfig: NextConfig = {
   },
   env: { NEXT_PUBLIC_IMAGE_HOSTS: imageHosts.join(",") },
   poweredByHeader: false,
+  staticPageGenerationTimeout: 180, // the Merchant feed reads the whole catalogue from MongoDB at build time; slow links need more than the 60 s default
   images: {
     remotePatterns: imageHosts.map((hostname) => ({ protocol: "https" as const, hostname })),
+    formats: ["image/avif", "image/webp"],
+    minimumCacheTTL: 60 * 60 * 24 * 30, // optimised copies are kept for 30 days
+    deviceSizes: [360, 480, 640, 768, 1024, 1280, 1536], // no 3840px variants: nobody needs them for product photos
   },
 };
 

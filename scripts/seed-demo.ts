@@ -42,7 +42,7 @@ async function main() {
   for (const z of zones) await DeliveryZone.updateOne({ key: z.key }, { $set: { ...z, active: true } }, { upsert: true });
   await Settings.updateOne({ key: "store" }, { $setOnInsert: { key: "store" } }, { upsert: true });
   const coupons = [
-    { code: "WELCOME10", type: "percent" as const, value: 10, maxDiscount: 50, minSubtotal: 100, perCustomerLimit: 1, description: { en: "10% off (max AED 50) on full-price items over AED 100", ar: "خصم 10% (حتى 50 درهم) على المنتجات بسعرها الكامل فوق 100 درهم" } },
+    { code: "WELCOME10", type: "percent" as const, value: 10, maxDiscount: 50, minSubtotal: 100, perCustomerLimit: 1, description: { en: "10% off (max AED 50) on orders over AED 100", ar: "خصم 10% (حتى 50 درهم) على الطلبات فوق 100 درهم" } },
     { code: "SAVE25", type: "fixed" as const, value: 25, minSubtotal: 150, perCustomerLimit: 3, usageLimit: 100, stackWithSale: true, description: { en: "AED 25 off orders over AED 150 (works on sale items)", ar: "خصم 25 درهم على الطلبات فوق 150 درهم (يشمل المنتجات المخفضة)" } },
     { code: "EXPIRED5", type: "percent" as const, value: 5, endsAt: new Date("2024-01-01"), description: { en: "Expired demo coupon", ar: "قسيمة تجريبية منتهية" } },
   ];

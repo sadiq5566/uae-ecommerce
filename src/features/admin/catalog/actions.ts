@@ -46,7 +46,8 @@ export async function saveProductAction(_: FormState, fd: FormData): Promise<For
     priceFrom: p.priceFrom, priceTo: p.priceTo, currency: "AED", stock, lowStockThreshold: p.lowStockThreshold, status: p.status,
     isFeatured: p.isFeatured, isNewArrival: p.isNewArrival, isMostWanted: p.isMostWanted, tags: p.tags, highlights: p.highlights, includedItems: p.includedItems,
     images: p.images.map((i) => ({ url: i.url, alt: i.alt?.en || p.name })), variants,
-    seo: { title: p.seoTitle || undefined, description: p.seoDesc || undefined },
+    seo: { title: p.seoTitle || undefined, description: p.seoDesc || undefined, keywords: p.seoKeywords || undefined, noindex: p.seoNoindex || undefined },
+    seoAr: { title: p.seoTitleAr || undefined, description: p.seoDescAr || undefined },
   };
 
   try {
@@ -138,7 +139,7 @@ export async function saveCategoryAction(_: FormState, fd: FormData): Promise<Fo
   if (!parsed.success) return fail(issues(parsed.error), fd);
   const c = parsed.data;
   await connectDb();
-  const base = { slug: c.slug || slugify(c.name), name: c.name, description: c.description, image: c.image || "", type: c.type, parent: c.parent, sortOrder: c.sortOrder, seo: { title: c.seoTitle || undefined, description: c.seoDesc || undefined } };
+  const base = { slug: c.slug || slugify(c.name), name: c.name, description: c.description, image: c.image || "", type: c.type, parent: c.parent, sortOrder: c.sortOrder, seo: { title: c.seoTitle || undefined, description: c.seoDesc || undefined, keywords: c.seoKeywords || undefined, noindex: c.seoNoindex || undefined }, seoAr: { title: c.seoTitleAr || undefined, description: c.seoDescAr || undefined } };
   try {
     if (c.id) {
       if (!Types.ObjectId.isValid(c.id)) return { error: "Not found" };
@@ -180,7 +181,7 @@ export async function saveBrandAction(_: FormState, fd: FormData): Promise<FormS
   if (!parsed.success) return fail(issues(parsed.error), fd);
   const b = parsed.data;
   await connectDb();
-  const base = { slug: b.slug || slugify(b.name), name: b.name, description: b.description, logo: b.logo, image: b.image, isFeatured: b.isFeatured, isActive: b.isActive, sortOrder: b.sortOrder };
+  const base = { slug: b.slug || slugify(b.name), name: b.name, description: b.description, logo: b.logo, image: b.image, isFeatured: b.isFeatured, isActive: b.isActive, sortOrder: b.sortOrder, seo: { title: b.seoTitle || undefined, description: b.seoDesc || undefined, keywords: b.seoKeywords || undefined } };
   try {
     if (b.id) {
       if (!Types.ObjectId.isValid(b.id)) return { error: "Not found" };

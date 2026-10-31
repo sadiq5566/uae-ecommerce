@@ -15,7 +15,7 @@ const clean = (s: string) => s.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").tri
 export async function GET() {
   await connectDb();
   const [products, cats] = await Promise.all([
-    Product.find({ status: "active", mergedInto: null }).sort({ updatedAt: -1 }).limit(40000).lean(),
+    Product.find({ status: "active", mergedInto: null }, { sku: 1, slug: 1, name: 1, shortDescription: 1, longDescription: 1, images: 1, stock: 1, priceFrom: 1, priceTo: 1, brand: 1, model: 1, category: 1 }).sort({ updatedAt: -1 }).limit(40000).lean(),
     getCategories(),
   ]);
   const catName = new Map(cats.map((c) => [c.id, c.name.en]));
