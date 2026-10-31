@@ -11,6 +11,7 @@ const homepageSchema = new Schema(
       eyebrow: i18n, title: i18n, subtitle: i18n, ctaLabel: i18n, ctaHref: String, image: String, hue: { type: Number, default: 160 },
       startsAt: Date, endsAt: Date, // campaigns can be scheduled
     }],
+    seo: { title: i18n, description: i18n, keywords: i18n }, // the home page's own search-result title, description and keywords
     sections: {
       deals: { type: Boolean, default: true }, featured: { type: Boolean, default: true }, newArrivals: { type: Boolean, default: true },
       popular: { type: Boolean, default: true }, mostViewed: { type: Boolean, default: true }, journal: { type: Boolean, default: true },

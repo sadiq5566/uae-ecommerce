@@ -1,22 +1,32 @@
 "use client";
 import Image from "@/components/img";
+import dynamic from "next/dynamic";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { Dictionary } from "@/lib/dictionaries";
 import type { Locale } from "@/lib/i18n";
 import type { Menu } from "@/features/catalog/menu";
 import { Logo } from "./logo";
-import { useSession } from "./session-store";
+import { refreshSession, useSession } from "./session-store";
 import { LangSwitcher } from "./lang-switcher";
 import { SearchBox } from "./search-box";
 import { ThemeToggle } from "./theme-toggle";
 import { OfferTicker } from "@/features/offers/ticker";
+
+// Loaded on first click so the cart UI costs nothing until it is wanted.
+const CartDrawer = dynamic(() => import("@/features/cart/cart-drawer"), { ssr: false });
 
 export function Header({ locale, t, menu, offerLines }: { locale: Locale; t: Dictionary; menu: Menu; offerLines: { key: string; icon: string; text: string }[] }) {
   const [scrolled, setScrolled] = useState(false);
   const drawer = useRef<HTMLDialogElement>(null);
   const closeDrawer = () => drawer.current?.close();
   const { cartCount: count, user, wishlist } = useSession();
+  const [cartAt, setCartAt] = useState<string | null>(null); // the page the cart was opened on
+  const [cartMounted, setCartMounted] = useState(false);
+  const pathname = usePathname();
+  const cartOpen = cartAt === pathname; // placing an order or following a link navigates away, which closes the cart
+  useEffect(() => { if (cartMounted) refreshSession(); }, [pathname, cartMounted]); // an order placed from the cart empties it: re-read the badge
 
   useEffect(() => {
     const on = () => setScrolled(window.scrollY > 8);
@@ -51,14 +61,18 @@ export function Header({ locale, t, menu, offerLines }: { locale: Locale; t: Dic
           <LangSwitcher locale={locale} label={t.nav.language} />
           <Link href={`/${locale}/wishlist`} aria-label={`${t.nav.wishlist} (${wishlist.length})`} className="relative hidden size-10 place-items-center rounded-full bg-surface-2 text-lg transition hover:bg-brand-soft sm:grid">♡{wishlist.length > 0 && <span key={wishlist.length} className="animate-pop absolute -end-1 -top-1 grid min-w-5 place-items-center rounded-full bg-danger-solid px-1 text-[11px] font-bold text-white">{wishlist.length}</span>}</Link>
           <Link href={user ? `/${locale}/account` : `/${locale}/login`} aria-label={user ? `${t.nav.accountLabel}: ${user.name}` : t.nav.signIn} className="grid size-10 place-items-center rounded-full bg-surface-2 transition hover:bg-brand-soft">
-            {user ? (user.avatar ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={user.avatar} alt="" width={40} height={40} className="size-full rounded-full object-cover" /> : <span className="text-sm font-bold text-brand">{user.name.trim()[0]?.toUpperCase()}</span>) : <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="8" r="4" /><path d="M4 21c1-4 4-6 8-6s7 2 8 6" /></svg>}
+            {user ? (user.avatar ? (
+// eslint-disable-next-line @next/next/no-img-element
+<img src={user.avatar} alt="" width={40} height={40} className="size-full rounded-full object-cover" />
+) : <span className="text-sm font-bold text-brand">{user.name.trim()[0]?.toUpperCase()}</span>) : <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="8" r="4" /><path d="M4 21c1-4 4-6 8-6s7 2 8 6" /></svg>}
           </Link>
-          <Link href={`/${locale}/cart`} aria-label={`${t.nav.cart} (${count})`} className="relative grid size-10 place-items-center rounded-full bg-surface-2 transition hover:bg-brand-soft">
+          <button type="button" aria-haspopup="dialog" onClick={() => { setCartMounted(true); setCartAt(pathname); }} aria-label={`${t.nav.cart} (${count})`} className="relative grid size-10 place-items-center rounded-full bg-surface-2 transition hover:bg-brand-soft">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 6h15l-1.5 9h-12zM6 6 5 3H2M9 20a1 1 0 1 0 0 .01M18 20a1 1 0 1 0 0 .01" /></svg>
             {count > 0 && <span key={count} className="animate-pop absolute -end-1 -top-1 grid min-w-5 place-items-center rounded-full bg-gold px-1 text-[11px] font-bold text-gold-fg">{count}</span>}
-          </Link>
+          </button>
         </div>
       </div>
+      {cartMounted && <CartDrawer open={cartOpen} onClose={() => setCartAt(null)} locale={locale} t={t} />}
 
       {/* Category bar: the lead categories one click away, everything else in the "Categories" panel. */}
       <div className="hidden border-t border-line/70 lg:block">

@@ -6,6 +6,7 @@ import { RichText } from "@/components/rich-text";
 import { Breadcrumbs } from "@/features/catalog/breadcrumbs";
 import { getSettings } from "@/features/checkout/prepare";
 import { alternatesFor } from "@/features/catalog/seo";
+import { keywordList } from "@/lib/seo-fields";
 import { getPage } from "@/features/content/service";
 import { ContactForm } from "@/features/support/contact-form";
 import { supportEmailFrom } from "@/lib/email";
@@ -15,7 +16,12 @@ export async function generateMetadata({ params }: PageProps<"/[lang]/[page]">):
   const { lang, page } = await params;
   if (!isLocale(lang)) return {};
   const p = await getPage(page);
-  return p ? { title: p.title[lang], alternates: alternatesFor(lang, `/${page}`) } : {};
+  if (!p) return {};
+  const title = p.seo.title[lang] || p.title[lang], description = p.seo.description[lang] || undefined, keywords = keywordList(p.seo.keywords[lang]);
+  return {
+    title: p.seo.title[lang] ? { absolute: title } : title, description, keywords: keywords.length ? keywords : undefined, alternates: alternatesFor(lang, `/${page}`),
+    openGraph: { title, description, type: "website", url: `/${lang}/${page}` }, twitter: { title, description },
+  };
 }
 
 export default async function ContentPageRoute({ params, searchParams }: PageProps<"/[lang]/[page]">) {

@@ -8,8 +8,8 @@ import { Order } from "@/models/order";
 import { User } from "@/models/user";
 import { sendLifecycleEmail } from "./mail";
 
-/** AED of web credit each side gets once the friend's first order is delivered. */
-export const REFERRAL_REWARD = 25;
+import { REFERRAL_REPEAT_REWARD, REFERRAL_REWARD } from "./referral-amounts";
+export { REFERRAL_REPEAT_REWARD, REFERRAL_REWARD };
 const ALPHABET = "ABCDEFGHJKMNPQRSTVWXYZ23456789";
 export const REFERRAL_COOKIE = "ref";
 export const isReferralCode = (c: unknown): c is string => typeof c === "string" && /^[A-Z0-9-]{4,16}$/i.test(c);
@@ -70,6 +70,7 @@ export async function payReferralRewards(now = new Date()): Promise<{ paid: numb
       if (!referrer || !referee || String(referrer._id) === String(referee._id)) continue;
       const claimed = await Order.updateOne({ _id: o._id, "referral.rewardedAt": { $exists: false } }, { $set: { "referral.rewardedAt": now } });
       if (!claimed.modifiedCount) continue; // another run took it
+      await User.updateOne({ _id: referee._id, referredBy: { $exists: false } }, { $set: { referredBy: referrer._id } });
       const note = { en: `Invite reward · order ${o.orderNumber}`, ar: `مكافأة دعوة · الطلب ${o.orderNumber}` };
       const lot = (u: typeof referrer, role: "referrer" | "referee") => issueCredit({ userId: u._id, amount: REFERRAL_REWARD, source: "referral", ref: `${o.orderNumber}:${role}`, note });
       try { await Promise.all([lot(referrer, "referrer"), lot(referee, "referee")]); }
@@ -85,12 +86,82 @@ export async function payReferralRewards(now = new Date()): Promise<{ paid: numb
   return { paid };
 }
 
-/** How many of this customer's invites have paid out, and what they earned. */
+const REPEAT_THANKS = {
+  en: { subject: "You earned web credit again", title: "Your friend ordered again", body: (a: string) => `Thanks to the friend you invited, <b>${a}</b> has been added to your web credit.`, cta: "My web credit" },
+  ar: { subject: "حصلت على رصيد جديد في المتجر", title: "صديقك طلب مرة أخرى", body: (a: string) => `بفضل الصديق الذي دعوته، تمت إضافة <b>${a}</b> إلى رصيدك في المتجر.`, cta: "رصيدي" },
+} as const;
+
+/**
+ * Every LATER delivered order of a customer who joined through an invite pays the inviter REFERRAL_REPEAT_REWARD in web credit, once per
+ * order (claimed with a conditional update first). The first order is paid by payReferralRewards, so it is skipped here.
+ */
+export async function payReferralRepeatRewards(now = new Date()): Promise<{ paid: number }> {
+  await connectDb();
+  const friends = await User.find({ referredBy: { $exists: true } }).select("referredBy").limit(5000).lean();
+  if (!friends.length) return { paid: 0 };
+  const inviter = new Map(friends.map((f) => [String(f._id), f.referredBy!]));
+  const orders = await Order.find({
+    status: "delivered", user: { $in: [...inviter.keys()] }, referral: { $exists: false }, referralBonus: { $exists: false },
+    createdAt: { $gte: new Date(now.getTime() - 60 * 86_400_000) },
+  }).limit(100).lean();
+  let paid = 0;
+  for (const o of orders) {
+    try {
+      const referrerId = inviter.get(String(o.user));
+      const referrer = referrerId ? await User.findOne({ _id: referrerId, status: "active", emailVerifiedAt: { $exists: true } }).select("email locale").lean() : null;
+      if (!referrer || String(referrer._id) === String(o.user)) continue;
+      const claimed = await Order.updateOne({ _id: o._id, referralBonus: { $exists: false } }, { $set: { referralBonus: { referrer: referrer._id, at: now } } });
+      if (!claimed.modifiedCount) continue; // another run took it
+      const note = { en: `Friend's order reward · order ${o.orderNumber}`, ar: `مكافأة طلب صديق · الطلب ${o.orderNumber}` };
+      try { await issueCredit({ userId: referrer._id, amount: REFERRAL_REPEAT_REWARD, source: "referral", ref: `${o.orderNumber}:repeat`, note }); }
+      catch (e) { await Order.updateOne({ _id: o._id }, { $unset: { referralBonus: 1 } }); throw e; } // retried on the next run
+      const l: Locale = referrer.locale === "ar" ? "ar" : "en"; const t = REPEAT_THANKS[l];
+      const body = h(t.title) + p(t.body(esc(formatAED(REFERRAL_REPEAT_REWARD, l)))) + button(absolute(`/${l}/account/credit`) ?? "#", t.cta);
+      await sendLifecycleEmail(referrer.email, l, t.subject, t.subject, body, `${t.title} ${formatAED(REFERRAL_REPEAT_REWARD, l)}`);
+      paid++;
+    } catch (e) { console.warn("[growth] referral repeat payout failed:", (e as Error).message); }
+  }
+  return { paid };
+}
+
+/** How many of this customer's invites have paid out, how many repeat orders paid, and what they earned. */
 export async function referralStats(userId: string) {
   await connectDb();
-  const [paid, pending] = await Promise.all([
+  const [paid, pending, repeat] = await Promise.all([
     Order.countDocuments({ "referral.referrer": userId, "referral.rewardedAt": { $exists: true } }),
     Order.countDocuments({ "referral.referrer": userId, "referral.rewardedAt": { $exists: false }, status: { $nin: ["cancelled", "refunded"] } }),
+    Order.countDocuments({ "referralBonus.referrer": userId }),
   ]);
-  return { paid, pending, earned: paid * REFERRAL_REWARD };
+  return { paid, pending, repeat, earned: paid * REFERRAL_REWARD + repeat * REFERRAL_REPEAT_REWARD };
+}
+
+export type ReferralFriend = { name: string; since: Date; state: "rewarded" | "pending" | "cancelled"; orders: number; earned: number };
+
+/** "Sara Ahmed" -> "Sara A."; an email-only guest -> "sa***". Friends' full names and addresses are never shown. */
+function shortName(name: string | undefined, email: string | undefined) {
+  const parts = (name ?? "").trim().split(/\s+/).filter(Boolean);
+  if (parts.length) return parts.length > 1 ? `${parts[0]} ${[...parts[parts.length - 1]][0]}.` : parts[0];
+  return `${(email ?? "friend").split("@")[0].slice(0, 2)}***`;
+}
+
+/** The customer's invite tree: each invited friend, their first order's state and what they have earned the inviter so far. */
+export async function referralTree(userId: string): Promise<ReferralFriend[]> {
+  await connectDb();
+  const [firsts, bonuses] = await Promise.all([
+    Order.find({ "referral.referrer": userId }).sort({ createdAt: -1 }).limit(50).select("user email status createdAt referral").lean(),
+    Order.find({ "referralBonus.referrer": userId }).limit(1000).select("user").lean(),
+  ]);
+  const repeats = new Map<string, number>();
+  for (const b of bonuses) if (b.user) repeats.set(String(b.user), (repeats.get(String(b.user)) ?? 0) + 1);
+  const users = await User.find({ _id: { $in: firsts.map((o) => o.user).filter(Boolean) } }).select("name").lean();
+  const nameOf = new Map(users.map((u) => [String(u._id), u.name]));
+  return firsts.map((o) => {
+    const rewarded = !!o.referral?.rewardedAt;
+    const more = o.user ? repeats.get(String(o.user)) ?? 0 : 0;
+    return {
+      name: shortName(o.user ? nameOf.get(String(o.user)) : undefined, o.email ?? undefined), since: o.createdAt,
+      state: rewarded ? "rewarded" : ["cancelled", "refunded"].includes(o.status) ? "cancelled" : "pending",
+      orders: 1 + more, earned: (rewarded ? REFERRAL_REWARD : 0) + more * REFERRAL_REPEAT_REWARD,
+    } as ReferralFriend;
+  });
 }

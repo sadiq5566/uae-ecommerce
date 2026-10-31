@@ -1,9 +1,10 @@
+import { cleanKeywords } from "../src/lib/seo-fields";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { ProductModel } from "./models/Product";
 import { productSchema, type ProductInput } from "./validators/product";
 import { slugify } from "./utils";
 import { guessCategory, resolveCategory } from "./category";
-import { brandFromCategorySlug, inferBrand, isPlaceholderBrand, looksLikeBrand } from "./brands";
+import { brandFromCategorySlug, isPlaceholderBrand, looksLikeBrand } from "./brands";
 import { VARIANTS_FIELD } from "./import-group";
 import { STORE_NAME, cleanName, hasSupplierName, productCopy, resolveBrand, stripSupplier } from "./seo-copy";
 
@@ -139,6 +140,7 @@ export async function validateRecords(items: ImportItem[]): Promise<RowResult[]>
     if (typeof input.name === "string") input.name = cleanName(input.name);
     if (has("seo_title")) input.seo = { ...input.seo, title: clip(stripSupplier(r.seo_title), 70) };
     if (has("seo_description")) input.seo = { ...input.seo, description: clip(stripSupplier(r.seo_description), 160) };
+    if (has("seo_keywords")) input.seo = { ...input.seo, keywords: cleanKeywords(r.seo_keywords) };
     if (has("currency") && r.currency.toUpperCase() !== "AED") errors.push(`currency: only AED is supported (got "${r.currency}")`);
 
     for (const [col, key] of [["price_from", "priceFrom"], ["price_to", "priceTo"]] as const) {

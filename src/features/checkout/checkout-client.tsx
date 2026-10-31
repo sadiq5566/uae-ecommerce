@@ -86,7 +86,7 @@ export function CheckoutClient({ locale, t, addresses, methods, items, testMode,
   const itemCount = items.reduce((a, i) => a + i.qty, 0);
   const offerCards = coupons.map((c) => {
     // Same rule as the server: a coupon skips items that are already on sale unless the admin allowed stacking.
-    const base = items.filter((i) => c.stackWithSale || i.unitPrice >= i.listPrice).reduce((a, i) => a + i.lineTotal, 0);
+    const base = items.filter((i) => c.stackWithSale !== false || i.unitPrice >= i.listPrice).reduce((a, i) => a + i.lineTotal, 0);
     const raw = c.type === "percent" ? (base * c.value) / 100 : c.value;
     const est = Math.round(Math.min(raw, c.maxDiscount ?? Infinity, base) * 100) / 100;
     return { c, est, base, eligible: base > 0 && base >= c.minSubtotal, saleOnly: base === 0 && itemsTotal > 0 };
@@ -135,7 +135,7 @@ export function CheckoutClient({ locale, t, addresses, methods, items, testMode,
             <div className="grid gap-4 sm:grid-cols-2">
               {gf("recipientName", t.address.recipient, { required: true, auto: "name" })}
               {gf("phone", t.address.phone, { type: "tel", required: true, auto: "tel", ph: "050 123 4567" })}
-              {guest && gf("email", t.checkout.email, { type: "email", auto: "email", span: true, required: method === "tabby", hint: t.checkout.emailHint })}
+              {guest && gf("email", t.checkout.email, { type: "email", auto: "email", span: true, required: true, hint: t.checkout.emailHint })}
               <div>
                 <label htmlFor="g-emirate" className="mb-1.5 block text-sm font-medium">{t.address.emirate}</label>
                 <select id="g-emirate" name="emirate" form="checkout-form" value={g.emirate} onChange={set("emirate")} required aria-invalid={!!fe.emirate} className={inputCls}>

@@ -22,7 +22,7 @@ export default async function EditArticle({ params }: PageProps<"/admin/articles
   return (
     <>
       <PageHeader title={a.title?.en ?? ""} sub={`/${a.slug}`} actions={<form action={deleteArticleAction}><input type="hidden" name="id" value={id} /><ConfirmButton message="Delete this article?" className={btnDanger}>Delete</ConfirmButton></form>} />
-      <ArticleForm key={id} article={{ id, slug: a.slug, title: l(a.title), excerpt: l(a.excerpt), body: l(a.body), category: a.category ?? undefined, author: a.author ?? undefined, cover: a.cover ?? undefined, coverAlt: l(a.coverAlt), icon: a.icon, hue: a.hue, status: a.status, publishAt: local(a.publishAt), seo: { title: l(a.seo?.title), description: l(a.seo?.description) } }} />
+      <ArticleForm key={id} article={{ id, slug: a.slug, title: l(a.title), excerpt: l(a.excerpt), body: l(a.body), category: a.category ?? undefined, author: a.author ?? undefined, cover: a.cover ?? undefined, coverAlt: l(a.coverAlt), icon: a.icon, hue: a.hue, status: a.status, publishAt: local(a.publishAt), seo: { title: l(a.seo?.title), description: l(a.seo?.description), keywords: l(a.seo?.keywords) } }} />
     </>
   );
 }

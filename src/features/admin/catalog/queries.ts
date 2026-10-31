@@ -8,8 +8,6 @@ import { Product } from "@/models/product";
 import type { CategoryFormData } from "./category-form";
 import type { CategoryOption, ProductFormData } from "./product-form";
 
-type L = { en: string; ar: string };
-const toLocalInput = (d?: Date | null) => (d ? new Date(d.getTime() + 4 * 3600_000).toISOString().slice(0, 16) : ""); // Dubai wall time for <input type=datetime-local>
 
 /** Category choices for the product form: every category slug in use plus the Collection documents of type "category". id is the slug products store. */
 export async function categoryOptions(): Promise<CategoryOption[]> {
@@ -102,7 +100,7 @@ export async function getProductForm(id: string): Promise<ProductFormData | null
     status: p.status, isFeatured: !!p.isFeatured, isNewArrival: !!p.isNewArrival, isMostWanted: !!p.isMostWanted, tags: p.tags ?? [], highlights: p.highlights ?? [], includedItems: p.includedItems ?? [],
     images: (p.images ?? []).map((i) => ({ url: i.url ?? "", alt: { en: i.alt ?? "", ar: "" } })),
     variants: (p.variants ?? []).map((v) => ({ sku: v.sku, color: v.color ?? "", size: v.size ?? "", stock: v.stock, price: v.price ?? "", image: v.image ?? "" })),
-    seo: { title: p.seo?.title ?? "", description: p.seo?.description ?? "" },
+    seo: { title: p.seo?.title ?? "", description: p.seo?.description ?? "", titleAr: p.seoAr?.title ?? "", descriptionAr: p.seoAr?.description ?? "", keywords: p.seo?.keywords ?? "", noindex: !!p.seo?.noindex },
   };
 }
 
@@ -111,7 +109,7 @@ export async function getCategoryForm(id: string): Promise<CategoryFormData | nu
   await connectDb();
   const c = await Category.findById(id).lean();
   if (!c) return null;
-  return { id: String(c._id), slug: c.slug, name: c.name, description: c.description ?? "", image: c.image || undefined, type: c.type, parent: c.parent ?? undefined, sortOrder: c.sortOrder ?? 0, seoTitle: c.seo?.title ?? "", seoDesc: c.seo?.description ?? "" };
+  return { id: String(c._id), slug: c.slug, name: c.name, description: c.description ?? "", image: c.image || undefined, type: c.type, parent: c.parent ?? undefined, sortOrder: c.sortOrder ?? 0, seoTitle: c.seo?.title ?? "", seoDesc: c.seo?.description ?? "", seoTitleAr: c.seoAr?.title ?? "", seoDescAr: c.seoAr?.description ?? "", seoKeywords: c.seo?.keywords ?? "", seoNoindex: !!c.seo?.noindex };
 }
 
 export async function listCategoriesAdmin() {

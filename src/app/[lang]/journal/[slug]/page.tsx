@@ -7,6 +7,7 @@ import { isLocale } from "@/lib/i18n";
 import { fmt as fmtStr } from "@/lib/format";
 import { RichText } from "@/components/rich-text";
 import { Breadcrumbs } from "@/features/catalog/breadcrumbs";
+import { keywordList } from "@/lib/seo-fields";
 import { alternatesFor } from "@/features/catalog/seo";
 import { getArticle } from "@/features/content/service";
 
@@ -16,7 +17,8 @@ export async function generateMetadata({ params }: PageProps<"/[lang]/journal/[s
   const a = await getArticle(slug);
   if (!a) return {};
   const desc = a.seo.description[lang] || a.excerpt[lang];
-  return { title: a.seo.title[lang] || a.title[lang], description: desc || undefined, alternates: alternatesFor(lang, `/journal/${slug}`), openGraph: { title: a.title[lang], description: desc || undefined, type: "article", publishedTime: a.publishAt, images: a.cover ? [a.cover] : undefined } };
+  const keywords = keywordList(a.seo.keywords[lang]);
+  return { title: a.seo.title[lang] || a.title[lang], description: desc || undefined, keywords: keywords.length ? keywords : undefined, alternates: alternatesFor(lang, `/journal/${slug}`), openGraph: { title: a.title[lang], description: desc || undefined, type: "article", publishedTime: a.publishAt, tags: keywords.length ? keywords : undefined, images: a.cover ? [a.cover] : undefined } };
 }
 
 export default async function ArticlePage({ params }: PageProps<"/[lang]/journal/[slug]">) {

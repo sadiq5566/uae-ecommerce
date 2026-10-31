@@ -15,6 +15,7 @@ const userSchema = new Schema(
     // Bounded list (see WISHLIST_MAX) — avoids unbounded embedded arrays.
     wishlist: [{ type: Schema.Types.ObjectId, ref: "Product" }],
     referralCode: { type: String, uppercase: true, trim: true, index: { unique: true, sparse: true } }, // "invite a friend" code, made on first use
+    referredBy: { type: Schema.Types.ObjectId, ref: "User", index: true }, // who invited this customer (set when their first order's invite reward is paid)
     avatarVersion: Number, // set while the customer has a profile picture (see models/avatar.ts)
     emailVerifiedAt: Date, // proven by a one-time code; web credit and old-order linking require it
     lastLoginAt: Date,

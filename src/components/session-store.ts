@@ -28,6 +28,12 @@ export function useSession() {
 }
 
 export function SessionBootstrap() {
-  useEffect(() => { refreshSession(); }, []);
+  // After first paint: the badge/user state is not needed to render the page, so it never competes with the content for the network.
+  useEffect(() => {
+    const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number; cancelIdleCallback?: (id: number) => void };
+    if (w.requestIdleCallback) { const id = w.requestIdleCallback(() => refreshSession(), { timeout: 1500 }); return () => w.cancelIdleCallback?.(id); }
+    const id = setTimeout(refreshSession, 200);
+    return () => clearTimeout(id);
+  }, []);
   return null;
 }

@@ -9,11 +9,11 @@ import { slugify } from "../../../lib/utils";
 // A brand is the maker of a product (Rolex, Zegna...). It is NOT a category: a product has a category (watches, bags...) and a brand.
 // Products keep the brand NAME in `brand`; the Brand collection holds the brand's page (logo, banner, description, order).
 
-export type BrandView = { id: string; slug: string; name: string; description: string; logo: string; image: string; isFeatured: boolean; isActive: boolean; sortOrder: number };
+export type BrandView = { id: string; slug: string; name: string; description: string; logo: string; image: string; isFeatured: boolean; isActive: boolean; sortOrder: number; seo: { title: string; description: string; keywords: string } };
 type Doc = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 const ACTIVE = { status: "active", mergedInto: null } as const;
 export const brandRegex = (name: string) => new RegExp(`^\\s*${name.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*$`, "i");
-const view = (d: Doc): BrandView => ({ id: String(d._id), slug: d.slug, name: d.name, description: d.description ?? "", logo: d.logo ?? "", image: d.image ?? "", isFeatured: !!d.isFeatured, isActive: d.isActive !== false, sortOrder: d.sortOrder ?? 0 });
+const view = (d: Doc): BrandView => ({ id: String(d._id), slug: d.slug, name: d.name, description: d.description ?? "", logo: d.logo ?? "", image: d.image ?? "", isFeatured: !!d.isFeatured, isActive: d.isActive !== false, sortOrder: d.sortOrder ?? 0, seo: { title: d.seo?.title ?? "", description: d.seo?.description ?? "", keywords: d.seo?.keywords ?? "" } });
 
 /** Makes sure a Brand document exists for this name (called when a product is saved or imported). Placeholder shop names are ignored. */
 export async function ensureBrand(name?: string | null) {

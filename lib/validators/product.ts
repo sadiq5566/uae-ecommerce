@@ -38,7 +38,7 @@ export const productSchema = z
     isFeatured: z.boolean().default(false),
     isMostWanted: z.boolean().default(false),
     status: z.enum(["active", "draft", "archived"]).default("active"),
-    seo: z.object({ title: z.string().trim().optional(), description: z.string().trim().optional() }).default({}),
+    seo: z.object({ title: z.string().trim().optional(), description: z.string().trim().optional(), keywords: z.string().trim().optional() }).default({}),
   })
   .refine((p) => p.priceTo <= p.priceFrom, { path: ["priceTo"], message: "Selling price cannot be higher than the original price" })
   .transform((p) => ({

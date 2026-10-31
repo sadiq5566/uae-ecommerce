@@ -11,12 +11,13 @@ export function TF({ s, name, label, defaultValue, hint, className, ...rest }: {
   return <Field id={`f-${name}`} name={name} label={label} hint={hint} className={className} errors={plain} error={s.fieldErrors?.[name]} defaultValue={s.values?.[name] ?? (defaultValue ?? "")} {...rest} />;
 }
 
-export function TA({ s, name, label, defaultValue, rows = 4, className, error, ...rest }: { s: FV; name: string; label: string; defaultValue?: string | null; rows?: number; className?: string; error?: string } & Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "defaultValue" | "name">) {
+export function TA({ s, name, label, defaultValue, rows = 4, className, error, hint, ...rest }: { s: FV; name: string; label: string; defaultValue?: string | null; rows?: number; className?: string; error?: string; hint?: string } & Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "defaultValue" | "name">) {
   const e = error ?? s.fieldErrors?.[name];
   return (
     <div className={className}>
       <label htmlFor={`f-${name}`} className="mb-1.5 block text-sm font-medium">{label}</label>
       <textarea id={`f-${name}`} name={name} rows={rows} aria-invalid={!!e} className={inputCls} defaultValue={s.values?.[name] ?? defaultValue ?? ""} {...rest} />
+      {hint && !e && <p className="mt-1.5 text-xs text-muted">{hint}</p>}
       {e && <p role="alert" className="mt-1.5 text-sm text-danger">{e}</p>}
     </div>
   );

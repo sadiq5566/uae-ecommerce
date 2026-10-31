@@ -1,7 +1,8 @@
 import { z } from "zod";
 
 export const SORTS = ["relevance", "price_asc", "price_desc", "newest", "rating", "popular"] as const;
-export const PAGE_SIZE = 12;
+export const PAGE_SIZES = [12, 24, 48, 96] as const;
+export const PAGE_SIZE = PAGE_SIZES[0]; // default products per page
 
 const num = z.coerce.number().finite().min(0).max(1_000_000);
 const flag = z.preprocess((v) => v === "1" || v === "true" || v === "on", z.boolean());
@@ -15,6 +16,7 @@ export const filterSchema = z.object({
   inStock: flag.default(false),
   onSale: flag.default(false),
   sort: z.enum(SORTS).default("relevance"),
+  per: z.preprocess((v) => ((PAGE_SIZES as readonly number[]).includes(Number(v)) ? Number(v) : PAGE_SIZE), z.number()),
   page: z.coerce.number().int().min(1).max(500).default(1),
   // Category attribute filters, e.g. attr.color=Black (keys validated against the category).
   attrs: z.record(z.string(), z.array(z.string().max(60)).max(10)).default({}),
@@ -35,7 +37,7 @@ export function parseFilters(raw: Raw): Filters {
   const res = filterSchema.safeParse({
     q: first("q"), brand: arr(raw.brand), minPrice: first("minPrice") || undefined, maxPrice: first("maxPrice") || undefined,
     rating: first("rating") || undefined, inStock: first("inStock"), onSale: first("onSale"),
-    sort: first("sort") || undefined, page: first("page") || undefined, attrs,
+    sort: first("sort") || undefined, page: first("page") || undefined, per: first("per"), attrs,
   });
   return res.success ? res.data : filterSchema.parse({});
 }
@@ -52,6 +54,7 @@ export function toQuery(f: Partial<Filters>, overrides: Partial<Filters> = {}) {
   if (m.inStock) p.set("inStock", "1");
   if (m.onSale) p.set("onSale", "1");
   if (m.sort && m.sort !== "relevance") p.set("sort", m.sort);
+  if (m.per && m.per !== PAGE_SIZE) p.set("per", String(m.per));
   if (m.page && m.page > 1) p.set("page", String(m.page));
   Object.entries(m.attrs ?? {}).forEach(([k, vs]) => vs.forEach((v) => p.append(`attr.${k}`, v)));
   const s = p.toString();
@@ -60,4 +63,4 @@ export function toQuery(f: Partial<Filters>, overrides: Partial<Filters> = {}) {
 
 /** True when any non-default filter/sort/page is active (such URLs are noindex). */
 export const isFiltered = (f: Filters) =>
-  !!(f.brand.length || f.minPrice != null || f.maxPrice != null || f.rating || f.inStock || f.onSale || f.sort !== "relevance" || f.page > 1 || Object.keys(f.attrs).length);
+  !!(f.brand.length || f.minPrice != null || f.maxPrice != null || f.rating || f.inStock || f.onSale || f.sort !== "relevance" || f.per !== PAGE_SIZE || f.page > 1 || Object.keys(f.attrs).length);

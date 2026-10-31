@@ -26,10 +26,10 @@ describe("security headers", () => {
     expect(csp).not.toMatch(/script-src[^;]*\*/);
     expect(csp).not.toMatch(/script-src[^;]*https?:/);
   });
-  it("allows images only from self/data/blob and the configured hosts", () => {
+  it("allows images from self/data/blob, any https supplier CDN, and the configured hosts", () => {
     const csp = contentSecurityPolicy(["cdn.example.com"]);
-    expect(csp).toContain("img-src 'self' data: blob: https://cdn.example.com");
-    expect(contentSecurityPolicy()).not.toContain("https:");
+    expect(csp).toContain("img-src 'self' data: blob: https: https://cdn.example.com");
+    expect(contentSecurityPolicy()).not.toMatch(/(script|connect)-src[^;]*https:/);
   });
   it("private areas are noindex and never shared-cached", () => {
     expect(get(privateHeaders, "X-Robots-Tag")).toContain("noindex");

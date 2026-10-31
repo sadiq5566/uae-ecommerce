@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { Dictionary } from "@/lib/dictionaries";
-import type { Locale } from "@/lib/i18n";
+import { formatAED, type Locale } from "@/lib/i18n";
+import { fmt } from "@/lib/format";
+import { REFERRAL_REPEAT_REWARD, REFERRAL_REWARD } from "@/features/growth/referral-amounts";
 import Image from "@/components/img";
 import type { ArticleView } from "@/features/content/service";
 import type { ProductCardData } from "@/features/catalog/service";
@@ -37,6 +39,26 @@ export function TrustBar({ t }: Pick<P, "t">) {
         ))}
       </Reveal>
     </div>
+  );
+}
+
+/** "Invite a friend, earn AED 50" strip. The link goes to the invite page, which sends signed-out visitors to log in first. */
+export function ReferralBanner({ locale, t }: P) {
+  const amount = formatAED(REFERRAL_REWARD, locale), repeat = formatAED(REFERRAL_REPEAT_REWARD, locale);
+  return (
+    <section className={`${wrap} pt-12 sm:pt-16`}>
+      <Reveal className="flex flex-col items-start gap-5 rounded-3xl bg-brand p-6 text-brand-fg sm:flex-row sm:items-center sm:justify-between sm:p-8">
+        <div className="flex items-start gap-4">
+          <span aria-hidden className="text-4xl">🎁</span>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-widest opacity-90">{t.growth.homeEyebrow}</p>
+            <h2 className="mt-1 font-display text-2xl font-bold sm:text-3xl">{fmt(t.growth.homeHead, { amount })}</h2>
+            <p className="mt-1 max-w-xl text-sm opacity-90">{fmt(t.growth.homeBody, { amount, repeat })}</p>
+          </div>
+        </div>
+        <Link href={`/${locale}/account/invite`} className="shrink-0 rounded-full bg-white px-6 py-3 text-sm font-bold text-brand transition hover:opacity-90">{t.growth.homeCta}</Link>
+      </Reveal>
+    </section>
   );
 }
 

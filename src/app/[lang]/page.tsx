@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { alternatesFor, homeDescription, homeTitle } from "@/features/catalog/seo";
 import { getBrand } from "@/lib/email";
+import { keywordList } from "@/lib/seo-fields";
 import { getDictionary } from "@/lib/dictionaries";
 import { isLocale } from "@/lib/i18n";
 import { getCategories, getCollection, getShowcase } from "@/features/catalog/service";
@@ -9,23 +10,24 @@ import { buildMenu, MAIN_SLUGS } from "@/features/catalog/menu";
 import { getStoreBrands } from "@/features/catalog/brands";
 import { getHomeConfig, listArticles } from "@/features/content/service";
 import { Hero, type HeroSlide } from "@/features/home/hero";
-import { CategoryShowcase, CategorySpotlight, Journal, ProductSection, TrustBar } from "@/features/home/sections";
+import { CategoryShowcase, CategorySpotlight, Journal, ProductSection, ReferralBanner, TrustBar } from "@/features/home/sections";
 
 export const revalidate = 60; // home content refreshes at most once a minute (admin saves also revalidate it)
 
 export async function generateMetadata({ params }: PageProps<"/[lang]">): Promise<Metadata> {
   const { lang } = await params;
   if (!isLocale(lang)) return {};
-  const title = homeTitle(lang, (await getBrand(lang)).name), description = homeDescription(lang);
-  return { title: { absolute: title }, description, alternates: alternatesFor(lang, ""), openGraph: { title, description, url: `/${lang}` }, twitter: { title, description } };
+  const seo = (await getHomeConfig()).seo, keywords = keywordList(seo.keywords[lang]);
+  const title = seo.title[lang] || homeTitle(lang, (await getBrand(lang)).name), description = seo.description[lang] || homeDescription(lang);
+  return { title: { absolute: title }, description, keywords: keywords.length ? keywords : undefined, alternates: alternatesFor(lang, ""), openGraph: { title, description, url: `/${lang}` }, twitter: { title, description } };
 }
 
 export default async function Home({ params }: PageProps<"/[lang]">) {
   const { lang } = await params;
   if (!isLocale(lang)) notFound();
   const ar = lang === "ar";
-  const [t, categories, showcase, cfg, articles] = await Promise.all([getDictionary(lang), getCategories(), getShowcase(), getHomeConfig(), listArticles(3)]);
-  const menu = buildMenu(categories, showcase, await getStoreBrands().catch(() => []));
+  const [t, categories, showcase, cfg, articles, storeBrands] = await Promise.all([getDictionary(lang), getCategories(), getShowcase(), getHomeConfig(), listArticles(3), getStoreBrands().catch(() => [])]);
+  const menu = buildMenu(categories, showcase, storeBrands);
   const sec = cfg.sections;
   // Every row below is limited to the lead categories (jewelry, perfume, watches, bags, glasses, caps).
   const [deals, trending, bestSellers, newest, ...perCategory] = await Promise.all([
@@ -50,6 +52,7 @@ export default async function Home({ params }: PageProps<"/[lang]">) {
       <TrustBar t={t} />
       <CategoryShowcase {...p} menu={menu} />
       {menu.main.map((c, i) => c.slug === "perfume" && <CategorySpotlight key={c.slug} {...p} eyebrow={ar ? "عطور مختارة" : "Signature scents"} title={c.name[lang]} sub={ar ? "عطور فاخرة من أشهر الدور العالمية، بأحجام مناسبة للهدية والاستخدام اليومي." : "Luxury fragrances from the most loved houses, in sizes made for gifting and everyday wear."} items={perCategory[i]} href={`/${lang}/c/${c.slug}`} image={c.image} />)}
+      <ReferralBanner {...p} />
       <ProductSection {...p} title={t.sections.deals} sub={t.sections.dealsSub} items={deals} href={`/${lang}/deals`} />
       <ProductSection {...p} title={t.catalog.popular} sub={t.catalog.popularSub} items={trending} />
       {menu.main.map((c, i) => c.slug !== "perfume" && <ProductSection key={c.slug} {...p} title={c.name[lang]} sub={c.tagline[lang]} items={perCategory[i]} href={`/${lang}/c/${c.slug}`} />)}

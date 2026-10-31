@@ -7,7 +7,7 @@ import { ProductModel } from "../../../lib/models/Product";
 import { CollectionModel } from "../../../lib/models/Collection";
 import { swatchFor } from "../../../lib/variants";
 import { categoryLabel } from "../../../lib/catalog-shared";
-import { PAGE_SIZE, type Filters } from "./filters";
+import { type Filters } from "./filters";
 import { brandRegex } from "./brands";
 
 // Reads the shared flat catalogue (lib/models/Product.ts + Collection.ts, identical in every storefront) and adapts it
@@ -18,7 +18,7 @@ const both = (s: string): L10n => ({ en: s, ar: s });
 export type CategoryView = {
   id: string; slug: string; name: L10n; description?: Partial<L10n>; parent: string | null;
   icon: string; hue: number; image?: string; attributes: { key: string; label: L10n }[];
-  seo?: { title?: Partial<L10n>; description?: Partial<L10n> };
+  seo?: { title?: Partial<L10n>; description?: Partial<L10n>; keywords?: string; noindex?: boolean };
 };
 
 export type ProductCardData = {
@@ -31,7 +31,7 @@ export type ProductDetail = ProductCardData & {
   description: Partial<L10n>; category: string; attrs: Record<string, string>;
   variants: { sku: string; label: L10n; stock: number; price: number; image?: string; swatch?: string; color?: string; size?: string }[];
   specs: { label: L10n; value: L10n }[]; lowStockThreshold: number; images: { url: string; alt?: Partial<L10n> }[];
-  seo?: { title?: Partial<L10n>; description?: Partial<L10n> };
+  seo?: { title?: Partial<L10n>; description?: Partial<L10n>; keywords?: string; noindex?: boolean };
 };
 
 type Doc = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -55,7 +55,7 @@ const catView = (slug: string, doc?: Doc): CategoryView => ({
   id: slug, slug, name: both(String(doc?.name ?? categoryLabel(slug)).replace(/^All /, "")), description: doc?.description ? both(doc.description) : undefined, parent: null,
   icon: ICONS[slug] ?? "📦", hue: hueOf(slug), image: doc?.image || undefined,
   attributes: [{ key: "color", label: both("Colour") }, { key: "size", label: both("Size") }],
-  seo: doc?.seo?.title || doc?.seo?.description ? { title: doc.seo.title ? both(doc.seo.title) : undefined, description: doc.seo.description ? both(doc.seo.description) : undefined } : undefined,
+  seo: doc?.seo?.title || doc?.seo?.description || doc?.seo?.keywords || doc?.seo?.noindex ? { title: doc.seo.title ? { en: doc.seo.title, ar: doc.seoAr?.title || doc.seo.title } : undefined, description: doc.seo.description ? { en: doc.seo.description, ar: doc.seoAr?.description || doc.seo.description } : undefined, keywords: doc.seo.keywords || undefined, noindex: !!doc.seo.noindex } : undefined,
 });
 
 // Categories = every category value on a published product, enriched by its Collection document (type "category"). Cached 60 s.
@@ -146,7 +146,7 @@ async function computeFacets(base: QueryFilter<Doc>, allowedAttrs: string[]): Pr
   };
 }
 
-export async function listProducts(scope: Scope, f: Filters, allowedAttrs: string[] = []) {
+async function listProductsLive(scope: Scope, f: Filters, allowedAttrs: string[]) {
   await connectDb();
   let regex = false;
   let base = baseMatch(scope, f.q);
@@ -155,7 +155,7 @@ export async function listProducts(scope: Scope, f: Filters, allowedAttrs: strin
     const useText = !!f.q && !regex;
     const sort = useText && f.sort === "relevance" ? { score: { $meta: "textScore" }, _id: 1 as const } : SORT[f.sort];
     const q = ProductModel.find(match, useText ? { ...CARD_PROJECTION, score: { $meta: "textScore" } } : CARD_PROJECTION)
-      .sort(sort as Record<string, 1 | -1 | { $meta: "textScore" }>).skip((f.page - 1) * PAGE_SIZE).limit(PAGE_SIZE).lean();
+      .sort(sort as Record<string, 1 | -1 | { $meta: "textScore" }>).skip((f.page - 1) * f.per).limit(f.per).lean();
     return Promise.all([q as unknown as Promise<Doc[]>, ProductModel.countDocuments(match)]);
   };
   // Facets depend only on scope+query, so they run alongside the product page instead of after it.
@@ -170,11 +170,15 @@ export async function listProducts(scope: Scope, f: Filters, allowedAttrs: strin
   }
 
   const facets = await facetsP;
-  return { items: rows.map(card), total, pages: Math.max(1, Math.ceil(total / PAGE_SIZE)), facets };
+  return { items: rows.map(card), total, pages: Math.max(1, Math.ceil(total / f.per)), facets };
 }
 
+const listProductsCached = cachedFor("listProducts", 60, listProductsLive);
+/** Listing pages are cached for a minute per scope + filters; searches (free text) always run live. */
+export const listProducts = (scope: Scope, f: Filters, allowedAttrs: string[] = []) => (f.q ? listProductsLive(scope, f, allowedAttrs) : listProductsCached(scope, f, allowedAttrs));
+
 /** Simple collections for the home page. `categories` limits them to those category slugs (the lead categories on the home page). */
-export async function getCollection(kind: "featured" | "deals" | "new" | "popular" | "viewed" | "category", limit = 4, categories?: string[]) {
+async function loadCollection(kind: "featured" | "deals" | "new" | "popular" | "viewed" | "category", limit: number, categories?: string[]) {
   await connectDb();
   const filter: QueryFilter<Doc> = { ...ACTIVE, "images.0": { $exists: true } };
   if (categories?.length) filter.category = { $in: categories };
@@ -185,6 +189,9 @@ export async function getCollection(kind: "featured" | "deals" | "new" | "popula
   if (kind === "viewed") sort = { viewCount: -1 };
   return ((await ProductModel.find(filter, CARD_PROJECTION).sort({ ...sort, _id: 1 }).limit(limit).lean()) as unknown as Doc[]).map(card);
 }
+
+const collectionCached = cachedFor("collection", 60, loadCollection);
+export const getCollection = (kind: Parameters<typeof loadCollection>[0], limit = 4, categories?: string[]) => collectionCached(kind, limit, categories);
 
 /** One picture + product count per category (best-selling product that has a photo). Categories have no image of their own, so this feeds the home tiles and menus. */
 export const getShowcase = cachedFor("showcase", 300, async (): Promise<Record<string, { image?: string; count: number }>> => {
@@ -197,7 +204,7 @@ export const getShowcase = cachedFor("showcase", 300, async (): Promise<Record<s
   return Object.fromEntries(rows.map((r) => [r._id, { image: r.image || undefined, count: r.count }]));
 });
 
-export async function getProductBySlug(slug: string) {
+const loadProductBySlug = cachedFor("product", 30, async (slug: string) => {
   await connectDb();
   const p = (await ProductModel.findOne({ slug: slug.toLowerCase(), ...ACTIVE }).lean()) as unknown as Doc | null;
   if (!p) return null;
@@ -209,16 +216,18 @@ export async function getProductBySlug(slug: string) {
       image: v.image || undefined, swatch: v.color ? swatchFor(v.color) : undefined, color: v.color || undefined, size: v.size || undefined,
     })),
     specs: [["Brand", p.brand], ["Model", p.model], ["Finish", p.finish]].filter(([, v]) => v).map(([k, v]) => ({ label: both(k), value: both(v) })),
-    lowStockThreshold: p.lowStockThreshold ?? 5, images: (p.images ?? []).map((i: Doc) => ({ url: i.url, alt: both(i.alt || p.name) })), seo: p.seo?.title || p.seo?.description ? { title: p.seo.title ? { en: p.seo.title, ar: p.seoAr?.title || p.seo.title } : undefined, description: p.seo.description ? { en: p.seo.description, ar: p.seoAr?.description || p.seo.description } : undefined } : undefined,
+    lowStockThreshold: p.lowStockThreshold ?? 5, images: (p.images ?? []).map((i: Doc) => ({ url: i.url, alt: both(i.alt || p.name) })), seo: p.seo?.title || p.seo?.description || p.seo?.keywords || p.seo?.noindex ? { keywords: p.seo.keywords || undefined, noindex: !!p.seo.noindex, title: p.seo.title ? { en: p.seo.title, ar: p.seoAr?.title || p.seo.title } : undefined, description: p.seo.description ? { en: p.seo.description, ar: p.seoAr?.description || p.seo.description } : undefined } : undefined,
   };
   return clean(detail);
-}
+});
+export const getProductBySlug = (slug: string) => loadProductBySlug(slug.toLowerCase());
 
-export async function getRelated(p: ProductDetail, limit = 4) {
+const loadRelated = cachedFor("related", 60, async (category: string | undefined, id: string | undefined, limit: number) => {
   await connectDb();
-  const rows = await ProductModel.find({ ...ACTIVE, category: p.category, _id: { $ne: p.id } }).sort({ soldCount: -1 }).limit(limit).lean();
+  const rows = await ProductModel.find({ ...ACTIVE, category, _id: { $ne: id } }).sort({ soldCount: -1 }).limit(limit).lean();
   return (rows as unknown as Doc[]).map(card);
-}
+});
+export const getRelated = (p: ProductDetail, limit = 4) => loadRelated(p.category, p.id, limit);
 
 export async function getSitemapEntries() {
   await connectDb();

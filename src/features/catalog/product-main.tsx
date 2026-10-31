@@ -18,9 +18,9 @@ export function ProductMain({ p, locale, t, children }: { p: ProductDetail; loca
   const images = [...p.images, ...p.variants.filter((x) => x.image && !p.images.some((i) => i.url === x.image)).map((x) => ({ url: x.image as string }))]
     .filter((im, k, a) => a.findIndex((z) => z.url === im.url) === k);
   return (
-    <div className="mt-6 grid gap-10 lg:grid-cols-2">
-      <div className="animate-fade-up"><Gallery images={images} name={title} locale={locale} icon={p.icon} hue={p.hue} labels={{ thumb: t.catalog.thumb }} selectedUrl={v?.image} onPick={(url) => { const k = p.variants.findIndex((x) => x.image === url && (!v?.color || x.color === v.color || !p.variants.some((y) => y.image === url && y.color === v.color))); if (k >= 0) setVi(k); }} /></div>
-      <div className="animate-fade-up flex flex-col gap-6 [animation-delay:120ms]">
+    <div className="mt-6 grid grid-cols-1 gap-6 sm:gap-10 lg:grid-cols-2">
+      <div className="animate-fade-up min-w-0"><Gallery images={images} name={title} locale={locale} icon={p.icon} hue={p.hue} labels={{ thumb: t.catalog.thumb }} selectedUrl={v?.image} onPick={(url) => { const k = p.variants.findIndex((x) => x.image === url && (!v?.color || x.color === v.color || !p.variants.some((y) => y.image === url && y.color === v.color))); if (k >= 0) setVi(k); }} /></div>
+      <div className="animate-fade-up flex min-w-0 flex-col gap-6 [animation-delay:120ms]">
         <div>
           {p.brand && <p className="text-sm font-semibold text-brand">{p.brand}</p>}
           <h1 className="mt-1 font-display text-3xl font-bold leading-tight sm:text-4xl">{title}</h1>

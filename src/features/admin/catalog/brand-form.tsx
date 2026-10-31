@@ -5,8 +5,8 @@ import { Card, btnPrimary } from "@/components/admin/ui";
 import type { FormState } from "@/features/auth/schemas";
 import { saveBrandAction } from "./actions";
 
-export type BrandFormData = { id?: string; slug: string; name: string; description: string; logo: string; image: string; isFeatured: boolean; isActive: boolean; sortOrder: number };
-const EMPTY: BrandFormData = { slug: "", name: "", description: "", logo: "", image: "", isFeatured: false, isActive: true, sortOrder: 0 };
+export type BrandFormData = { id?: string; slug: string; name: string; description: string; logo: string; image: string; isFeatured: boolean; isActive: boolean; sortOrder: number; seo: { title: string; description: string; keywords: string } };
+const EMPTY: BrandFormData = { slug: "", name: "", description: "", logo: "", image: "", isFeatured: false, isActive: true, sortOrder: 0, seo: { title: "", description: "", keywords: "" } };
 
 /** A brand: the maker of a product (Rolex, Zegna…). Separate from the category. Renaming it renames the brand on all its products. */
 export function BrandForm({ brand }: { brand?: BrandFormData }) {
@@ -31,6 +31,13 @@ export function BrandForm({ brand }: { brand?: BrandFormData }) {
         <div className="mt-4 flex flex-wrap gap-6">
           <CB s={s} name="isFeatured" label="Featured on the home page" defaultChecked={b.isFeatured} />
           <CB s={s} name="isActive" label="Show in the store" defaultChecked={b.isActive} />
+        </div>
+      </Card>
+      <Card title="Search engines (SEO)">
+        <div className="grid gap-4">
+          <TF s={s} name="seoTitle" label="SEO title" defaultValue={b.seo.title} hint="Max 70 characters. Example: Buy Rolex Watches Online in UAE | Your Store." />
+          <TA s={s} name="seoDesc" label="Meta description (max 160 characters)" defaultValue={b.seo.description} rows={2} />
+          <TA s={s} name="seoKeywords" label="Keywords / hashtags" defaultValue={b.seo.keywords} rows={2} hint="Words people search for, separated by commas or #hashtags, e.g. #rolex, rolex watches dubai, luxury watches. Up to 25." />
         </div>
       </Card>
       <div className="sticky bottom-3 z-10 flex gap-3 rounded-2xl border border-line bg-surface/95 p-3 shadow-card backdrop-blur"><button disabled={pending} className={btnPrimary}>{pending ? "Saving…" : b.id ? "Save changes" : "Create brand"}</button></div>

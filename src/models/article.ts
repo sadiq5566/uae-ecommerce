@@ -11,7 +11,7 @@ const articleSchema = new Schema(
     author: { type: String, trim: true, maxlength: 80 },
     status: { type: String, enum: ["draft", "published"], default: "draft" },
     publishAt: Date, // published articles with a future publishAt go live automatically at that time
-    seo: { title: i18n, description: i18n },
+    seo: { title: i18n, description: i18n, keywords: i18n },
   },
   { timestamps: true },
 );

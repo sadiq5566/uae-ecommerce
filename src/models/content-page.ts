@@ -6,7 +6,7 @@ export type PageSlug = (typeof PAGE_SLUGS)[number];
 
 const i18n = { en: { type: String, default: "" }, ar: { type: String, default: "" } };
 const pageSchema = new Schema(
-  { slug: { type: String, required: true, unique: true, enum: PAGE_SLUGS }, title: i18n, body: i18n, published: { type: Boolean, default: false }, updatedBy: { type: Schema.Types.ObjectId, ref: "User" } },
+  { slug: { type: String, required: true, unique: true, enum: PAGE_SLUGS }, title: i18n, body: i18n, published: { type: Boolean, default: false }, seo: { title: i18n, description: i18n, keywords: i18n }, updatedBy: { type: Schema.Types.ObjectId, ref: "User" } },
   { timestamps: true },
 );
 

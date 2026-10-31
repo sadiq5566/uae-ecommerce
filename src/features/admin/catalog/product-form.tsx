@@ -12,10 +12,10 @@ export type ProductFormData = {
   id?: string; slug: string; sku: string; name: string; shortDescription: string; longDescription: string; category: string; subcategory: string;
   brand?: string; model?: string; finish?: string; priceFrom: number; priceTo: number; stock: number; lowStockThreshold: number; status: string;
   isFeatured: boolean; isNewArrival: boolean; isMostWanted: boolean; tags: string[]; highlights: string[]; includedItems: string[];
-  images: ImageItem[]; variants: VariantItem[]; seo: { title: string; description: string };
+  images: ImageItem[]; variants: VariantItem[]; seo: { title: string; description: string; titleAr: string; descriptionAr: string; keywords: string; noindex: boolean };
 };
 
-const EMPTY: ProductFormData = { slug: "", sku: "", name: "", shortDescription: "", longDescription: "", category: "", subcategory: "general", priceFrom: 0, priceTo: 0, stock: 0, lowStockThreshold: 5, status: "draft", isFeatured: false, isNewArrival: false, isMostWanted: false, tags: [], highlights: [], includedItems: [], images: [], variants: [], seo: { title: "", description: "" } };
+const EMPTY: ProductFormData = { slug: "", sku: "", name: "", shortDescription: "", longDescription: "", category: "", subcategory: "general", priceFrom: 0, priceTo: 0, stock: 0, lowStockThreshold: 5, status: "draft", isFeatured: false, isNewArrival: false, isMostWanted: false, tags: [], highlights: [], includedItems: [], images: [], variants: [], seo: { title: "", description: "", titleAr: "", descriptionAr: "", keywords: "", noindex: false } };
 
 export function ProductForm({ categories, product, brands = [] }: { categories: CategoryOption[]; product?: ProductFormData; brands?: string[] }) {
   const p = product ?? EMPTY;
@@ -74,6 +74,10 @@ export function ProductForm({ categories, product, brands = [] }: { categories: 
           <div />
           <TF s={s} name="seoTitle" label="SEO title" defaultValue={p.seo.title} hint="Max 70 characters. Main words first: brand, what it is, colour." />
           <TA s={s} name="seoDesc" label="Meta description" defaultValue={p.seo.description} rows={2} />
+          <TF s={s} name="seoTitleAr" label="SEO title (Arabic)" defaultValue={p.seo.titleAr} hint="Shown on the /ar page. Leave empty to reuse the English title." />
+          <TA s={s} name="seoDescAr" label="Meta description (Arabic)" defaultValue={p.seo.descriptionAr} rows={2} />
+          <TF s={s} name="seoKeywords" label="Focus keywords (comma separated)" defaultValue={p.seo.keywords} hint="Up to 200 characters. Example: gold ring, women ring dubai." />
+          <CB s={s} name="seoNoindex" label="Hide this product from Google (noindex)" defaultChecked={p.seo.noindex} />
           <SeoPreview />
         </div>
       </Card>

@@ -1,7 +1,6 @@
 "use client";
 import Image from "@/components/img";
-import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { addToCartAction } from "@/features/cart/actions";
 import { setCartCount } from "@/components/session-store";
 import { WishlistButton } from "@/components/wishlist-button";
@@ -11,16 +10,15 @@ import { fmt } from "@/lib/format";
 import type { Dictionary } from "@/lib/dictionaries";
 import { colorInStock, pickVariant, sizeInStock, swatchFor, variantOptions } from "../../../lib/variants";
 import type { ProductDetail } from "./service";
+import { OrderNow } from "@/components/order-now";
 import { NotifyWhenBack } from "@/features/growth/notify-form";
 
 /** Price/stock display and add-to-cart. Display-only: the server recomputes everything at checkout (Phase 4). */
 export function ProductBuy({ p, locale, t, vi, setVi, email }: { p: ProductDetail; locale: Locale; t: Dictionary; vi: number; setVi: (i: number) => void; email?: string }) {
   const toast = useToast();
-  const router = useRouter();
   const [qty, setQty] = useState(1);
   const [pulse, setPulse] = useState(0);
   const [pending, start] = useTransition();
-  const [going, startGo] = useTransition();
   const v = p.variants[vi];
   const opts = variantOptions(p.variants);
   const pick = (color?: string, size?: string) => { const x = pickVariant(p.variants, color, size); setVi(Math.max(0, p.variants.indexOf(x as (typeof p.variants)[number]))); };
@@ -29,9 +27,6 @@ export function ProductBuy({ p, locale, t, vi, setVi, email }: { p: ProductDetai
   const off = price < p.price ? Math.round((1 - price / p.price) * 100) : 0;
   const max = Math.min(stock, 10);
   const q = Math.min(qty, Math.max(max, 1));
-  const buyUrl = `/${locale}/checkout?buy=${encodeURIComponent(v?.sku ?? p.sku)}&qty=${q}`;
-  // Warm the checkout route while the shopper is still deciding, so "Buy now" feels instant.
-  useEffect(() => { if (stock > 0) router.prefetch(buyUrl); }, [router, buyUrl, stock]);
 
   return (
     <div className="flex flex-col gap-5">
@@ -100,17 +95,15 @@ export function ProductBuy({ p, locale, t, vi, setVi, email }: { p: ProductDetai
             if (r.ok || r.error !== "invalid") setCartCount(r.count); // a rejected request must not zero the badge
             if (r.ok) { toast(t.product.added); setPulse((x) => x + 1); } else toast(t.errors[r.error ?? "generic"] ?? t.errors.generic, "error");
           })}
-          className="min-w-48 flex-1 rounded-xl bg-brand px-6 py-3.5 font-semibold text-brand-fg transition hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+          className="min-w-40 flex-1 rounded-xl bg-brand px-6 py-3.5 font-semibold text-brand-fg transition hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <span key={pulse} className={pulse ? "animate-pop inline-block" : "inline-block"}>🛒</span> {stock === 0 ? t.catalog.outOfStock : t.product.addToCart}
         </button>
-        <button
-          type="button" disabled={stock === 0 || pending || going} aria-busy={going}
-          onClick={() => startGo(() => router.push(buyUrl))}
-          className="min-w-40 flex-1 rounded-xl border-2 border-brand px-6 py-3.5 font-semibold text-brand transition hover:bg-brand-soft active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
-        >{going ? <span className="inline-block animate-spin">⏳</span> : "⚡"} {t.product.buyNow}</button>
         <WishlistButton productId={p.id} locale={locale} label={t.product.save} savedLabel={t.product.saved} loginLabel={t.product.loginToSave} className="!size-12 border border-line" />
       </div>
+      <OrderNow sku={v?.sku ?? p.sku} qty={q} locale={locale} t={t} disabled={stock === 0}
+        className="w-full rounded-xl border-2 border-brand bg-brand-soft px-6 py-3.5 font-semibold text-brand transition hover:bg-brand hover:text-brand-fg active:scale-95 disabled:cursor-not-allowed disabled:opacity-50" />
+      {stock > 0 && <p className="-mt-2 text-center text-xs text-muted">💵 {t.topbar.cod}</p>}
     </div>
   );
 }
