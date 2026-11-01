@@ -12,11 +12,18 @@ import path from "node:path";
 import mongoose from "mongoose";
 import { ProductModel } from "../lib/models/Product";
 import { groupKey, splitName } from "../lib/variants";
+import { colorKey, normText, splitNameAny } from "../lib/variants-ar";
 
 const apply = process.argv.includes("--apply");
 const category = process.argv.find((a) => a.startsWith("--category="))?.split("=")[1];
 
+/** Imported variant values sometimes carry stray separators ("– ذهبي"): trim them. */
+const clean = (v?: string) => v?.replace(/^[\s\-–—|/,:]+|[\s\-–—|/,:]+$/g, "") || undefined;
+
 type Doc = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+
+/** Arabic name of the group: the main product's nameAr without its colour / size words. */
+const arBase = (d: Doc) => (d.nameAr ? splitNameAny(d.nameAr, splitName).base : "");
 
 async function main() {
   const uri = process.env.MONGODB_URI;
@@ -27,9 +34,9 @@ async function main() {
   const groups = new Map<string, { doc: Doc; color?: string; size?: string; base: string }[]>();
   for (const doc of docs) {
     if (doc.variants?.length > 1) continue; // already a multi-variant product
-    const s = splitName(doc.name);
-    const color = s.color ?? doc.variants?.[0]?.color;
-    const size = s.size ?? doc.variants?.[0]?.size;
+    const s = splitNameAny(doc.name, splitName); // English and Arabic names (colour / size words in either language)
+    const color = clean(s.color ?? doc.variants?.[0]?.color);
+    const size = clean(s.size ?? doc.variants?.[0]?.size);
     if (!color && !size) continue;
     const key = `${doc.category}|${groupKey(doc.brand, s.base)}`;
     groups.set(key, [...(groups.get(key) ?? []), { doc, color, size, base: s.base }]);
@@ -37,7 +44,7 @@ async function main() {
 
   const merges = [...groups.values()].filter((g) => {
     if (g.length < 2) return false;
-    const combos = new Set(g.map((m) => `${m.color ?? ""}|${m.size ?? ""}`));
+    const combos = new Set(g.map((m) => `${colorKey(m.color)}|${normText(m.size)}`)); // "أسود" and "Black" are the same colour
     return combos.size === g.length; // every member must differ by colour/size
   });
 
@@ -57,7 +64,7 @@ async function main() {
     backup.push(...g.map((m) => m.doc));
     const images = [...new Map(sorted.flatMap((m) => m.doc.images ?? []).map((i: Doc) => [i.url, i])).values()].slice(0, 12);
     await ProductModel.updateOne({ _id: main.doc._id }, {
-      $set: { name: main.base, model: main.base, variants, stock: variants.reduce((s, v) => s + v.stock, 0), images },
+      $set: { name: main.base, model: main.base, ...(arBase(main.doc) && { nameAr: arBase(main.doc) }), variants, stock: variants.reduce((s, v) => s + v.stock, 0), images },
       $addToSet: { slugHistory: { $each: rest.map((m) => m.doc.slug) } },
     });
     await ProductModel.updateMany({ _id: { $in: rest.map((m) => m.doc._id) } }, { $set: { status: "archived", mergedInto: main.doc.sku } });

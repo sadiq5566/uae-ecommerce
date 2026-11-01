@@ -10,6 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "format": "prettier --write .",
+    "db:discount": "tsx --env-file=.env scripts/discount-prices.ts",
+    "db:markup": "tsx --env-file=.env scripts/markup-prices.ts",
     "seed": "tsx --env-file=.env scripts/seed.ts",
     "clean-images": "tsx --env-file=.env scripts/clean-images.ts",
     "remove-images": "tsx --env-file=.env scripts/remove-images.ts",
@@ -25,6 +27,8 @@
     "db:init": "tsx --env-file=.env scripts/db-init.ts",
     "db:recategorize": "tsx --env-file=.env scripts/recategorize.ts",
     "db:seo-fix": "tsx --env-file=.env scripts/seo-fix.ts",
+    "db:seo-uae": "tsx --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/seo-uae.ts",
+
     "db:seo-rename": "tsx --env-file=.env scripts/seo-rename.ts",
     "db:seed-offers": "tsx --env-file=.env scripts/seed-offers.ts",
     "db:add-belts": "tsx --env-file=.env scripts/add-belts.ts",

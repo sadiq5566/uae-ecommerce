@@ -1,6 +1,7 @@
 import "server-only";
 import { Types } from "mongoose";
 import { connectDb } from "@/lib/db";
+import { CreditAdjustment, type AdjustmentKind } from "@/models/credit-adjustment";
 import { CreditLot, type CreditSource } from "@/models/credit-lot";
 import { Order } from "@/models/order";
 
@@ -96,3 +97,37 @@ export async function restoreOrderCredit(orderId: Types.ObjectId, now = new Date
   return o.credit.amountFils / 100;
 }
 
+
+export type Adjuster = { id: string; email: string; name?: string };
+export type AdjustResult =
+  | { ok: true; adjustment: { id: string; kind: AdjustmentKind; amount: number; balanceBefore: number; balanceAfter: number }; expiresAt?: Date }
+  | { ok: false; error: "balance" | "amount"; balance?: number };
+
+/**
+ * A staff member adds credit to, or takes credit from, a customer. Adding issues a normal 90-day lot. Taking draws on the soonest-expiring
+ * lots first (all-or-nothing, never below zero). Either way one permanent CreditAdjustment row records who did it, when, why, and the balance
+ * before and after.
+ */
+export async function adjustCredit(input: { userId: string; kind: AdjustmentKind; amount: number; reason: string; admin: Adjuster; notified?: boolean }): Promise<AdjustResult> {
+  await connectDb();
+  const fils = toFils(input.amount);
+  if (!(fils > 0)) return { ok: false, error: "amount" };
+  const before = (await creditSummary(input.userId)).balanceFils;
+  let lot: { id: string; expiresAt: Date } | undefined;
+  let lots: { lot: Types.ObjectId; fils: number }[] | undefined;
+  if (input.kind === "add") {
+    const issued = await issueCredit({ userId: input.userId, amount: fils / 100, source: "admin", ref: `${input.admin.email}: ${input.reason}`.slice(0, 200), note: { en: input.reason, ar: input.reason } });
+    lot = { id: issued.id, expiresAt: issued.expiresAt };
+  } else {
+    if (fils > before) return { ok: false, error: "balance", balance: before / 100 };
+    const spent = await spendCredit(input.userId, fils);
+    if (!spent.ok) return { ok: false, error: "balance", balance: (await creditSummary(input.userId)).balance };
+    lots = spent.lots;
+  }
+  const after = (await creditSummary(input.userId)).balanceFils;
+  const row = await CreditAdjustment.create({
+    user: input.userId, kind: input.kind, amountFils: fils, balanceBeforeFils: before, balanceAfterFils: after, reason: input.reason,
+    adminId: input.admin.id, adminEmail: input.admin.email, adminName: input.admin.name, lot: lot ? new Types.ObjectId(lot.id) : undefined, lots, notified: !!input.notified,
+  });
+  return { ok: true, adjustment: { id: String(row._id), kind: input.kind, amount: fils / 100, balanceBefore: before / 100, balanceAfter: after / 100 }, expiresAt: lot?.expiresAt };
+}

@@ -26,7 +26,7 @@ const { updateOrderStatus } = await import("@/features/orders/lifecycle");
 const { sendOtp, checkOtp, claimGuestOrders, OTP_MAX_ATTEMPTS } = await import("@/features/auth/otp");
 const { registerAction, verifyEmailAction, resendOtpAction, loginAction } = await import("@/features/auth/actions");
 const { sendExpiryReminders } = await import("@/features/credit/reminders");
-const { grantCreditAction } = await import("@/features/admin/credit/actions");
+const { adjustCreditAction } = await import("@/features/admin/credit/actions");
 const { issueCredit, spendCredit, restoreOrderCredit, creditSummary, creditHistory, CREDIT_VALID_DAYS } = await import("@/features/credit/service");
 const { createReturn, reviewReturn, receiveReturn, completeReturn } = await import("@/features/returns/service");
 const { Category } = await import("@/models/category");
@@ -65,7 +65,7 @@ describe.skipIf(!up)("accounts with email OTP, web credit and refunds (real Mong
     sent.length = 0; sessions.length = 0;
     await Category.create({ slug: "c", name: "C" });
     // Automatic offers off so the arithmetic below is plain: 100 + AED 15 delivery = 115 per single-item order.
-    await Settings.create({ key: "store", minOrder: 0, freeDeliveryThreshold: 0, codFee: 0, offers: { tier: { enabled: false }, firstOrder: { enabled: false } } });
+    await Settings.create({ key: "store", freeDeliveryAll: false, minOrder: 0, freeDeliveryThreshold: 0, codFee: 0, offers: { tier: { enabled: false }, firstOrder: { enabled: false } } });
     await DeliveryZone.create({ key: "metro", name: { en: "Metro", ar: "Metro" }, emirates: ["dubai", "sharjah"], fee: 15, estimate: { en: "1-2 days", ar: "1-2 days" } });
     await mkProduct();
   });
@@ -431,7 +431,7 @@ describe.skipIf(!up)("accounts with email OTP, web credit and refunds (real Mong
 
   describe("manual credit from the admin", () => {
     const owner = { id: String(new Types.ObjectId()), email: "owner@x.com", role: "owner" };
-    const grant = (id: unknown, amount: string, note = "Late delivery apology") => grantCreditAction({}, fd({ id: String(id), amount, note }));
+    const grant = (id: unknown, amount: string, note = "Late delivery apology") => adjustCreditAction({}, fd({ id: String(id), kind: "add", amount, note, notify: "on" }));
 
     it("a staff member adds credit: a 90-day lot, the customer is emailed, and invalid requests are refused", async () => {
       const u = await mkUser("cust@x.com");

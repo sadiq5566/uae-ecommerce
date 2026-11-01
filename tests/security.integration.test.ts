@@ -17,7 +17,7 @@ const up = await mongoose.connect(process.env.MONGODB_URI, { dbName: "souq_uae_t
 const S = up ? await import("@/lib/auth/session") : ({} as never);
 const { User } = up ? await import("@/models/user") : ({} as never);
 const Checkout = up ? await import("@/features/checkout/actions") : ({} as never);
-const Csv = up ? await import("@/features/admin/csv/actions") : ({} as never);
+const Import = up ? await import("@/app/api/admin/import/route") : ({} as never);
 const Cart = up ? await import("@/features/cart/actions") : ({} as never);
 const Wish = up ? await import("@/features/wishlist/actions") : ({} as never);
 const Rev = up ? await import("@/features/reviews/actions") : ({} as never);
@@ -68,17 +68,24 @@ describe.skipIf(!up)("server actions tolerate hostile arguments (they are public
     expect((await Cart.addToCartAction("OK-SKU", 99999)).ok).toBe(false); // quantity bound
     expect((await Cart.addToCartAction("OK-SKU", 1.5)).ok).toBe(false);
   });
-  it("CSV batch action rejects malformed payloads even for staff", async () => {
+  it("CSV import endpoint refuses outsiders and rejects malformed payloads even for staff", async () => {
+    const post = (b: unknown) => Import.POST(new Request("http://localhost/api/admin/import", { method: "POST", headers: { host: "localhost", "content-type": "application/json" }, body: JSON.stringify(b) }));
+    session = null;
+    expect((await post({ csv: "sku\nX-1" })).status).toBe(401);
+    session = { id: "64b000000000000000000003", email: "c@b.co", name: "C", role: "customer", locale: "en" };
+    expect((await post({ csv: "sku\nX-1" })).status).toBe(401); // customers have no products:write
     session = { id: "64b000000000000000000002", email: "o@b.co", name: "O", role: "owner", locale: "en" };
     await User.create({ _id: session.id, email: "o@b.co", name: "O", role: "owner", passwordHash: "x" });
-    for (const bad of [null, "str", [{ line: "x", data: {} }], Array.from({ length: 101 }, (_, i) => ({ line: i, data: { sku: "A" } })), [null]]) {
-      expect((await Csv.importBatchAction("products", ["sku"], bad as never)).ok).toBe(false);
+    const tooMany = Array.from({ length: 101 }, (_, i) => ({ line: i + 2, record: { sku: "A" } }));
+    for (const bad of [{}, { csv: "" }, { records: [] }, { records: tooMany }, { records: [null] }, { records: [{ line: "x", record: {} }] }, { records: [{ line: 2, record: { sku: 5 } }] }]) {
+      expect((await post(bad)).status, JSON.stringify(bad).slice(0, 60)).toBe(400);
     }
-    expect((await Csv.importBatchAction("products", "sku" as never, [])).ok).toBe(false);
-    expect((await Csv.importBatchAction("users" as never, ["sku"], [])).ok).toBe(false);
-    // __proto__ / unknown keys are dropped, not applied
-    const r = await Csv.importBatchAction("products", ["sku", "__proto__"], [{ line: 2, data: { sku: "X-1", __proto__: "polluted", constructor: "x" } as never }]);
-    expect(r.ok).toBe(true);
-    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+    // A foreign origin is refused even for an owner (CSRF).
+    const cross = await Import.POST(new Request("http://localhost/api/admin/import", { method: "POST", headers: { host: "localhost", origin: "https://evil.example", "content-type": "application/json" }, body: JSON.stringify({ csv: "sku\nX-1" }) }));
+    expect(cross.status).toBe(403);
+    // A preview validates but never writes.
+    const { Product } = await import("@/models/product");
+    await post({ csv: "sku,name,category\nX-1,Thing,watches\n" });
+    expect(await Product.countDocuments()).toBe(0);
   });
 });

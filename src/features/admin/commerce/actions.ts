@@ -1,4 +1,5 @@
 "use server";
+import { refreshStoreData } from "@/lib/admin/refresh-store";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Types } from "mongoose";
@@ -46,12 +47,12 @@ export async function saveCouponAction(_: FormState, fd: FormData): Promise<Form
       if (c.usageLimit != null && c.usageLimit < cur.usedCount) return fail({ usageLimit: `Already used ${cur.usedCount} times` }, fd);
       cur.set({ ...doc, code: c.code }); await cur.save();
       await audit(user, "coupon.update", "coupon", c.id, `Updated coupon ${c.code}`);
-      revalidatePath("/admin/promotions");
+      revalidatePath("/admin/promotions"); refreshStoreData();
       return { ok: true };
     }
     const created = await Coupon.create({ ...doc, code: c.code });
     await audit(user, "coupon.create", "coupon", String(created._id), `Created coupon ${c.code}`);
-    revalidatePath("/admin/promotions");
+    revalidatePath("/admin/promotions"); refreshStoreData();
   } catch (e) {
     if (isDupKey(e, "code")) return fail({ code: "This code already exists" }, fd);
     throw e;
@@ -68,7 +69,7 @@ export async function deleteCouponAction(fd: FormData) {
   if (!c) return;
   if (c.usedCount > 0) { c.active = false; await c.save(); await audit(user, "coupon.deactivate", "coupon", id, `Deactivated used coupon ${c.code}`); } // history is kept
   else { await c.deleteOne(); await audit(user, "coupon.delete", "coupon", id, `Deleted coupon ${c.code}`); }
-  revalidatePath("/admin/promotions"); redirect("/admin/promotions");
+  revalidatePath("/admin/promotions"); refreshStoreData(); redirect("/admin/promotions");
 }
 
 /* --------------------------- delivery zones --------------------------- */
@@ -90,7 +91,7 @@ export async function saveZoneAction(_: FormState, fd: FormData): Promise<FormSt
     else await DeliveryZone.create(doc);
   } catch (e) { if (isDupKey(e, "key")) return fail({ key: "This key is already used" }, fd); throw e; }
   await audit(user, id ? "zone.update" : "zone.create", "delivery_zone", id || z.key, `${id ? "Updated" : "Created"} delivery zone ${z.key}`, { fee: z.fee, active: z.active });
-  revalidatePath("/admin/delivery");
+  revalidatePath("/admin/delivery"); refreshStoreData();
   return { ok: true };
 }
 
@@ -101,7 +102,7 @@ export async function deleteZoneAction(fd: FormData) {
   await connectDb();
   const z = await DeliveryZone.findByIdAndDelete(id);
   if (z) await audit(user, "zone.delete", "delivery_zone", id, `Deleted delivery zone ${z.key}`);
-  revalidatePath("/admin/delivery");
+  revalidatePath("/admin/delivery"); refreshStoreData();
 }
 
 /* ------------------------------ settings ------------------------------ */
@@ -115,7 +116,7 @@ export async function saveSettingsAction(_: FormState, fd: FormData): Promise<Fo
   await connectDb();
   const prev = await Settings.findOne({ key: "store" }).lean();
   await Settings.updateOne({ key: "store" }, { $set: {
-    storeName: { en: s.storeName_en, ar: s.storeName_ar }, minOrder: s.minOrder, freeDeliveryThreshold: s.freeDeliveryThreshold, baseDeliveryFee: s.baseDeliveryFee,
+    storeName: { en: s.storeName_en, ar: s.storeName_ar }, minOrder: s.minOrder, freeDeliveryAll: s.freeDeliveryAll, freeDeliveryThreshold: s.freeDeliveryThreshold, baseDeliveryFee: s.baseDeliveryFee,
     codEnabled: s.codEnabled, codFee: s.codFee, codMaxOrder: s.codMaxOrder,
     "tax.enabled": s.taxEnabled, "tax.rate": s.taxRate / 100, "tax.pricesIncludeTax": s.taxInclusive,
     "offers.tier.enabled": s.tierEnabled, "offers.tier.minSubtotal": s.tierMin, "offers.tier.percent": s.tierPercent, "offers.tier.maxDiscount": s.tierMax ?? null,
@@ -128,6 +129,6 @@ export async function saveSettingsAction(_: FormState, fd: FormData): Promise<Fo
   await audit(user, "settings.update", "settings", "store", "Updated store settings", {
     taxChanged: prev?.tax?.enabled !== s.taxEnabled || prev?.tax?.rate !== s.taxRate / 100, codChanged: prev?.codEnabled !== s.codEnabled || prev?.codFee !== s.codFee,
   });
-  revalidatePath("/admin/settings"); revalidatePath("/[lang]", "layout");
+  revalidatePath("/admin/settings"); refreshStoreData();
   return { ok: true };
 }

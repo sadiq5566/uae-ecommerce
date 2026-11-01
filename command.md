@@ -298,6 +298,35 @@ On your PC (dev): `npm run db:migrate`, then stop and restart `npm run dev` (Mon
 
 ---
 
+## 7i. Change all product prices by a percentage (cut or raise)
+
+Two scripts, opposite directions. Always run the dry run first (no `--apply`): it prints a few sample prices and writes nothing.
+
+```
+npm run db:discount -- 20                 # dry run: what a 20% price CUT would do
+npm run db:discount -- 20 --apply         # apply it (20% off the ORIGINAL prices; cuts never stack)
+npm run db:discount -- --restore --apply  # put the original prices back
+
+npm run db:markup -- 10                   # dry run: what a 10% price RISE would do
+npm run db:markup -- 10 --apply           # apply it (+10% on the ORIGINAL prices; rises never stack)
+npm run db:markup -- 10 --keep-was --apply  # same, but the crossed-out "was" price stays (the shown discount shrinks)
+npm run db:markup -- --restore --apply    # put the original prices back
+```
+
+- **db:discount** lowers the selling price (`priceTo` and every variant price). The crossed-out "was" price is kept, so the discount % shown on cards and deals grows.
+- **db:markup** raises the selling price and variant prices. By default the "was" price rises by the same % so the discount % shown stays the same; `--keep-was` leaves it alone.
+- The first `--apply` of each saves the untouched prices to `scripts/discount.backup.json` / `scripts/markup.backup.json`. Keep that file until you are sure. Do not edit prices by hand in the admin between runs: the next run overwrites them with the saved ones.
+- The two do not mix: restore one (`--restore --apply`) before using the other. Each script refuses to run while the other one's backup file exists.
+- If PowerShell swallows `--`, run `npx tsx --env-file=.env scripts/markup-prices.ts 10 --apply` directly.
+
+---
+
+## Free home delivery
+
+Delivery is free on every order and the store says "Free home delivery · Cash on delivery" (top bar, product pages, cart, checkout). To go back to delivery fees and the free-delivery limit: Admin > Settings > Delivery rules: tick or untick **Free home delivery on every order**. No restart or deploy is needed.
+
+---
+
 ## 8. Git
 
 ```

@@ -12,5 +12,5 @@ export function RichText({ text, className = "" }: { text: string; className?: s
     if (lines.every((l) => l.trim().startsWith("- "))) return <ul key={i} className="my-4 list-disc space-y-1.5 ps-6">{lines.map((l, k) => <li key={k}>{l.trim().slice(2)}</li>)}</ul>;
     return <p key={i} className="my-4 leading-relaxed">{lines.map((l, k) => <span key={k}>{k > 0 && <br />}{l}</span>)}</p>;
   });
-  return <div className={`text-fg/90 ${className}`}>{out}</div>;
+  return <div className={`text-fg/90 [overflow-wrap:anywhere] ${className}`}>{out}</div>;
 }

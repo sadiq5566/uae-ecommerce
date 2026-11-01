@@ -1,4 +1,5 @@
 "use server";
+import { refreshStoreData } from "@/lib/admin/refresh-store";
 import { revalidatePath } from "next/cache";
 import { Types } from "mongoose";
 import { actor } from "@/lib/admin/guard";
@@ -19,5 +20,5 @@ export async function moderateReviewAction(fd: FormData) {
   await recalcRating(r.product);
   if (to === "approved") await rewardApprovedReview(r._id).catch((e) => console.warn("[growth] review reward failed:", (e as Error).message)); // verified purchase → thank-you coupon
   await audit(user, `review.${to}`, "review", id, `Review set to ${to}`);
-  revalidatePath("/admin/reviews"); revalidatePath("/[lang]/p/[slug]", "page"); revalidatePath("/[lang]", "layout");
+  revalidatePath("/admin/reviews"); refreshStoreData();
 }

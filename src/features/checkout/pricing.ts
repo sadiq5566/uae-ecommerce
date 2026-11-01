@@ -19,7 +19,7 @@ export type CouponRule = {
   products?: string[]; categories?: string[]; excludeProducts?: string[]; excludeCategories?: string[]; stackWithSale?: boolean;
 };
 export type Rules = {
-  minOrderFils: number; freeThresholdFils: number; codFeeFils: number;
+  minOrderFils: number; freeThresholdFils: number; /** free home delivery on every order */ freeAll?: boolean; codFeeFils: number;
   tax: { enabled: boolean; rate: number; inclusive: boolean };
 };
 export type AutoOffer = { kind: "tier" | "first_order"; percent: number; maxDiscountFils?: number; minSubtotalFils?: number };
@@ -92,7 +92,7 @@ export function computeTotals(input: { lines: PriceLine[]; coupon?: CouponRule |
   const threshold = zone.freeThresholdFils ?? rules.freeThresholdFils;
   // "Free delivery over AED 200" is judged on the basket value: a coupon lowers it, but the automatic offers don't
   // (a 219 basket with a 10% first-order discount still qualifies — that's what the store advertises).
-  const freeDelivery = lines.length > 0 && threshold > 0 && subtotalF - couponF >= threshold;
+  const freeDelivery = lines.length > 0 && (!!rules.freeAll || (threshold > 0 && subtotalF - couponF >= threshold));
   const deliveryF = lines.length === 0 || freeDelivery ? 0 : zone.feeFils;
   const codF = input.method === "cod" ? rules.codFeeFils : 0;
 

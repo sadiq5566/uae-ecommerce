@@ -90,7 +90,7 @@ function baseMatch(scope: Scope, q?: string, regexFallback = false): QueryFilter
   if (q) {
     if (regexFallback) {
       const re = new RegExp(escapeRe(q), "i");
-      m.$or = [{ name: re }, { model: re }, { brand: re }, { sku: re }, { tags: re }];
+      m.$or = [{ name: re }, { nameAr: re }, { model: re }, { brand: re }, { sku: re }, { tags: re }];
     } else {
       m.$or = [{ $text: { $search: q } }, { sku: q.toUpperCase() }];
     }
@@ -269,7 +269,7 @@ export async function suggest(q: string, limit = 6): Promise<Suggestion[]> {
   let rows = (await ProductModel.find({ ...ACTIVE, $text: { $search: term } }, proj).sort({ soldCount: -1 }).limit(limit).lean()) as unknown as Doc[];
   if (rows.length < limit) {
     const re = new RegExp(`(^|\\s)${escapeRe(term)}`, "i");
-    const more = (await ProductModel.find({ ...ACTIVE, slug: { $nin: rows.map((r) => r.slug) }, $or: [{ name: re }, { brand: re }, { sku: new RegExp(`^${escapeRe(term)}`, "i") }] }, proj).sort({ soldCount: -1 }).limit(limit - rows.length).lean()) as unknown as Doc[];
+    const more = (await ProductModel.find({ ...ACTIVE, slug: { $nin: rows.map((r) => r.slug) }, $or: [{ name: re }, { nameAr: re }, { brand: re }, { sku: new RegExp(`^${escapeRe(term)}`, "i") }] }, proj).sort({ soldCount: -1 }).limit(limit - rows.length).lean()) as unknown as Doc[];
     rows = [...rows, ...more];
   }
   const cats = (await getCategories()).filter((c) => c.name.en.toLowerCase().includes(term.toLowerCase())).slice(0, 2);

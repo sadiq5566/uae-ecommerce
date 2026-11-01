@@ -86,7 +86,7 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
         priceValidUntil: validUntil(), seller: { "@id": `${base}/#org` },
         shippingDetails: {
           "@type": "OfferShippingDetails", shippingDestination: { "@type": "DefinedRegion", addressCountry: "AE" },
-          shippingRate: { "@type": "MonetaryAmount", value: p.finalPrice >= settings.freeDeliveryThreshold && settings.freeDeliveryThreshold > 0 ? 0 : settings.baseDeliveryFee, currency: "AED" },
+          shippingRate: { "@type": "MonetaryAmount", value: settings.freeDeliveryAll !== false || (p.finalPrice >= settings.freeDeliveryThreshold && settings.freeDeliveryThreshold > 0) ? 0 : settings.baseDeliveryFee, currency: "AED" },
           deliveryTime: { "@type": "ShippingDeliveryTime", handlingTime: { "@type": "QuantitativeValue", minValue: 0, maxValue: 1, unitCode: "DAY" }, transitTime: { "@type": "QuantitativeValue", minValue: 1, maxValue: 3, unitCode: "DAY" } },
         },
         hasMerchantReturnPolicy: { "@type": "MerchantReturnPolicy", applicableCountry: "AE", returnPolicyCategory: offers.returnDays > 0 ? "https://schema.org/MerchantReturnFiniteReturnWindow" : "https://schema.org/MerchantReturnNotPermitted", ...(offers.returnDays > 0 && { merchantReturnDays: offers.returnDays, returnFees: "https://schema.org/FreeReturn" }) },
@@ -104,7 +104,7 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
         <div className="rounded-2xl border border-line bg-surface p-4 text-sm">
           <p className="flex flex-wrap items-center gap-2 font-semibold">
             🚚 {t.catalog.delivery}
-            {offers.freeDelivery.enabled && <span className="rounded-full bg-brand px-2.5 py-0.5 text-xs font-bold text-brand-fg">{t.catalog.freeBadge}</span>}
+            {offers.freeDelivery.enabled && <span className="rounded-full bg-brand px-2.5 py-0.5 text-xs font-bold text-brand-fg">{offers.freeDelivery.all ? t.catalog.freeBadgeHome : t.catalog.freeBadge}</span>}
           </p>
           {offers.freeDelivery.enabled && <p className="mt-1 font-medium text-brand">{p.finalPrice >= offers.freeDelivery.min ? t.catalog.freeThisItem : fmt(t.catalog.freeOver, { min: formatAED(offers.freeDelivery.min, lang) })}</p>}
           <p className="mt-1 text-muted">{t.catalog.deliveryInfo}</p>

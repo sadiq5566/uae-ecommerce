@@ -4,7 +4,7 @@ import type { Dictionary } from "@/lib/dictionaries";
 
 /** Storefront-safe view of the store's automatic offers (numbers only — never secrets). */
 export type PublicOffers = {
-  freeDelivery: { enabled: boolean; min: number };
+  freeDelivery: { enabled: boolean; min: number; /** free home delivery on every order (min is 0) */ all?: boolean };
   tier: { enabled: boolean; min: number; pct: number };
   firstOrder: { enabled: boolean; pct: number };
   cod: boolean; returnDays: number;
@@ -14,7 +14,7 @@ export type PublicOffers = {
 /** The human-readable offer lines, in the order they should be advertised. */
 export function offerLines(o: PublicOffers, t: Dictionary, locale: Locale): { key: string; icon: string; text: string }[] {
   const out: { key: string; icon: string; text: string }[] = [];
-  if (o.freeDelivery.enabled) out.push({ key: "free", icon: "🚚", text: fmt(t.offers.freeDelivery, { min: formatAED(o.freeDelivery.min, locale) }) });
+  if (o.freeDelivery.enabled) out.push({ key: "free", icon: "🚚", text: o.freeDelivery.all ? t.offers.freeDeliveryAll : fmt(t.offers.freeDelivery, { min: formatAED(o.freeDelivery.min, locale) }) });
   if (o.tier.enabled) out.push({ key: "tier", icon: "🏷️", text: fmt(t.offers.tier, { pct: o.tier.pct, min: formatAED(o.tier.min, locale) }) });
   if (o.firstOrder.enabled) out.push({ key: "first", icon: "🎁", text: fmt(t.offers.firstOrder, { pct: o.firstOrder.pct }) });
   if (o.cod) out.push({ key: "cod", icon: "💵", text: t.offers.cod });
@@ -28,7 +28,7 @@ export function offerProgress(subtotal: number, o: PublicOffers) {
   const tierLeft = o.tier.enabled ? Math.max(0, o.tier.min - subtotal) : 0;
   return {
     freeLeft, tierLeft,
-    freeUnlocked: o.freeDelivery.enabled && freeLeft === 0 && subtotal > 0,
+    freeUnlocked: o.freeDelivery.enabled && !o.freeDelivery.all && freeLeft === 0 && subtotal > 0, // nothing to "unlock" when every order is free
     tierUnlocked: o.tier.enabled && tierLeft === 0 && subtotal > 0,
     // The next goal to nudge toward: the nearest locked reward.
     next: ((): { kind: "free" | "tier"; left: number; target: number } | null => {

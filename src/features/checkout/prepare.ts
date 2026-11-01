@@ -154,7 +154,7 @@ export async function prepare(input: PrepareInput): Promise<{ ok: true; p: Prepa
   }
 
   const rules: Rules = {
-    minOrderFils: toFils(settings.minOrder), freeThresholdFils: toFils(settings.freeDeliveryThreshold), codFeeFils: toFils(settings.codFee),
+    minOrderFils: toFils(settings.minOrder), freeThresholdFils: toFils(settings.freeDeliveryThreshold), freeAll: settings.freeDeliveryAll !== false, codFeeFils: toFils(settings.codFee),
     tax: { enabled: settings.tax.enabled, rate: settings.tax.rate, inclusive: settings.tax.pricesIncludeTax },
   };
   const zone = { key: zoneDoc.key, name: zoneDoc.name, estimate: zoneDoc.estimate, rule: { feeFils: toFils(zoneDoc.fee), freeThresholdFils: zoneDoc.freeThreshold != null ? toFils(zoneDoc.freeThreshold) : null } };

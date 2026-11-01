@@ -1,9 +1,10 @@
 import type { CsvRow } from "./csv";
+import { normText } from "./variants-ar";
 
 /** Internal column the grouper adds to a merged row: the variants as JSON. Never read from a user's file header (it is not a known column). */
 export const VARIANTS_FIELD = "variants_json";
 
-const norm = (s?: string) => (s ?? "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+const norm = normText; // Unicode-safe (Arabic names) — see lib/variants-ar.ts
 const urls = (s?: string) => (s ?? "").split("|").map((x) => x.trim()).filter(Boolean);
 const MAX_IMAGES = 12;
 

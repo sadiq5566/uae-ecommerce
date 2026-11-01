@@ -24,6 +24,9 @@ function resizingLoader({ src, width }: ImageLoaderProps) {
 }
 const canResize = (src: ImageProps["src"]) => typeof src === "string" && /^https?:\/\/[^/]+\/cdn\/shop\//.test(src);
 
+// A soft translucent tile shown while the real picture loads. Translucent so it tints whatever is behind it, in light and dark mode alike.
+const BLUR = `data:image/svg+xml;base64,${btoa('<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><rect width="8" height="8" fill="#808080" fill-opacity=".14"/></svg>')}`;
+
 /** Drop-in for next/image: works for any https image host and hides itself when the file is broken, so the placeholder behind it shows instead. */
 export default function Img({ onError, unoptimized, loader, ...props }: ImageProps) {
   const [failed, setFailed] = useState(false);
@@ -31,6 +34,6 @@ export default function Img({ onError, unoptimized, loader, ...props }: ImagePro
   const known = isKnown(props.src);
   const resize = !known && !loader && !unoptimized && canResize(props.src);
   return (
-    <Image {...props} alt={props.alt} loader={resize ? resizingLoader : loader} unoptimized={unoptimized || (!known && !resize)} referrerPolicy="no-referrer" onError={(e) => { setFailed(true); onError?.(e); }} />
+    <Image placeholder="blur" blurDataURL={BLUR} {...props} alt={props.alt} loader={resize ? resizingLoader : loader} unoptimized={unoptimized || (!known && !resize)} referrerPolicy="no-referrer" onError={(e) => { setFailed(true); onError?.(e); }} />
   );
 }

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { ZodError } from "zod";
 import { getCurrentUser } from "../src/lib/auth/session";
 import { can } from "../src/lib/auth/permissions";
@@ -24,4 +24,4 @@ export async function adminRoute(req: Request, fn: () => Promise<NextResponse>) 
   }
 }
 
-export const refreshStore = () => revalidatePath("/", "layout");
+export const refreshStore = () => { revalidateTag("store-data", { expire: 0 }); revalidatePath("/", "layout"); };

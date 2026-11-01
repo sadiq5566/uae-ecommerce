@@ -126,6 +126,7 @@
     "retry": "Try again"
   },
   "catalog": {
+    "freeBadgeHome": "FREE home delivery",
     "filters": "Filters",
     "sort": "Sort by",
     "apply": "Apply filters",
@@ -575,6 +576,7 @@
     "verifyFirst": "Verify your email to write a review."
   },
   "offers": {
+    "freeDeliveryAll": "Free home delivery on every order across the UAE",
     "freeDelivery": "Free delivery on orders over {min}",
     "tier": "{pct}% off when you spend {min}+",
     "firstOrder": "{pct}% off your first order",

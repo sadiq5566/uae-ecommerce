@@ -28,7 +28,7 @@ const { WebhookEvent } = await import("@/models/webhook-event");
 const { CouponRedemption } = await import("@/models/coupon-redemption");
 
 const L = (en: string) => ({ en, ar: en });
-let cat: Types.ObjectId;
+
 
 async function mkUser(email: string) {
   const u = await User.create({ email, name: "T " + email, passwordHash: "x" });
@@ -36,7 +36,7 @@ async function mkUser(email: string) {
   return { id: String(u._id), email, addressId: String(a._id) };
 }
 const mkProduct = (sku: string, stock: number, price = 100, extra: Record<string, unknown> = {}) =>
-  Product.create({ slug: sku.toLowerCase(), sku, name: L(sku), category: cat, price, stock, status: "published", ...extra });
+  Product.create({ slug: sku.toLowerCase(), sku, name: sku, category: "c", priceFrom: price, priceTo: price, stock, status: "active", ...extra });
 const fillCart = (userId: string, items: { sku: string; qty: number }[]) =>
   Cart.findOneAndUpdate({ user: userId }, { $set: { items: items.map((i) => ({ ...i, priceAtAdd: 1 })) } }, { upsert: true });
 let n = 0;
@@ -53,9 +53,9 @@ describe.skipIf(!up)("orders (real MongoDB)", () => {
   afterAll(async () => { await mongoose.connection.dropDatabase(); await mongoose.disconnect(); });
   beforeEach(async () => {
     for (const c of await mongoose.connection.db!.collections()) await c.deleteMany({});
-    cat = (await Category.create({ slug: "c", name: L("C") }))._id;
+    await Category.create({ slug: "c", name: "C", type: "category" });
     // Automatic offers are off here so the pre-existing pricing expectations stay exact; offers have their own tests below.
-    await Settings.create({ key: "store", minOrder: 50, freeDeliveryThreshold: 200, codFee: 0, offers: { tier: { enabled: false }, firstOrder: { enabled: false } } });
+    await Settings.create({ key: "store", freeDeliveryAll: false, minOrder: 50, freeDeliveryThreshold: 200, codFee: 0, offers: { tier: { enabled: false }, firstOrder: { enabled: false } } });
     await DeliveryZone.create({ key: "metro", name: L("Metro"), emirates: ["dubai", "sharjah"], fee: 15, estimate: L("1-2 days") });
   });
 
@@ -118,7 +118,7 @@ describe.skipIf(!up)("orders (real MongoDB)", () => {
 
   it("variant stock is decremented on the variant and the product total", async () => {
     const u = await mkUser("a@t.test");
-    await mkProduct("PV", 10, 100, { variants: [{ sku: "PV-1", label: L("S"), stock: 4 }, { sku: "PV-2", label: L("M"), stock: 6 }] });
+    await mkProduct("PV", 10, 100, { variants: [{ sku: "PV-1", size: "S", stock: 4 }, { sku: "PV-2", size: "M", stock: 6 }] });
     await fillCart(u.id, [{ sku: "PV-2", qty: 2 }]);
     expect((await place(u)).ok).toBe(true);
     const p = (await Product.findOne({ sku: "PV" }).lean())!;

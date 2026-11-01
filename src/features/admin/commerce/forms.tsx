@@ -74,7 +74,7 @@ export function ZoneForm({ zone, emirates, onDone }: { zone?: ZoneData; emirates
   );
 }
 
-export type SettingsData = { storeName: { en: string; ar: string }; minOrder: number; freeDeliveryThreshold: number; baseDeliveryFee: number; codEnabled: boolean; codFee: number; codMaxOrder: number; taxEnabled: boolean; taxRate: number; taxInclusive: boolean; pendingPaymentMinutes: number; supportEmail?: string; supportPhone?: string; logo?: string;
+export type SettingsData = { storeName: { en: string; ar: string }; minOrder: number; freeDeliveryAll: boolean; freeDeliveryThreshold: number; baseDeliveryFee: number; codEnabled: boolean; codFee: number; codMaxOrder: number; taxEnabled: boolean; taxRate: number; taxInclusive: boolean; pendingPaymentMinutes: number; supportEmail?: string; supportPhone?: string; logo?: string;
   tier: { enabled: boolean; min: number; percent: number; max?: number }; first: { enabled: boolean; percent: number; max?: number };
   modal: { enabled: boolean; delay: number; version: string; leads: boolean; title: { en: string; ar: string }; body: { en: string; ar: string } }; returnWindowDays: number };
 
@@ -90,6 +90,7 @@ export function SettingsForm({ d }: { d: SettingsData }) {
         <p className="mt-3 text-xs text-muted">Currency is AED. Languages: English and Arabic.</p>
       </Card>
       <Card title="Delivery rules (store-wide)">
+        <div className="mb-4"><CB s={s} name="freeDeliveryAll" label="Free home delivery on every order (all emirates)" defaultChecked={d.freeDeliveryAll} /><p className="mt-1 text-xs text-muted">When ticked, customers never pay a delivery fee and the store says &ldquo;Free home delivery · Cash on delivery&rdquo;. Untick it to go back to the fees and the free-delivery threshold below.</p></div>
         <div className="grid gap-4 sm:grid-cols-3"><TF s={s} name="minOrder" label="Minimum order (AED)" type="number" step="0.01" min={0} defaultValue={d.minOrder} /><TF s={s} name="freeDeliveryThreshold" label="Free delivery from (AED)" type="number" step="0.01" min={0} defaultValue={d.freeDeliveryThreshold} hint="0 = never free" /><TF s={s} name="baseDeliveryFee" label="Fallback delivery fee (AED)" type="number" step="0.01" min={0} defaultValue={d.baseDeliveryFee} /></div>
         <p className="mt-3 text-xs text-muted">Fees per emirate live under Delivery → zones. A zone can override the free-delivery threshold.</p>
       </Card>

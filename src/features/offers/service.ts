@@ -11,7 +11,7 @@ const loadPublicOffers = cachedFor("public-offers", 60, async (): Promise<Public
   const s = await getSettings();
   const o = s.offers;
   return {
-    freeDelivery: { enabled: s.freeDeliveryThreshold > 0, min: s.freeDeliveryThreshold },
+    freeDelivery: s.freeDeliveryAll !== false ? { enabled: true, min: 0, all: true } : { enabled: s.freeDeliveryThreshold > 0, min: s.freeDeliveryThreshold },
     tier: { enabled: !!o?.tier?.enabled && o.tier.percent > 0, min: o?.tier?.minSubtotal ?? 500, pct: o?.tier?.percent ?? 10 },
     firstOrder: { enabled: !!o?.firstOrder?.enabled && o.firstOrder.percent > 0, pct: o?.firstOrder?.percent ?? 10 },
     cod: s.codEnabled, returnDays: s.returnWindowDays ?? 7,

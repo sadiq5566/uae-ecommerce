@@ -1,4 +1,5 @@
 // Shared by all storefronts: colour / size options of a product and the heuristics that merge scraped one-product-per-colour/size rows.
+import { arColorToEn, normText } from "./variants-ar";
 export type Variant = { sku: string; color?: string; size?: string; price?: number; stock: number; image?: string };
 
 /** Colour name -> CSS background. Unknown names fall back to grey so a swatch is always drawn (the name is shown next to it). */
@@ -9,7 +10,7 @@ export const COLOR_HEX: Record<string, string> = {
   blue: "#5b7fa6", navy: "#1f2a44", "light blue": "#a9c7e6", turquoise: "#3fb8af", teal: "#2a7f7f", green: "#4f7a5d", olive: "#6b7a3a", mint: "#a8d5ba",
   yellow: "#e6c84a", orange: "#e0813a", mustard: "#c99a2e", multi: "linear-gradient(135deg,#c0392b,#e6c84a,#4f7a5d,#5b7fa6)", multicolor: "linear-gradient(135deg,#c0392b,#e6c84a,#4f7a5d,#5b7fa6)",
 };
-export const swatchFor = (name?: string) => COLOR_HEX[(name ?? "").trim().toLowerCase()] ?? "#cccccc";
+export const swatchFor = (name?: string) => COLOR_HEX[(name ?? "").trim().toLowerCase()] ?? COLOR_HEX[arColorToEn(name) ?? ""] ?? "#cccccc";
 
 const num = (s: string) => parseFloat(s.replace(/[^\d.]/g, ""));
 /** Sizes sort numerically when they are numbers (38 < 40 < 42), otherwise by the usual clothing order. */
@@ -60,5 +61,5 @@ export function splitName(name: string): { base: string; color?: string; size?: 
   }
   return { base: base.replace(/[-–|/(\s]+$/, "").trim(), color, size };
 }
-export const groupKey = (brand: string | undefined, base: string) => `${(brand ?? "").toLowerCase()}|${base.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()}`;
+export const groupKey = (brand: string | undefined, base: string) => `${normText(brand)}|${normText(base)}`; // Unicode-safe: Arabic names no longer collapse into one empty key
 export { COLOR_RE };

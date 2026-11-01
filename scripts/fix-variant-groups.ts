@@ -13,6 +13,8 @@ import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import mongoose from "mongoose";
 import { ProductModel } from "../lib/models/Product";
+import { splitName } from "../lib/variants";
+import { normText, sameText, splitNameAny } from "../lib/variants-ar";
 
 // `npm run x --apply` (without the extra "--") reaches the script as an npm env var, not an argument: accept both.
 const apply = process.argv.includes("--apply") || process.env.npm_config_apply === "true";
@@ -20,8 +22,12 @@ const restore = process.argv.includes("--restore");
 const backupFile = path.join(process.cwd(), "scripts", "fix-variant-groups.backup.json");
 const CHUNK = 1000;
 
-type Main = { sku: string; name: string; variants?: { sku: string }[] };
-type Doc = { _id: mongoose.Types.ObjectId; sku: string; name: string; status: string };
+type Main = { sku: string; name: string; nameAr?: string; variants?: { sku: string }[] };
+type Doc = { _id: mongoose.Types.ObjectId; sku: string; name: string; nameAr?: string; status: string };
+
+/** Same product, ignoring Arabic spelling variants / diacritics / spacing and any trailing colour or size words (English or Arabic). */
+const base = (n: string) => normText(splitNameAny(n, splitName).base);
+const sameProduct = (d: Doc, m: Main) => sameText(d.name, m.name) || (!!d.nameAr && sameText(d.nameAr, m.nameAr)) || (!!base(d.name) && base(d.name) === base(m.name));
 
 async function main() {
   const uri = process.env.MONGODB_URI;
@@ -39,7 +45,7 @@ async function main() {
   }
 
   // Every product that has several variants and is not itself merged away.
-  const mains = await ProductModel.find({ "variants.1": { $exists: true }, mergedInto: null }, { sku: 1, name: 1, "variants.sku": 1 }).lean<Main[]>();
+  const mains = await ProductModel.find({ "variants.1": { $exists: true }, mergedInto: null }, { sku: 1, name: 1, nameAr: 1, "variants.sku": 1 }).lean<Main[]>();
   const owner = new Map<string, Main>(); // variant SKU -> the product that owns it
   for (const m of mains) for (const v of m.variants ?? []) if (v.sku !== m.sku) owner.set(v.sku, m);
   console.log(`${mains.length} product(s) with colour/size variants own ${owner.size} variant SKU(s) besides their own.\n`);
@@ -47,10 +53,10 @@ async function main() {
   const skus = [...owner.keys()];
   const todo: { doc: Doc; main: Main }[] = [];
   for (let i = 0; i < skus.length; i += CHUNK) {
-    const docs = await ProductModel.find({ sku: { $in: skus.slice(i, i + CHUNK) }, "variants.1": { $exists: false }, mergedInto: null }, { sku: 1, name: 1, status: 1 }).lean<Doc[]>();
+    const docs = await ProductModel.find({ sku: { $in: skus.slice(i, i + CHUNK) }, "variants.1": { $exists: false }, mergedInto: null }, { sku: 1, name: 1, nameAr: 1, status: 1 }).lean<Doc[]>();
     for (const d of docs) {
       const m = owner.get(d.sku)!;
-      if (d.name === m.name) todo.push({ doc: d, main: m }); // same name: it is the same product, one size/colour of it
+      if (sameProduct(d, m)) todo.push({ doc: d, main: m }); // same name: it is the same product, one size/colour of it
     }
   }
   const byStatus: Record<string, number> = {};

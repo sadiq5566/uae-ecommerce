@@ -38,7 +38,7 @@ export const zoneSchema = z.object(zoneBase);
 
 export const settingsSchema = z.object({
   storeName_en: text(60).min(2, "English store name required"), storeName_ar: text(60).min(2, "Arabic store name required"),
-  minOrder: money("Minimum order"), freeDeliveryThreshold: money("Free-delivery threshold"), baseDeliveryFee: money("Base delivery fee"),
+  minOrder: money("Minimum order"), freeDeliveryAll: checkbox, freeDeliveryThreshold: money("Free-delivery threshold"), baseDeliveryFee: money("Base delivery fee"),
   codEnabled: checkbox, codFee: money("COD fee"), codMaxOrder: money("COD maximum"),
   taxEnabled: checkbox, taxRate: z.coerce.number().min(0, "0–100").max(100, "0–100"), taxInclusive: checkbox,
   pendingPaymentMinutes: int("Payment window", 1440).min(5, "At least 5 minutes"),

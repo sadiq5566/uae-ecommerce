@@ -28,10 +28,10 @@ const { InventoryMovement } = await import("@/models/inventory-movement");
 
 const L = (en: string) => ({ en, ar: en });
 const ADDR = { recipientName: "Guest Buyer", phone: "+971501234567", emirate: "dubai", area: "Marina", building: "B1" };
-let cat: Types.ObjectId; let n = 0;
+ let n = 0;
 const key = () => `key-${++n}-${"x".repeat(16)}`;
 const mkProduct = (sku: string, stock: number, price = 100, extra: Record<string, unknown> = {}) =>
-  Product.create({ slug: sku.toLowerCase(), sku, name: L(sku), category: cat, price, stock, status: "published", ...extra });
+  Product.create({ slug: sku.toLowerCase(), sku, name: sku, category: "c", priceFrom: price, priceTo: price, stock, status: "active", ...extra });
 const guestCart = (guestId: string, items: { sku: string; qty: number }[]) =>
   Cart.create({ guestId, items: items.map((i) => ({ ...i, priceAtAdd: 1 })), expiresAt: new Date(Date.now() + 86_400_000) });
 const guestOrder = (o: Record<string, unknown> = {}) =>
@@ -43,8 +43,8 @@ describe.skipIf(!up)("guest checkout, offers, tracking and returns (real MongoDB
   afterAll(async () => { await mongoose.connection.dropDatabase(); await mongoose.disconnect(); });
   beforeEach(async () => {
     for (const c of await mongoose.connection.db!.collections()) await c.deleteMany({});
-    cat = (await Category.create({ slug: "c", name: L("C") }))._id;
-    await Settings.create({ key: "store", minOrder: 50, freeDeliveryThreshold: 200, codFee: 0 }); // offers use their defaults: tier 500/10%, first order 10%
+    await Category.create({ slug: "c", name: "C", type: "category" });
+    await Settings.create({ key: "store", freeDeliveryAll: false, minOrder: 50, freeDeliveryThreshold: 200, codFee: 0 }); // offers use their defaults: tier 500/10%, first order 10%
     await DeliveryZone.create({ key: "metro", name: L("Metro"), emirates: ["dubai", "sharjah"], fee: 15, estimate: L("1-2 days") });
   });
 
@@ -168,7 +168,7 @@ describe.skipIf(!up)("guest checkout, offers, tracking and returns (real MongoDB
 
   describe("returns & exchanges", () => {
     async function deliveredOrder(opts: { daysAgo?: number; variants?: boolean; qty?: number } = {}) {
-      await mkProduct("SHIRT", 10, 100, opts.variants === false ? {} : { variants: [{ sku: "SHIRT-M", label: L("M"), stock: 5 }, { sku: "SHIRT-L", label: L("L"), stock: 5 }] });
+      await mkProduct("SHIRT", 10, 100, opts.variants === false ? {} : { variants: [{ sku: "SHIRT-M", size: "M", stock: 5 }, { sku: "SHIRT-L", size: "L", stock: 5 }] });
       if (opts.variants === false) await Product.updateOne({ sku: "SHIRT" }, { stock: 5 });
       const sku = opts.variants === false ? "SHIRT" : "SHIRT-M";
       const r = await guestOrder({ buy: { sku, qty: opts.qty ?? 2 } }) as { orderNumber: string; trackToken: string };

@@ -8,7 +8,9 @@ import { Card, PageHeader, Pill, aed, btnDanger, btnGhost, dubaiDate } from "@/c
 import { ConfirmButton } from "@/components/admin/confirm-button";
 import { setCustomerStatusAction } from "@/features/admin/people/actions";
 import { maskEmail } from "@/features/admin/people/mask";
-import { GrantCreditForm } from "@/features/admin/credit/grant-form";
+import { AdjustCreditForm } from "@/features/admin/credit/adjust-form";
+import { Ledger } from "@/features/admin/credit/ledger";
+import { customerAdjustments } from "@/features/admin/credit/queries";
 import { creditHistory, creditSummary } from "@/features/credit/service";
 import { Order } from "@/models/order";
 import { User } from "@/models/user";
@@ -20,11 +22,11 @@ export default async function CustomerPage({ params }: PageProps<"/admin/custome
   const viewer = await guard("customers:read", `/admin/customers/${id}`);
   if (!Types.ObjectId.isValid(id)) notFound();
   await connectDb();
-  const [u, orders, agg, credit, lots] = await Promise.all([
+  const [u, orders, agg, credit, lots, adjustments] = await Promise.all([
     User.findById(id).lean(),
     Order.find({ user: id }).sort({ createdAt: -1 }).limit(10).select("orderNumber status totals.total createdAt").lean(),
     Order.aggregate([{ $match: { user: new Types.ObjectId(id), status: { $in: ["confirmed", "processing", "packed", "out_for_delivery", "delivered"] } } }, { $group: { _id: null, n: { $sum: 1 }, spent: { $sum: "$totals.total" } } }]),
-    creditSummary(id), creditHistory(id),
+    creditSummary(id), creditHistory(id), customerAdjustments(id),
   ]);
   if (!u) notFound();
   const owner = can(viewer.role, "users:manage");
@@ -48,7 +50,13 @@ export default async function CustomerPage({ params }: PageProps<"/admin/custome
         {lots.length === 0 ? <p className="text-sm text-muted">No web credit issued yet.</p> : (
           <ul className="flex flex-col gap-2 text-sm">{lots.slice(0, 10).map((l) => <li key={l.id} className="flex flex-wrap justify-between gap-3"><span>{l.source === "return" ? `Return ${l.ref ?? ""}` : "Added by staff"} · {aed(l.amount)}</span><span className="text-muted">{l.state === "active" ? `${aed(l.remaining)} left · expires ${dubaiDate(l.expiresAt)}` : l.state}</span></li>)}</ul>
         )}
-        {can(viewer.role, "orders:write") && u.role === "customer" && (u.emailVerifiedAt ? <div className="mt-5 border-t border-line pt-5"><GrantCreditForm id={id} /></div> : <p className="mt-4 text-xs text-muted">Credit can only be added once the customer has verified their email.</p>)}
+        {can(viewer.role, "orders:write") && u.role === "customer" && (
+          <div className="mt-5 border-t border-line pt-5">
+            {!u.emailVerifiedAt && <p className="mb-3 text-xs text-muted">Credit can only be added once the customer has verified their email. You can still remove credit.</p>}
+            <AdjustCreditForm id={id} />
+          </div>
+        )}
+        {adjustments.length > 0 && <div className="mt-5 border-t border-line pt-5"><h3 className="mb-3 text-sm font-semibold">Recent changes by staff</h3><Ledger rows={adjustments} showCustomer={false} owner={owner} /></div>}
       </Card>
     </>
   );

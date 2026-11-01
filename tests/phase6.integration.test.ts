@@ -31,11 +31,11 @@ afterAll(async () => { if (!up) return; await mongoose.connection.dropDatabase()
 describe.skipIf(!up)("search suggestions (real MongoDB)", () => {
   beforeEach(async () => {
     for (const c of await mongoose.connection.db!.collections()) await c.deleteMany({});
-    const cat = await Category.create({ slug: "audio", name: L("Audio", "الصوتيات") });
+    const cat = await Category.create({ slug: "audio", name: "Audio", type: "category" });
     await Product.create([
-      { slug: "aurora-headphones", sku: "AH-1", name: L("Aurora Wireless Headphones", "سماعات أورورا"), brand: "Aurora", category: cat._id, price: 100, stock: 5, status: "published", soldCount: 10 },
-      { slug: "pulse-speaker", sku: "PS-1", name: L("Pulse Speaker", "سماعة بلس"), category: cat._id, price: 50, stock: 5, status: "published" },
-      { slug: "hidden-draft", sku: "HD-1", name: L("Headphones Draft", "مسودة"), category: cat._id, price: 10, stock: 5, status: "draft" },
+      { slug: "aurora-headphones", sku: "AH-1", name: "Aurora Wireless Headphones", nameAr: "سماعات أورورا", brand: "Aurora", category: "audio", priceFrom: 100, priceTo: 100, stock: 5, status: "active", soldCount: 10 },
+      { slug: "pulse-speaker", sku: "PS-1", name: "Pulse Speaker", category: "audio", priceFrom: 50, priceTo: 50, stock: 5, status: "active" },
+      { slug: "hidden-draft", sku: "HD-1", name: "Headphones Draft", category: "audio", priceFrom: 10, priceTo: 10, stock: 5, status: "draft" },
     ]);
   });
 

@@ -1,4 +1,5 @@
 "use server";
+import { refreshStoreData } from "@/lib/admin/refresh-store";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Types } from "mongoose";
@@ -16,7 +17,7 @@ import { BrandModel } from "../../../../lib/models/Brand";
 import { brandRegex, ensureBrand } from "@/features/catalog/brands";
 import { parseProductFilters, productFilterQuery } from "./queries";
 
-const refresh = () => revalidatePath("/[lang]", "layout");
+const refresh = refreshStoreData;
 /** A category seen for the first time gets its "All <Category>" collection page (same rule as the CSV importer). */
 async function ensureCategoryPage(cat: string) {
   await Category.updateOne({ slug: `all-${cat}` }, { $setOnInsert: { slug: `all-${cat}`, name: "All " + cat.charAt(0).toUpperCase() + cat.slice(1).replace(/-/g, " "), description: "", image: "", type: "category", parent: cat, sortOrder: 50 } }, { upsert: true });
