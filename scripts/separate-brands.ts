@@ -1,7 +1,7 @@
 // Separates brands from categories in the existing catalogue.
 //
-//   npx tsx --env-file=.env scripts/separate-brands.ts            dry run: only counts and shows examples
-//   npx tsx --env-file=.env scripts/separate-brands.ts --apply    writes the changes
+//   node scripts/with-env.cjs scripts/separate-brands.ts            dry run: only counts and shows examples
+//   node scripts/with-env.cjs scripts/separate-brands.ts --apply    writes the changes
 //   add --remove-empty-collections to also delete the "All <Brand>" category pages that are left empty
 //
 // Before: "all-cartier", "all-louis-vuitton", "all-footwear", "new-arrivals", "kill"... were used as categories.

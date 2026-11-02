@@ -26,6 +26,12 @@ export function ProductCard({ p, locale, t, priority = false }: { p: ProductCard
       <div className="flex flex-1 flex-col gap-2 p-3 sm:p-4">
         {p.brand && p.brand !== "Carts Heaven" && <p className="text-[11px] font-semibold uppercase tracking-wider text-muted">{p.brand}</p>}
         <h3 className="line-clamp-2 min-h-10 text-sm font-medium"><Link prefetch={false} href={href} className="after:absolute after:inset-0 after:content-[''] hover:text-brand">{p.name[locale]}</Link></h3>
+        {p.sizes && p.sizes.length > 0 && (
+          <ul className="flex flex-wrap items-center gap-1" aria-label={t.product.sizes}>
+            {p.sizes.slice(0, 6).map((sz) => <li key={sz} className="min-w-7 rounded-md border border-line px-1.5 py-0.5 text-center text-[11px] leading-4 text-muted">{sz}</li>)}
+            {p.sizes.length > 6 && <li className="text-[11px] text-muted">+{p.sizes.length - 6}</li>}
+          </ul>
+        )}
         {p.ratingCount > 0 && <p className="text-xs text-muted"><span className="text-gold">★</span> {p.ratingAvg.toFixed(1)} · {p.ratingCount} {t.product.reviews}</p>}
         <p className="mt-auto flex items-baseline gap-2">
           <span className="text-lg font-bold">{formatAED(p.finalPrice, locale)}</span>

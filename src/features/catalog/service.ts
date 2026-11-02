@@ -1,3 +1,4 @@
+import { sortSizes } from "../../../lib/variants";
 import "server-only";
 import { cache } from "react";
 import { cachedFor } from "@/lib/cross-request-cache";
@@ -25,6 +26,7 @@ export type ProductCardData = {
   id: string; slug: string; sku: string; name: L10n; price: number; finalPrice: number;
   icon: string; hue: number; ratingAvg: number; ratingCount: number; stock: number; image?: string; image2?: string; brand?: string;
   hasVariants?: boolean; // has colour/size options: can only be added to the cart from its page, after choosing one
+  sizes?: string[]; // sizes that are in stock, smallest first (shown on the card)
 };
 
 export type ProductDetail = ProductCardData & {
@@ -42,12 +44,19 @@ const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const ICONS: Record<string, string> = { watches: "⌚", jewelry: "💍", bags: "👜", perfume: "🧴", accessories: "🕶️", glasses: "🕶️", footwear: "👟", caps: "🧢" };
 const hueOf = (s: string) => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
 
+/** The sizes a shopper can still pick, de-duplicated and in order (38 < 40 < 42, S < M < L). Empty when the product has no sizes. */
+function cardSizes(p: Doc): string[] | undefined {
+  const sizes = [...new Set(((p.variants ?? []) as { size?: string; stock?: number }[]).filter((v) => v.size && (v.stock ?? 1) > 0).map((v) => String(v.size)))].sort(sortSizes);
+  return sizes.length ? sizes : undefined;
+}
+
 function card(p: Doc): ProductCardData {
   const price = Math.max(p.priceFrom ?? 0, p.priceTo ?? 0);
   return {
     id: String(p._id), slug: p.slug, sku: p.sku, name: { en: p.name, ar: p.nameAr || p.name }, price, finalPrice: p.priceTo,
     icon: ICONS[p.category] ?? "📦", hue: hueOf(p.category ?? ""), ratingAvg: p.ratingAvg ?? 0, ratingCount: p.ratingCount ?? 0, stock: p.stock ?? 0,
     image: p.images?.[0]?.url, image2: p.images?.[1]?.url, brand: p.brand, hasVariants: (p.variants?.length ?? 0) > 0,
+    sizes: cardSizes(p),
   };
 }
 
@@ -124,7 +133,7 @@ const SORT = {
 export type Facets = { brands: { value: string; count: number }[]; price: { min: number; max: number }; attrs: Record<string, { value: string; count: number }[]> };
 
 /** Only what a product card shows (first image only) — avoids loading descriptions and every gallery image per row. */
-const CARD_PROJECTION = { slug: 1, sku: 1, name: 1, nameAr: 1, category: 1, priceFrom: 1, priceTo: 1, ratingAvg: 1, ratingCount: 1, stock: 1, brand: 1, "variants.sku": 1, images: { $slice: 2 } };
+const CARD_PROJECTION = { slug: 1, sku: 1, name: 1, nameAr: 1, category: 1, priceFrom: 1, priceTo: 1, ratingAvg: 1, ratingCount: 1, stock: 1, brand: 1, "variants.sku": 1, "variants.size": 1, "variants.stock": 1, images: { $slice: 2 } };
 
 async function computeFacets(base: QueryFilter<Doc>, allowedAttrs: string[]): Promise<Facets> {
   const keys = allowedAttrs.filter((k) => ATTR_FIELD[k]);

@@ -13,7 +13,7 @@ const MAX_IMAGES = 12;
  *  - rows belong together when category + brand + name match and each one carries a colour and/or size;
  *  - each row becomes a variant (its own SKU, colour, size, stock; its own price only when it differs; its own image when images differ);
  *  - the product takes the first row's SKU and fields, so re-importing the same file updates the same product.
- * A group is left unmerged (rows stay separate) when two rows share the same colour + size, so no data is ever lost silently.
+ * Rows with the same colour + size count once (the first is kept). A group is left unmerged (rows stay separate) only when it has fewer than two different colours / sizes or two rows share a SKU.
  */
 export function groupRows(rows: CsvRow[]): CsvRow[] {
   const groups = new Map<string, CsvRow[]>();
@@ -35,11 +35,14 @@ export function groupRows(rows: CsvRow[]): CsvRow[] {
       out.push(slot);
       continue;
     }
-    const members = groups.get(slot)!;
-    const combos = new Set(members.map((m) => `${norm(m.data.color)}|${norm(m.data.size)}`));
+    const all = groups.get(slot)!;
+    // The same colour + size listed twice (one product uploaded twice in the file) is one variant: keep the first row, so the group still merges
+    // into a single product instead of every size becoming its own product.
+    const seen = new Set<string>();
+    const members = all.filter((m) => { const k = `${norm(m.data.color)}|${norm(m.data.size)}`; if (seen.has(k)) return false; seen.add(k); return true; });
     const skus = new Set(members.map((m) => m.data.sku.toLowerCase()));
-    if (members.length < 2 || combos.size < members.length || skus.size < members.length) {
-      out.push(...members);
+    if (members.length < 2 || skus.size < members.length) {
+      out.push(...all);
       continue;
     }
     out.push(merge(members));

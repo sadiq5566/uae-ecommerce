@@ -7,6 +7,12 @@ Shared images folder: `/var/www/shared-uploads`
 
 ---
 
+## Running scripts (which env file is used)
+
+Every `npm run ...` script that needs the database starts through `scripts/with-env.cjs`. It loads `.env` and/or `.env.local`, whichever of them exist (`.env.local` wins when both do), so the same command works on your PC (`.env.local`) and on the server (`.env`). To run a script file directly: `node scripts/with-env.cjs scripts/<name>.ts [arguments]`.
+
+---
+
 ## 1. On your PC (Windows PowerShell)
 
 ```
@@ -140,19 +146,19 @@ Source is only read. The target collections are dropped and re-created with `--r
 Dry run (shows counts, writes nothing):
 
 ```
-npx tsx --env-file=.env.local scripts/copy-db.ts --from=cartsheaven --to=rayanacollection
+node scripts/with-env.cjs scripts/copy-db.ts --from=cartsheaven --to=rayanacollection
 ```
 
 Copy and replace:
 
 ```
-npx tsx --env-file=.env.local scripts/copy-db.ts --from=cartsheaven --to=rayanacollection --apply --replace
+node scripts/with-env.cjs scripts/copy-db.ts --from=cartsheaven --to=rayanacollection --apply --replace
 ```
 
 Copy only some collections:
 
 ```
-npx tsx --env-file=.env.local scripts/copy-db.ts --from=cartsheaven --to=rayanacollection --apply --replace --collections=products,collections,imagedocs
+node scripts/with-env.cjs scripts/copy-db.ts --from=cartsheaven --to=rayanacollection --apply --replace --collections=products,collections,imagedocs
 ```
 
 Without `--replace` it refuses to touch a collection that already has documents. (`npm run copy-db -- --from=...` also works in Git Bash / Linux, but not reliably in PowerShell.)
@@ -171,7 +177,7 @@ npm run seed-pages                    # dry run: About, Contact, FAQ, Delivery, 
 npm run seed-pages -- --apply         # write them (published)
 ```
 
-If PowerShell drops `-- --apply`, use: `npx tsx --env-file=.env.local scripts/seed-journal.ts --apply` (same for `seed-pages.ts`).
+If PowerShell drops `-- --apply`, use: `node scripts/with-env.cjs scripts/seed-journal.ts --apply` (same for `seed-pages.ts`).
 
 - Pages and articles are edited later in Admin -> Pages / Articles (an article can be written in one language only).
 - The page texts contain fees and limits (delivery AED 15/20/25, free over AED 200 / AED 300 north, minimum AED 50, COD up to AED 3,000, 7-day returns, 90-day store credit, WhatsApp +971 58 985 7250). If you change these in Admin -> Settings or Delivery, update the pages too.
@@ -210,7 +216,7 @@ npm run db:seed-offers                # dry run: adds the public coupons WELCOME
 npm run db:seed-offers -- --apply     # writes them; existing coupons also start to work on sale items
 ```
 
-If PowerShell drops `-- --apply`, run the script directly: `npx tsx --env-file=.env scripts/seo-fix.ts --apply` (same for `seo-rename.ts`, `add-belts.ts`, `seed-offers.ts`).
+If PowerShell drops `-- --apply`, run the script directly: `node scripts/with-env.cjs scripts/seo-fix.ts --apply` (same for `seo-rename.ts`, `add-belts.ts`, `seed-offers.ts`).
 
 Order to run them on a fresh or imported catalogue: `db:seo-fix` -> `db:add-belts` -> `db:seed-offers`. Take an Atlas snapshot first if the data matters.
 
@@ -317,13 +323,27 @@ npm run db:markup -- --restore --apply    # put the original prices back
 - **db:markup** raises the selling price and variant prices. By default the "was" price rises by the same % so the discount % shown stays the same; `--keep-was` leaves it alone.
 - The first `--apply` of each saves the untouched prices to `scripts/discount.backup.json` / `scripts/markup.backup.json`. Keep that file until you are sure. Do not edit prices by hand in the admin between runs: the next run overwrites them with the saved ones.
 - The two do not mix: restore one (`--restore --apply`) before using the other. Each script refuses to run while the other one's backup file exists.
-- If PowerShell swallows `--`, run `npx tsx --env-file=.env scripts/markup-prices.ts 10 --apply` directly.
+- If PowerShell swallows `--`, run `node scripts/with-env.cjs scripts/markup-prices.ts 10 --apply` directly.
 
 ---
 
 ## Free home delivery
 
 Delivery is free on every order and the store says "Free home delivery · Cash on delivery" (top bar, product pages, cart, checkout). To go back to delivery fees and the free-delivery limit: Admin > Settings > Delivery rules: tick or untick **Free home delivery on every order**. No restart or deploy is needed.
+
+---
+
+## One product per size: merge them into one product with sizes
+
+Scraped files sometimes list every size as its own product (same name, one size each). The CSV import now folds such rows into ONE product with size / colour options, and this script repairs products that are already in the database. A colour + size listed twice counts once (the richer copy is kept, the other is archived).
+
+```
+npm run db:merge-variants                  # dry run: lists the groups it would merge, writes nothing
+npm run db:merge-variants -- --apply       # merges them; merged-away products are archived (never deleted) and the old links keep working
+npm run db:merge-variants -- --restore     # puts every product back exactly as it was before the last --apply (uses scripts/merge-variants.backup.json)
+```
+
+Run the dry run first and keep the backup file until you are happy. If `.env` does not exist in this project, run it directly: `node scripts/with-env.cjs scripts/merge-variants.ts`.
 
 ---
 

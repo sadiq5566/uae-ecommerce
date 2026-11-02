@@ -54,6 +54,7 @@
     "endsIn": "Ends in"
   },
   "product": {
+    "sizes": "Sizes",
     "addToCart": "Add to cart",
     "chooseOptions": "Choose options",
     "added": "Added to cart",
