@@ -1,4 +1,5 @@
 import { Schema, model, models, type Model, type Types } from "mongoose";
+import { storeScope } from "@/lib/store-scope";
 
 export const ORDER_STATUSES = ["pending_payment", "confirmed", "processing", "packed", "out_for_delivery", "delivered", "cancelled", "refund_pending", "refunded"] as const;
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
@@ -12,7 +13,8 @@ const i18n = { en: String, ar: String };
 // Everything on an order is a snapshot: later catalogue/address/settings edits never change history.
 const orderSchema = new Schema(
   {
-    orderNumber: { type: String, required: true, unique: true },
+    orderNumber: { type: String, required: true, immutable: true }, // never changes after creation; unique per store (index below)
+    legacyOrderNumber: String, // the number this order had in its old single-store database (set by the migration)
     // Guest orders (no account) have no user; they're found by order number + phone, or by the secret trackToken in the link.
     user: { type: Schema.Types.ObjectId, ref: "User", index: true },
     guest: { type: Boolean, default: false },
@@ -55,6 +57,9 @@ const orderSchema = new Schema(
   },
   { timestamps: true },
 );
+orderSchema.plugin(storeScope);
+orderSchema.index({ storeId: 1, orderNumber: 1 }, { unique: true });
+orderSchema.index({ storeId: 1, createdAt: -1 });
 orderSchema.index({ user: 1, idempotencyKey: 1 }, { unique: true }); // duplicate submissions can't create two orders
 orderSchema.index({ user: 1, createdAt: -1 });
 orderSchema.index({ status: 1, expiresAt: 1 });
@@ -64,7 +69,7 @@ type L10n = { en: string; ar: string };
 // Explicit shape (Mongoose's inferred type makes every nested field optional/nullable, which is noisy for lean reads).
 export interface OrderDoc {
   _id: Types.ObjectId;
-  orderNumber: string; user?: Types.ObjectId | null; guest?: boolean; cartGuestId?: string; trackToken?: string; email?: string | null; source?: "cart" | "buy_now"; locale: "en" | "ar"; idempotencyKey: string; status: OrderStatus;
+  orderNumber: string; legacyOrderNumber?: string; storeId: string; user?: Types.ObjectId | null; guest?: boolean; cartGuestId?: string; trackToken?: string; email?: string | null; source?: "cart" | "buy_now"; locale: "en" | "ar"; idempotencyKey: string; status: OrderStatus;
   items: { productId: Types.ObjectId; sku: string; name: L10n; variantLabel?: L10n; icon?: string; image?: string; qty: number; unitPrice: number; listPrice: number; lineTotal: number; couponShare: number }[];
   address: { recipientName: string; phone: string; emirate: string; area: string; street?: string; building: string; unit?: string; landmark?: string; instructions?: string };
   delivery: { zone: string; zoneName: L10n; estimate: L10n };

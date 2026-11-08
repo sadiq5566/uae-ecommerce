@@ -18,6 +18,7 @@
     "tabby:webhook": "node scripts/with-env.cjs scripts/tabby-webhook.ts",
     "db:indexes": "node scripts/with-env.cjs scripts/indexes.ts",
     "db:migrate": "node scripts/with-env.cjs scripts/migrate.ts",
+    "db:migrate-store": "node scripts/with-env.cjs scripts/migrate-rayanacollection.ts",
     "seed:demo": "node scripts/with-env.cjs scripts/seed-demo.ts",
     "db:fix-groups": "node scripts/with-env.cjs scripts/fix-variant-groups.ts",
     "import-csv": "node scripts/with-env.cjs scripts/import-csv.ts",

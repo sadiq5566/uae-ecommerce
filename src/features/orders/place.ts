@@ -3,6 +3,8 @@ import { randomBytes } from "node:crypto";
 import { Types } from "mongoose";
 import { connectDb } from "@/lib/db";
 import { getProviderById, getProviderForMethod } from "@/lib/payments";
+import { useSharedDb } from "@/lib/store-config";
+import { nextOrderNumber } from "@/models/counter";
 import { Cart } from "@/models/cart";
 import { Coupon } from "@/models/coupon";
 import { CouponRedemption } from "@/models/coupon-redemption";
@@ -87,7 +89,7 @@ export async function placeOrder(input: PlaceInput): Promise<PlaceResult> {
   let order;
   for (let attempt = 0; ; attempt++) {
     try {
-      order = await Order.create({ ...doc, orderNumber: newOrderNumber() });
+      order = await Order.create({ ...doc, orderNumber: useSharedDb() ? await nextOrderNumber() : newOrderNumber() }); // shared DB: "RC-1001" from the atomic per-store counter; old DB: the random UAE- code
       break;
     } catch (e) {
       const err = e as { code?: number; keyPattern?: Record<string, number> };
