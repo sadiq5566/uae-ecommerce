@@ -3,6 +3,7 @@ import { connectDb } from "@/lib/db";
 import { Article } from "@/models/article";
 import { ContentPage, PAGE_SLUGS, type PageSlug } from "@/models/content-page";
 import { Homepage } from "@/models/homepage";
+import type { FaqItem } from "../../../lib/faq";
 
 type L = { en: string; ar: string };
 const l = (x?: { en?: string | null; ar?: string | null } | null): L => ({ en: x?.en ?? "", ar: x?.ar ?? "" });
@@ -10,11 +11,11 @@ const l = (x?: { en?: string | null; ar?: string | null } | null): L => ({ en: x
 const both = (x?: { en?: string | null; ar?: string | null } | null): L => { const v = l(x); return { en: v.en || v.ar, ar: v.ar || v.en }; };
 const live = () => ({ status: "published" as const, publishAt: { $lte: new Date() } }); // scheduled articles appear automatically
 
-export type ArticleView = { slug: string; title: L; excerpt: L; body: L; category?: string; cover?: string; coverAlt: L; icon: string; hue: number; author?: string; publishAt: string; seo: { title: L; description: L; keywords: L } };
+export type ArticleView = { slug: string; title: L; excerpt: L; body: L; category?: string; cover?: string; coverAlt: L; icon: string; hue: number; author?: string; publishAt: string; seo: { title: L; description: L; keywords: L }; faqs: FaqItem[]; updatedAt?: string };
 
 const view = (a: Record<string, unknown>): ArticleView => {
-  const x = a as { slug: string; title?: L; excerpt?: L; body?: L; category?: string; cover?: string; coverAlt?: L; icon: string; hue: number; author?: string; publishAt?: Date; seo?: { title?: L; description?: L; keywords?: L } };
-  return { slug: x.slug, title: both(x.title), excerpt: both(x.excerpt), body: both(x.body), category: x.category ?? undefined, cover: x.cover ?? undefined, coverAlt: both(x.coverAlt), icon: x.icon, hue: x.hue, author: x.author ?? undefined, publishAt: (x.publishAt ?? new Date()).toISOString(), seo: { title: l(x.seo?.title), description: l(x.seo?.description), keywords: both(x.seo?.keywords) } };
+  const x = a as { slug: string; title?: L; excerpt?: L; body?: L; category?: string; cover?: string; coverAlt?: L; icon: string; hue: number; author?: string; publishAt?: Date; seo?: { title?: L; description?: L; keywords?: L }; faqs?: FaqItem[]; updatedAt?: Date };
+  return { slug: x.slug, title: both(x.title), excerpt: both(x.excerpt), body: both(x.body), category: x.category ?? undefined, cover: x.cover ?? undefined, coverAlt: both(x.coverAlt), icon: x.icon, hue: x.hue, author: x.author ?? undefined, publishAt: (x.publishAt ?? new Date()).toISOString(), seo: { title: l(x.seo?.title), description: l(x.seo?.description), keywords: both(x.seo?.keywords) }, faqs: (x.faqs ?? []).map((f) => ({ q: f.q, a: f.a, qAr: f.qAr, aAr: f.aAr })), updatedAt: x.updatedAt?.toISOString() };
 };
 
 export async function listArticles(limit = 12, page = 1) {
@@ -42,7 +43,7 @@ export async function publishedPageSlugs() {
 }
 
 export type Slide = { id: string; eyebrow: L; title: L; subtitle: L; ctaLabel: L; ctaHref?: string; image?: string; hue: number };
-export type HomeConfig = { seo: { title: L; description: L; keywords: L }; slides: Slide[]; sections: { deals: boolean; featured: boolean; newArrivals: boolean; popular: boolean; mostViewed: boolean; journal: boolean } };
+export type HomeConfig = { faqs: FaqItem[]; seo: { title: L; description: L; keywords: L }; slides: Slide[]; sections: { deals: boolean; featured: boolean; newArrivals: boolean; popular: boolean; mostViewed: boolean; journal: boolean } };
 
 /** Active banners (inside their campaign window, ordered) and section toggles. */
 export async function getHomeConfig(now = new Date()): Promise<HomeConfig> {
@@ -53,7 +54,8 @@ export async function getHomeConfig(now = new Date()): Promise<HomeConfig> {
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
     .map((b) => ({ id: b.id ?? "", eyebrow: l(b.eyebrow), title: l(b.title), subtitle: l(b.subtitle), ctaLabel: l(b.ctaLabel), ctaHref: b.ctaHref ?? undefined, image: b.image ?? undefined, hue: b.hue ?? 160 }));
   const s = (h?.sections ?? {}) as unknown as Record<string, boolean | undefined>;
-  return { seo: { title: both(h?.seo?.title), description: both(h?.seo?.description), keywords: both(h?.seo?.keywords) }, slides, sections: { deals: s.deals !== false, featured: s.featured !== false, newArrivals: s.newArrivals !== false, popular: s.popular !== false, mostViewed: s.mostViewed !== false, journal: s.journal !== false } };
+  const faqs = ((h?.faqs ?? []) as FaqItem[]).map((f) => ({ q: f.q, a: f.a, qAr: f.qAr, aAr: f.aAr }));
+  return { faqs, seo: { title: both(h?.seo?.title), description: both(h?.seo?.description), keywords: both(h?.seo?.keywords) }, slides, sections: { deals: s.deals !== false, featured: s.featured !== false, newArrivals: s.newArrivals !== false, popular: s.popular !== false, mostViewed: s.mostViewed !== false, journal: s.journal !== false } };
 }
 
 export async function getSitemapContent() {

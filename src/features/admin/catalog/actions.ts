@@ -47,6 +47,7 @@ export async function saveProductAction(_: FormState, fd: FormData): Promise<For
     priceFrom: p.priceFrom, priceTo: p.priceTo, currency: "AED", stock, lowStockThreshold: p.lowStockThreshold, status: p.status,
     isFeatured: p.isFeatured, isNewArrival: p.isNewArrival, isMostWanted: p.isMostWanted, tags: p.tags, highlights: p.highlights, includedItems: p.includedItems,
     images: p.images.map((i) => ({ url: i.url, alt: i.alt?.en || p.name })), variants,
+    ...(p.faqs && { faqs: p.faqs }), // a form that does not send faqs leaves the stored ones untouched
     seo: { title: p.seoTitle || undefined, description: p.seoDesc || undefined, keywords: p.seoKeywords || undefined, noindex: p.seoNoindex || undefined },
     seoAr: { title: p.seoTitleAr || undefined, description: p.seoDescAr || undefined },
   };
@@ -140,7 +141,7 @@ export async function saveCategoryAction(_: FormState, fd: FormData): Promise<Fo
   if (!parsed.success) return fail(issues(parsed.error), fd);
   const c = parsed.data;
   await connectDb();
-  const base = { slug: c.slug || slugify(c.name), name: c.name, description: c.description, image: c.image || "", type: c.type, parent: c.parent, sortOrder: c.sortOrder, seo: { title: c.seoTitle || undefined, description: c.seoDesc || undefined, keywords: c.seoKeywords || undefined, noindex: c.seoNoindex || undefined }, seoAr: { title: c.seoTitleAr || undefined, description: c.seoDescAr || undefined } };
+  const base = { slug: c.slug || slugify(c.name), name: c.name, description: c.description, image: c.image || "", type: c.type, parent: c.parent, sortOrder: c.sortOrder, seo: { title: c.seoTitle || undefined, description: c.seoDesc || undefined, keywords: c.seoKeywords || undefined, noindex: c.seoNoindex || undefined }, seoAr: { title: c.seoTitleAr || undefined, description: c.seoDescAr || undefined }, ...(c.faqs && { faqs: c.faqs }) };
   try {
     if (c.id) {
       if (!Types.ObjectId.isValid(c.id)) return { error: "Not found" };

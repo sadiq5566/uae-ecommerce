@@ -9,6 +9,9 @@ import { getCategories, getCollection, getShowcase } from "@/features/catalog/se
 import { buildMenu, MAIN_SLUGS } from "@/features/catalog/menu";
 import { getStoreBrands } from "@/features/catalog/brands";
 import { getHomeConfig, listArticles } from "@/features/content/service";
+import { getPublicOffers } from "@/features/offers/service";
+import { FaqSection } from "@/components/faq-section";
+import { FAQ_TITLE, homePageFaqs } from "@/features/catalog/faq";
 import { Hero, type HeroSlide } from "@/features/home/hero";
 import { CategoryShowcase, CategorySpotlight, Journal, ProductSection, ReferralBanner, TrustBar } from "@/features/home/sections";
 
@@ -35,6 +38,8 @@ export default async function Home({ params }: PageProps<"/[lang]">) {
     sec.popular ? getCollection("popular", 4, MAIN_SLUGS) : [], sec.newArrivals ? getCollection("new", 4, MAIN_SLUGS) : [],
     ...menu.main.map((c) => getCollection("category", c.slug === "perfume" ? 10 : 4, [c.slug])),
   ]);
+  const [bEn, bAr, offers] = await Promise.all([getBrand("en"), getBrand("ar"), getPublicOffers()]);
+  const faqs = homePageFaqs(cfg.faqs, lang, { en: bEn.name, ar: bAr.name }, offers, { en: menu.main.map((c) => c.name.en), ar: menu.main.map((c) => c.name.ar) });
   const p = { locale: lang, t };
   const tiles = menu.main.map((c) => ({ label: c.name[lang], href: `/${lang}/c/${c.slug}`, image: c.image, count: c.count }));
   // Admin-managed campaign banners, or the built-in default hero.
@@ -59,6 +64,7 @@ export default async function Home({ params }: PageProps<"/[lang]">) {
       <ProductSection {...p} title={t.catalog.bestSellers} sub={t.catalog.bestSellersSub} items={bestSellers} />
       <ProductSection {...p} title={t.catalog.newTitle} sub={t.catalog.newSub} items={newest} href={`/${lang}/new`} />
       {sec.journal && <Journal {...p} articles={articles.items} />}
+      <div className="mx-auto max-w-4xl px-4 pb-14 sm:px-6"><FaqSection faqs={faqs} lang={lang} title={FAQ_TITLE.home[lang]} id="home-faq" url={bEn.url} className="" /></div>
     </>
   );
 }

@@ -12,6 +12,8 @@ const homepageSchema = new Schema(
       startsAt: Date, endsAt: Date, // campaigns can be scheduled
     }],
     seo: { title: i18n, description: i18n, keywords: i18n }, // the home page's own search-result title, description and keywords
+    // Questions about the website itself, shown at the bottom of the home page. Empty = the built-in store FAQ (lib/faq.ts storeFaqs).
+    faqs: [{ _id: false, q: { type: String, default: "" }, a: { type: String, default: "" }, qAr: { type: String, default: "" }, aAr: { type: String, default: "" } }],
     sections: {
       deals: { type: Boolean, default: true }, featured: { type: Boolean, default: true }, newArrivals: { type: Boolean, default: true },
       popular: { type: Boolean, default: true }, mostViewed: { type: Boolean, default: true }, journal: { type: Boolean, default: true },

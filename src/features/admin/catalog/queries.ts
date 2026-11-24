@@ -7,6 +7,7 @@ import { InventoryMovement } from "@/models/inventory-movement";
 import { Product } from "@/models/product";
 import type { CategoryFormData } from "./category-form";
 import type { CategoryOption, ProductFormData } from "./product-form";
+import type { FaqRow } from "@/components/admin/faq-editor";
 
 
 /** Category choices for the product form: every category slug in use plus the Collection documents of type "category". id is the slug products store. */
@@ -101,6 +102,7 @@ export async function getProductForm(id: string): Promise<ProductFormData | null
     images: (p.images ?? []).map((i) => ({ url: i.url ?? "", alt: { en: i.alt ?? "", ar: "" } })),
     variants: (p.variants ?? []).map((v) => ({ sku: v.sku, color: v.color ?? "", size: v.size ?? "", stock: v.stock, price: v.price ?? "", image: v.image ?? "" })),
     seo: { title: p.seo?.title ?? "", description: p.seo?.description ?? "", titleAr: p.seoAr?.title ?? "", descriptionAr: p.seoAr?.description ?? "", keywords: p.seo?.keywords ?? "", noindex: !!p.seo?.noindex },
+    faqs: ((p as unknown as { faqs?: FaqRow[] }).faqs ?? []).map((f) => ({ q: f.q ?? "", a: f.a ?? "", qAr: f.qAr ?? "", aAr: f.aAr ?? "", auto: !!f.auto })),
   };
 }
 
@@ -109,7 +111,7 @@ export async function getCategoryForm(id: string): Promise<CategoryFormData | nu
   await connectDb();
   const c = await Category.findById(id).lean();
   if (!c) return null;
-  return { id: String(c._id), slug: c.slug, name: c.name, description: c.description ?? "", image: c.image || undefined, type: c.type, parent: c.parent ?? undefined, sortOrder: c.sortOrder ?? 0, seoTitle: c.seo?.title ?? "", seoDesc: c.seo?.description ?? "", seoTitleAr: c.seoAr?.title ?? "", seoDescAr: c.seoAr?.description ?? "", seoKeywords: c.seo?.keywords ?? "", seoNoindex: !!c.seo?.noindex };
+  return { id: String(c._id), slug: c.slug, name: c.name, description: c.description ?? "", image: c.image || undefined, type: c.type, parent: c.parent ?? undefined, sortOrder: c.sortOrder ?? 0, seoTitle: c.seo?.title ?? "", seoDesc: c.seo?.description ?? "", seoTitleAr: c.seoAr?.title ?? "", seoDescAr: c.seoAr?.description ?? "", seoKeywords: c.seo?.keywords ?? "", seoNoindex: !!c.seo?.noindex, faqs: ((c as unknown as { faqs?: FaqRow[] }).faqs ?? []).map((f) => ({ q: f.q ?? "", a: f.a ?? "", qAr: f.qAr ?? "", aAr: f.aAr ?? "", auto: !!f.auto })) };
 }
 
 export async function listCategoriesAdmin() {

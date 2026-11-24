@@ -27,7 +27,8 @@ export function siteJsonLd(o: { base: string; name: string; lang: Locale; logo?:
       ...(o.logo && { logo: o.logo, image: o.logo }),
       ...(o.email && { email: o.email }),
       ...(phone && { telephone: phone }),
-      areaServed: { "@type": "Country", name: "United Arab Emirates" },
+      // Country plus the emirates and cities shoppers search from, so local queries ("buy ... in Dubai") can be matched to the delivery area.
+      areaServed: [{ "@type": "Country", name: "United Arab Emirates" }, ...["Dubai", "Abu Dhabi", "Sharjah", "Ajman", "Ras Al Khaimah", "Fujairah", "Umm Al Quwain", "Al Ain"].map((n) => ({ "@type": "City", name: n }))],
       address: { "@type": "PostalAddress", addressCountry: "AE" },
       currenciesAccepted: "AED", paymentAccepted: "Cash on delivery, Credit card, Debit card",
       ...(phone && { contactPoint: { "@type": "ContactPoint", contactType: "customer service", telephone: phone, areaServed: "AE", availableLanguage: ["English", "Arabic"] } }),

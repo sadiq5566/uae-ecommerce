@@ -28,6 +28,7 @@
     "db:init": "node scripts/with-env.cjs scripts/db-init.ts",
     "db:recategorize": "node scripts/with-env.cjs scripts/recategorize.ts",
     "db:seo-fix": "node scripts/with-env.cjs scripts/seo-fix.ts",
+    "db:seo-faq": "tsx --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/seo-faq.ts",
     "db:seo-uae": "tsx --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/seo-uae.ts",
 
     "db:seo-rename": "node scripts/with-env.cjs scripts/seo-rename.ts",

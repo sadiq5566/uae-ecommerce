@@ -3,6 +3,7 @@ import { z } from "zod";
 import { checkbox, int, json, money, objectId, optText, text } from "@/lib/admin/common";
 import { isAllowedImageUrl } from "@/lib/image-url";
 import { slugify } from "../../../../lib/utils";
+import { faqsField } from "@/lib/admin/faq-schema";
 
 const imageUrl = z.string().trim().refine(isAllowedImageUrl, "Image must be an uploaded file or an https URL on an allowed host (IMAGE_HOSTS)");
 const catSlug = z.string().trim().toLowerCase().regex(/^[a-z0-9][a-z0-9-]{0,39}$/, "Category: lowercase letters, numbers and dashes, e.g. bags");
@@ -36,6 +37,7 @@ export const productSchema = z.object({
     image: z.string().trim().optional().transform((v) => v || undefined),
   })).max(100, "At most 100 variants"), []),
   seoTitle: text(70), seoDesc: text(160), seoTitleAr: text(70), seoDescAr: text(160), seoKeywords: text(200), seoNoindex: checkbox,
+  faqs: faqsField,
 }).superRefine((p, ctx) => {
   if (p.priceTo > p.priceFrom) ctx.addIssue({ code: "custom", path: ["priceTo"], message: "Selling price can't be higher than the original price" });
   const skus = p.variants.map((v) => v.sku.toUpperCase());
@@ -57,6 +59,7 @@ export const categorySchema = z.object({
   parent: z.string().trim().toLowerCase().optional().transform((v) => v || undefined),
   sortOrder: int("Order", 10_000).default(0),
   seoTitle: text(70), seoDesc: text(160), seoTitleAr: text(70), seoDescAr: text(160), seoKeywords: text(200), seoNoindex: checkbox,
+  faqs: faqsField,
 }).superRefine((c, ctx) => {
   if (c.type === "category" && !c.parent) ctx.addIssue({ code: "custom", path: ["parent"], message: "A category collection needs the category slug (e.g. watches)" });
 });

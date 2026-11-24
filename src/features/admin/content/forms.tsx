@@ -2,6 +2,7 @@
 import { useActionState, useState } from "react";
 import { CB, SF, TA, TF } from "@/components/admin/fields";
 import { ImagesEditor } from "@/components/admin/editors";
+import { FaqEditor, type FaqRow } from "@/components/admin/faq-editor";
 import { Card, btnGhost, btnPrimary, inputCls } from "@/components/admin/ui";
 import type { FormState } from "@/features/auth/schemas";
 import { saveArticleAction, saveHomepageAction, savePageAction } from "./actions";
@@ -26,8 +27,8 @@ function SeoCard({ s, seo, note }: { s: FormState; seo: SeoValues; note?: string
 }
 const Save = ({ pending, children }: { pending: boolean; children: React.ReactNode }) => <div className="sticky bottom-3 z-10 flex gap-3 rounded-2xl border border-line bg-surface/95 p-3 shadow-card backdrop-blur"><button disabled={pending} className={btnPrimary}>{pending ? "Saving…" : children}</button></div>;
 
-export type ArticleData = { id?: string; slug: string; title: { en: string; ar: string }; excerpt: { en: string; ar: string }; body: { en: string; ar: string }; category?: string; author?: string; cover?: string; coverAlt: { en: string; ar: string }; icon: string; hue: number; status: string; publishAt: string; seo: { title: { en: string; ar: string }; description: { en: string; ar: string }; keywords: { en: string; ar: string } } };
-const EMPTY_ARTICLE: ArticleData = { slug: "", title: { en: "", ar: "" }, excerpt: { en: "", ar: "" }, body: { en: "", ar: "" }, coverAlt: { en: "", ar: "" }, icon: "📰", hue: 160, status: "draft", publishAt: "", seo: { title: { en: "", ar: "" }, description: { en: "", ar: "" }, keywords: { en: "", ar: "" } } };
+export type ArticleData = { id?: string; slug: string; title: { en: string; ar: string }; excerpt: { en: string; ar: string }; body: { en: string; ar: string }; category?: string; author?: string; cover?: string; coverAlt: { en: string; ar: string }; icon: string; hue: number; status: string; publishAt: string; seo: { title: { en: string; ar: string }; description: { en: string; ar: string }; keywords: { en: string; ar: string } }; faqs: FaqRow[] };
+const EMPTY_ARTICLE: ArticleData = { slug: "", title: { en: "", ar: "" }, excerpt: { en: "", ar: "" }, body: { en: "", ar: "" }, coverAlt: { en: "", ar: "" }, icon: "📰", hue: 160, status: "draft", publishAt: "", seo: { title: { en: "", ar: "" }, description: { en: "", ar: "" }, keywords: { en: "", ar: "" } }, faqs: [] };
 
 export function ArticleForm({ article }: { article?: ArticleData }) {
   const a = article ?? EMPTY_ARTICLE;
@@ -49,6 +50,7 @@ export function ArticleForm({ article }: { article?: ArticleData }) {
         <TF s={s} name="seoTitle_en" label="SEO title (EN)" defaultValue={a.seo.title.en} /><TF s={s} name="seoTitle_ar" label="SEO title (AR)" defaultValue={a.seo.title.ar} dir="rtl" /><div />
         <TA s={s} name="seoDesc_en" label="Meta description (EN)" defaultValue={a.seo.description.en} rows={2} /><TA s={s} name="seoDesc_ar" label="Meta description (AR)" defaultValue={a.seo.description.ar} rows={2} dir="rtl" />
         <TA s={s} name="seoKeywords_en" label="Keywords / hashtags (EN)" defaultValue={a.seo.keywords.en} rows={2} hint="Words people search for, separated by commas or #hashtags. Up to 25. Used as the article's tags." /><TA s={s} name="seoKeywords_ar" label="Keywords / hashtags (AR)" defaultValue={a.seo.keywords.ar} rows={2} dir="rtl" /></div></Card>
+      <Card title="Questions & answers (FAQ)"><FaqEditor initial={a.faqs} keyword={a.seo.keywords.en.split(",")[0]} hint="Shown under the article and marked up as FAQPage so Google and AI assistants can quote it. Write the questions people type or ask out loud (for example “Which watch is best for Dubai summers?”) and answer each in 1-3 complete sentences. Start the article itself with a direct 1-2 sentence answer in the Summary field." /></Card>
       <Save pending={pending}>{a.id ? "Save article" : "Create article"}</Save>
     </form>
   );
@@ -74,7 +76,7 @@ type L = { en: string; ar: string };
 export type BannerData = { id: string; active: boolean; order: number; eyebrow: L; title: L; subtitle: L; ctaLabel: L; ctaHref: string; image?: string; hue: number; startsAt: string; endsAt: string };
 const newBanner = (): BannerData => ({ id: `b${Date.now().toString(36)}`, active: true, order: 0, eyebrow: { en: "", ar: "" }, title: { en: "", ar: "" }, subtitle: { en: "", ar: "" }, ctaLabel: { en: "", ar: "" }, ctaHref: "", hue: 160, startsAt: "", endsAt: "" });
 
-export function HomepageForm({ banners: initial, sections, seo }: { banners: BannerData[]; sections: Record<string, boolean>; seo: SeoValues }) {
+export function HomepageForm({ banners: initial, sections, seo, faqs = [], suggestedFaqs = [] }: { banners: BannerData[]; sections: Record<string, boolean>; seo: SeoValues; faqs?: FaqRow[]; suggestedFaqs?: FaqRow[] }) {
   const [s, action, pending] = useActionState<FormState, FormData>(saveHomepageAction, {});
   const [banners, setBanners] = useState<BannerData[]>(initial);
   const set = (i: number, p: Partial<BannerData>) => setBanners((b) => b.map((x, k) => (k === i ? { ...x, ...p } : x)));
@@ -106,6 +108,7 @@ export function HomepageForm({ banners: initial, sections, seo }: { banners: Ban
       </Card>
       <Card title="Home page sections"><div className="grid gap-3 sm:grid-cols-3">{sectionLabels.map(([k, label]) => <CB key={k} s={s} name={`s_${k}`} label={label} defaultChecked={sections[k] !== false} />)}</div><p className="mt-3 text-xs text-muted">Category tiles follow the category sort order (Categories → Sort order).</p></Card>
       <SeoCard s={s} seo={seo} note="How the store's home page appears on Google, in each language. Leave blank to use the default text." />
+      <Card title="Questions & answers (FAQ)"><FaqEditor initial={faqs} suggested={suggestedFaqs} keyword="Dubai" hint="Shown at the bottom of the home page and marked up as FAQPage for Google and AI assistants. Leave empty to show the built-in questions about the store (delivery, cash on delivery, returns, tracking, contact)." /></Card>
       <Save pending={pending}>Save homepage</Save>
     </form>
   );

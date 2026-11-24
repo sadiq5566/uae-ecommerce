@@ -35,6 +35,9 @@ const ProductSchema = new Schema(
     viewCount: { type: Number, default: 0 },
     soldCount: { type: Number, default: 0 },
     seo: { title: String, description: String, keywords: String, noindex: Boolean },
+    // Questions about THIS product (what it is, colours, sizes, what is included). Shared by every store; delivery/price/returns are built live per store (lib/faq.ts).
+    // `auto` rows are written by `npm run db:seo-faq` and may be regenerated; rows without it were written by hand and are never touched.
+    faqs: [{ _id: false, q: String, a: String, qAr: String, aAr: String, auto: Boolean }],
     // Arabic text of the product (the catalogue name/description in English is what search engines see on /en pages; /ar pages show these).
     nameAr: String, shortDescriptionAr: String, longDescriptionAr: String, seoAr: { title: String, description: String },
   },

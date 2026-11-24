@@ -1,5 +1,6 @@
 "use client";
 import { SeoPreview } from "./seo-preview";
+import { FaqEditor, type FaqRow } from "@/components/admin/faq-editor";
 import { useActionState, useState } from "react";
 import { CB, SF, TA, TF } from "@/components/admin/fields";
 import { ImagesEditor, VariantsEditor, type ImageItem, type VariantItem } from "@/components/admin/editors";
@@ -12,12 +13,12 @@ export type ProductFormData = {
   id?: string; slug: string; sku: string; name: string; shortDescription: string; longDescription: string; category: string; subcategory: string;
   brand?: string; model?: string; finish?: string; priceFrom: number; priceTo: number; stock: number; lowStockThreshold: number; status: string;
   isFeatured: boolean; isNewArrival: boolean; isMostWanted: boolean; tags: string[]; highlights: string[]; includedItems: string[];
-  images: ImageItem[]; variants: VariantItem[]; seo: { title: string; description: string; titleAr: string; descriptionAr: string; keywords: string; noindex: boolean };
+  images: ImageItem[]; variants: VariantItem[]; seo: { title: string; description: string; titleAr: string; descriptionAr: string; keywords: string; noindex: boolean }; faqs: FaqRow[];
 };
 
-const EMPTY: ProductFormData = { slug: "", sku: "", name: "", shortDescription: "", longDescription: "", category: "", subcategory: "general", priceFrom: 0, priceTo: 0, stock: 0, lowStockThreshold: 5, status: "draft", isFeatured: false, isNewArrival: false, isMostWanted: false, tags: [], highlights: [], includedItems: [], images: [], variants: [], seo: { title: "", description: "", titleAr: "", descriptionAr: "", keywords: "", noindex: false } };
+const EMPTY: ProductFormData = { slug: "", sku: "", name: "", shortDescription: "", longDescription: "", category: "", subcategory: "general", priceFrom: 0, priceTo: 0, stock: 0, lowStockThreshold: 5, status: "draft", isFeatured: false, isNewArrival: false, isMostWanted: false, tags: [], highlights: [], includedItems: [], images: [], variants: [], seo: { title: "", description: "", titleAr: "", descriptionAr: "", keywords: "", noindex: false }, faqs: [] };
 
-export function ProductForm({ categories, product, brands = [] }: { categories: CategoryOption[]; product?: ProductFormData; brands?: string[] }) {
+export function ProductForm({ categories, product, brands = [], suggestedFaqs = [] }: { categories: CategoryOption[]; product?: ProductFormData; brands?: string[]; suggestedFaqs?: FaqRow[] }) {
   const p = product ?? EMPTY;
   const [s, action, pending] = useActionState<FormState, FormData>(saveProductAction, {});
   const [variantCount, setVariantCount] = useState(p.variants.length);
@@ -80,6 +81,9 @@ export function ProductForm({ categories, product, brands = [] }: { categories: 
           <CB s={s} name="seoNoindex" label="Hide this product from Google (noindex)" defaultChecked={p.seo.noindex} />
           <SeoPreview />
         </div>
+      </Card>
+      <Card title="Questions & answers (FAQ)">
+        <FaqEditor initial={p.faqs} suggested={suggestedFaqs} keyword={p.name} hint="Shown on this product's page and marked up for Google and AI assistants (ChatGPT, Gemini, Perplexity). Write about the product itself: what it is, sizes, colours, care, what is included. Price, delivery to Dubai / Abu Dhabi / Sharjah, cash on delivery and returns are added automatically, so do not repeat them." />
       </Card>
       <div className="sticky bottom-3 z-10 flex gap-3 rounded-2xl border border-line bg-surface/95 p-3 shadow-card backdrop-blur"><button disabled={pending} className={btnPrimary}>{pending ? "Saving…" : p.id ? "Save changes" : "Create product"}</button></div>
     </form>

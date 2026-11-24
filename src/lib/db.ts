@@ -1,6 +1,7 @@
 import "server-only";
 import mongoose from "mongoose";
 import { dbTarget } from "./store-config";
+import { healAllStoreIndexes } from "./store-scope";
 
 // Production: indexes are created by `npm run db:indexes` during deploys, not implicitly at runtime (index builds on large
 // collections are expensive). Set MONGODB_AUTO_INDEX=true to opt back in. Development/tests keep auto-indexing.
@@ -11,6 +12,7 @@ const g = globalThis as unknown as {
   _mongoose?: { conn?: typeof mongoose; promise?: Promise<typeof mongoose> };
 };
 const cache = (g._mongoose ??= {});
+const healed = new WeakSet<object>();
 
 export async function connectDb() {
   if (cache.conn) return cache.conn;
@@ -27,5 +29,6 @@ export async function connectDb() {
     cache.promise = undefined;
     throw e;
   }
+  if (!healed.has(cache.conn)) { healed.add(cache.conn); void healAllStoreIndexes(); } // drop stale cross-store unique indexes left by older schemas
   return cache.conn;
 }

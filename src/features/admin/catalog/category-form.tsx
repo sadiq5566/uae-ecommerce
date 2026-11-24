@@ -2,12 +2,13 @@
 import { useActionState } from "react";
 import { CB, SF, TA, TF } from "@/components/admin/fields";
 import { ImagesEditor } from "@/components/admin/editors";
+import { FaqEditor, type FaqRow } from "@/components/admin/faq-editor";
 import { Card, btnPrimary } from "@/components/admin/ui";
 import type { FormState } from "@/features/auth/schemas";
 import { saveCategoryAction } from "./actions";
 
-export type CategoryFormData = { id?: string; slug: string; name: string; description: string; image?: string; type: string; parent?: string; sortOrder: number; seoTitle: string; seoDesc: string; seoTitleAr: string; seoDescAr: string; seoKeywords: string; seoNoindex: boolean };
-const EMPTY: CategoryFormData = { slug: "", name: "", description: "", type: "category", sortOrder: 50, seoTitle: "", seoDesc: "", seoTitleAr: "", seoDescAr: "", seoKeywords: "", seoNoindex: false };
+export type CategoryFormData = { id?: string; slug: string; name: string; description: string; image?: string; type: string; parent?: string; sortOrder: number; seoTitle: string; seoDesc: string; seoTitleAr: string; seoDescAr: string; seoKeywords: string; seoNoindex: boolean; faqs: FaqRow[] };
+const EMPTY: CategoryFormData = { slug: "", name: "", description: "", type: "category", sortOrder: 50, seoTitle: "", seoDesc: "", seoTitleAr: "", seoDescAr: "", seoKeywords: "", seoNoindex: false, faqs: [] };
 
 /** A collection: type "category" lists every product of the category slug in `parent`; style / finish / curated list products tagged with the collection name. */
 export function CategoryForm({ category, parents }: { category?: CategoryFormData; parents: { id: string; name: string }[] }) {
@@ -39,6 +40,9 @@ export function CategoryForm({ category, parents }: { category?: CategoryFormDat
           <TF s={s} name="seoKeywords" label="Focus keywords (comma separated)" defaultValue={c.seoKeywords} hint="Up to 200 characters." />
           <CB s={s} name="seoNoindex" label="Hide this category from Google (noindex)" defaultChecked={c.seoNoindex} />
         </div>
+      </Card>
+      <Card title="Questions & answers (FAQ)">
+        <FaqEditor initial={c.faqs} keyword={c.name} hint="Shown under the product grid of this category page (first page only) and marked up for Google and AI assistants. Good questions: how to choose, sizes, gifts, care, which brands. Delivery, cash on delivery and returns are added automatically." />
       </Card>
       <Card title="Image"><ImagesEditor name="image" single initial={c.image ? [{ url: c.image, alt: { en: "", ar: "" } }] : []} max={1} />{s.fieldErrors?.image && <p role="alert" className="mt-2 text-sm text-danger">{s.fieldErrors.image}</p>}</Card>
       <div className="sticky bottom-3 z-10 flex gap-3 rounded-2xl border border-line bg-surface/95 p-3 shadow-card backdrop-blur"><button disabled={pending} className={btnPrimary}>{pending ? "Saving…" : c.id ? "Save changes" : "Create collection"}</button></div>

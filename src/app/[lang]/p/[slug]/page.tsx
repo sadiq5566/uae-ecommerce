@@ -15,7 +15,9 @@ import { ProductMain } from "@/features/catalog/product-main";
 import { alternatesFor, uaeDescription, uaeTitle } from "@/features/catalog/seo";
 import { getPublicOffers } from "@/features/offers/service";
 import { getSettings } from "@/features/checkout/prepare";
-import { absolute } from "@/lib/email";
+import { absolute, getBrand } from "@/lib/email";
+import { FaqSection } from "@/components/faq-section";
+import { FAQ_TITLE, productPageFaqs } from "@/features/catalog/faq";
 import { findSlugRedirect, getCategories, getProductBySlug, getRelated } from "@/features/catalog/service";
 
 /** Google wants a price expiry; prices are re-rendered at least hourly, so a month ahead is always safe. */
@@ -50,7 +52,7 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
   const sp = await searchParams;
   const rsort = (REVIEW_SORTS as readonly string[]).includes(String(sp.rsort)) ? (sp.rsort as ReviewSort) : "helpful";
   const rpage = Math.min(50, Math.max(1, Number(sp.rpage) || 1));
-  const [t, cats, offers, settings] = await Promise.all([getDictionary(lang), getCategories(), getPublicOffers(), getSettings()]);
+  const [t, cats, offers, settings, brandEn, brandAr] = await Promise.all([getDictionary(lang), getCategories(), getPublicOffers(), getSettings(), getBrand("en"), getBrand("ar")]);
   const cat = cats.find((c) => c.id === p.category);
   const parent = cat?.parent ? cats.find((c) => c.id === cat.parent) : undefined;
   const crumbs = [
@@ -70,6 +72,7 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
     ...p.specs.map((x) => [x.label[lang], x.value[lang]] as [string, string]),
   ];
   const base = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  const faqs = productPageFaqs(p, lang, { en: brandEn.name, ar: brandAr.name }, offers);
   // Structured data mirrors what is visible on the page. No aggregateRating until real reviews exist (Phase 5).
   const jsonLd = [
     {
@@ -80,6 +83,15 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
       ...(p.ratingCount > 0 && { aggregateRating: { "@type": "AggregateRating", ratingValue: p.ratingAvg, reviewCount: p.ratingCount } }),
       ...(p.images.length > 1 && { image: p.images.slice(0, 6).map((i) => absolute(i.url)) }),
       ...(cat && { category: cat.name[lang] }),
+      inLanguage: lang === "ar" ? "ar-AE" : "en-AE",
+      ...(p.seo?.keywords && { keywords: p.seo.keywords }),
+      // Colour / size / model facts as machine-readable properties (what answer engines and Google Merchant read).
+      additionalProperty: [
+        ...[...new Set(p.variants.map((v) => v.color).filter(Boolean))].map((v) => ({ "@type": "PropertyValue", name: "Colour", value: v })),
+        ...[...new Set(p.variants.map((v) => v.size).filter(Boolean))].map((v) => ({ "@type": "PropertyValue", name: "Size", value: v })),
+        ...(p.model ? [{ "@type": "PropertyValue", name: "Model", value: p.model }] : []),
+        ...(p.finish ? [{ "@type": "PropertyValue", name: "Finish", value: p.finish }] : []),
+      ],
       offers: {
         "@type": "Offer", url: `${base}/${lang}/p/${p.slug}`, priceCurrency: "AED", price: p.finalPrice, itemCondition: "https://schema.org/NewCondition",
         availability: p.stock > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
@@ -128,6 +140,7 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
         <ReviewsSection productId={p.id} slug={p.slug} locale={lang} t={t} sort={rsort} page={rpage} />
       </Suspense>
       <Suspense fallback={<div className="mt-14" aria-hidden><GridSkeleton n={4} /></div>}>
+      <FaqSection faqs={faqs} lang={lang} title={FAQ_TITLE.product(p.name[lang], lang)} id="product-faq" url={`${base}/${lang}/p/${p.slug}`} />
         <Related p={p} lang={lang} t={t} />
       </Suspense>
     </div>

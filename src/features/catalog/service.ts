@@ -10,6 +10,7 @@ import { swatchFor } from "../../../lib/variants";
 import { categoryLabel } from "../../../lib/catalog-shared";
 import { type Filters } from "./filters";
 import { brandRegex } from "./brands";
+import type { FaqItem } from "../../../lib/faq";
 
 // Reads the shared flat catalogue (lib/models/Product.ts + Collection.ts, identical in every storefront) and adapts it
 // to the DTOs this storefront's components use: names become { en, ar } (same text), price = original price, finalPrice = selling price.
@@ -20,6 +21,7 @@ export type CategoryView = {
   id: string; slug: string; name: L10n; description?: Partial<L10n>; parent: string | null;
   icon: string; hue: number; image?: string; attributes: { key: string; label: L10n }[];
   seo?: { title?: Partial<L10n>; description?: Partial<L10n>; keywords?: string; noindex?: boolean };
+  faqs?: FaqItem[]; // stored category questions (Collection.faqs)
 };
 
 export type ProductCardData = {
@@ -30,10 +32,11 @@ export type ProductCardData = {
 };
 
 export type ProductDetail = ProductCardData & {
-  description: Partial<L10n>; category: string; attrs: Record<string, string>;
+  description: Partial<L10n>; category: string; subcategory?: string; attrs: Record<string, string>;
   variants: { sku: string; label: L10n; stock: number; price: number; image?: string; swatch?: string; color?: string; size?: string }[];
   specs: { label: L10n; value: L10n }[]; lowStockThreshold: number; images: { url: string; alt?: Partial<L10n> }[];
   seo?: { title?: Partial<L10n>; description?: Partial<L10n>; keywords?: string; noindex?: boolean };
+  faqs?: FaqItem[]; model?: string; finish?: string; highlights?: string[]; includedItems?: string[]; nameAr?: string; updatedAt?: string; // stored product questions + the facts the FAQ builder needs
 };
 
 type Doc = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -65,6 +68,7 @@ const catView = (slug: string, doc?: Doc): CategoryView => ({
   icon: ICONS[slug] ?? "📦", hue: hueOf(slug), image: doc?.image || undefined,
   attributes: [{ key: "color", label: both("Colour") }, { key: "size", label: both("Size") }],
   seo: doc?.seo?.title || doc?.seo?.description || doc?.seo?.keywords || doc?.seo?.noindex ? { title: doc.seo.title ? { en: doc.seo.title, ar: doc.seoAr?.title || doc.seo.title } : undefined, description: doc.seo.description ? { en: doc.seo.description, ar: doc.seoAr?.description || doc.seo.description } : undefined, keywords: doc.seo.keywords || undefined, noindex: !!doc.seo.noindex } : undefined,
+  faqs: ((doc?.faqs ?? []) as FaqItem[]).map((f) => ({ q: f.q, a: f.a, qAr: f.qAr, aAr: f.aAr })),
 });
 
 // Categories = every category value on a published product, enriched by its Collection document (type "category"). Cached 60 s.
@@ -219,13 +223,15 @@ const loadProductBySlug = cachedFor("product", 30, async (slug: string) => {
   if (!p) return null;
   const text = p.longDescription || p.shortDescription || "";
   const detail: ProductDetail = {
-    ...card(p), description: { en: text, ar: p.longDescriptionAr || p.shortDescriptionAr || text }, category: p.category, attrs: {},
+    ...card(p), description: { en: text, ar: p.longDescriptionAr || p.shortDescriptionAr || text }, category: p.category, subcategory: p.subcategory || undefined, attrs: {},
     variants: (p.variants ?? []).map((v: Doc) => ({
       sku: v.sku, label: both([v.color, v.size].filter(Boolean).join(" / ") || v.sku), stock: v.stock ?? 0, price: v.price ?? p.priceTo,
       image: v.image || undefined, swatch: v.color ? swatchFor(v.color) : undefined, color: v.color || undefined, size: v.size || undefined,
     })),
     specs: [["Brand", p.brand], ["Model", p.model], ["Finish", p.finish]].filter(([, v]) => v).map(([k, v]) => ({ label: both(k), value: both(v) })),
     lowStockThreshold: p.lowStockThreshold ?? 5, images: (p.images ?? []).map((i: Doc) => ({ url: i.url, alt: both(i.alt || p.name) })), seo: p.seo?.title || p.seo?.description || p.seo?.keywords || p.seo?.noindex ? { keywords: p.seo.keywords || undefined, noindex: !!p.seo.noindex, title: p.seo.title ? { en: p.seo.title, ar: p.seoAr?.title || p.seo.title } : undefined, description: p.seo.description ? { en: p.seo.description, ar: p.seoAr?.description || p.seo.description } : undefined } : undefined,
+    faqs: ((p.faqs ?? []) as FaqItem[]).map((f) => ({ q: f.q, a: f.a, qAr: f.qAr, aAr: f.aAr })), model: p.model || undefined, finish: p.finish || undefined,
+    highlights: p.highlights ?? [], includedItems: p.includedItems ?? [], nameAr: p.nameAr || undefined, updatedAt: p.updatedAt ? new Date(p.updatedAt).toISOString() : undefined,
   };
   return clean(detail);
 });

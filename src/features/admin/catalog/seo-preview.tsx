@@ -13,7 +13,7 @@ const tone = (n: number, min: number, max: number) => (n === 0 ? "text-muted" : 
  * Google preview + length counters for the SEO title / description inputs of the product form (name="seoTitle" / "seoDesc").
  * It reads the surrounding form live, so it works with the uncontrolled inputs; "Fill from product" copies name / short description in.
  */
-export function SeoPreview({ siteName = "Carts Heaven" }: { siteName?: string }) {
+export function SeoPreview({ siteName = process.env.NEXT_PUBLIC_STORE_NAME || "Rayana Collection" }: { siteName?: string }) {
   const root = useRef<HTMLDivElement>(null);
   const [v, setV] = useState({ name: "", short: "", slug: "", title: "", desc: "" });
 

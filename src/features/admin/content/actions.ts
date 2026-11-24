@@ -10,7 +10,7 @@ import type { FormState } from "@/features/auth/schemas";
 import { Article } from "@/models/article";
 import { ContentPage } from "@/models/content-page";
 import { Homepage } from "@/models/homepage";
-import { articleSchema, bannersSchema, homeSeoSchema, pageSchema } from "./schemas";
+import { articleSchema, bannersSchema, homeFaqSchema, homeSeoSchema, pageSchema } from "./schemas";
 
 export async function saveArticleAction(_: FormState, fd: FormData): Promise<FormState> {
   const user = await actor("articles:write");
@@ -25,6 +25,7 @@ export async function saveArticleAction(_: FormState, fd: FormData): Promise<For
     // Published articles without a date go live immediately; a future date schedules them.
     publishAt: a.status === "published" ? (a.publishAt ?? new Date()) : a.publishAt,
     seo: { title: { en: a.seoTitle_en, ar: a.seoTitle_ar }, description: { en: a.seoDesc_en, ar: a.seoDesc_ar }, keywords: { en: a.seoKeywords_en, ar: a.seoKeywords_ar } },
+    ...(a.faqs && { faqs: a.faqs }),
   };
   try {
     if (a.id) {
@@ -77,10 +78,13 @@ export async function saveHomepageAction(_: FormState, fd: FormData): Promise<Fo
   const seo = homeSeoSchema.safeParse(formObj(fd));
   if (!seo.success) return fail(issues(seo.error), fd);
   const h = seo.data;
+  const faq = homeFaqSchema.safeParse(formObj(fd));
+  if (!faq.success) return fail(issues(faq.error), fd);
   const flag = (k: string) => fd.get(k) === "on";
   await connectDb();
   await Homepage.updateOne({ key: "home" }, { $set: {
     seo: { title: { en: h.seoTitle_en, ar: h.seoTitle_ar }, description: { en: h.seoDesc_en, ar: h.seoDesc_ar }, keywords: { en: h.seoKeywords_en, ar: h.seoKeywords_ar } },
+    ...(faq.data.faqs && { faqs: faq.data.faqs }),
     banners: parsed.data.map((b, i) => ({ ...b, id: b.id || `b${i}`, ctaHref: b.ctaHref || undefined })),
     sections: { deals: flag("s_deals"), featured: flag("s_featured"), newArrivals: flag("s_newArrivals"), popular: flag("s_popular"), mostViewed: flag("s_mostViewed"), journal: flag("s_journal") },
   } }, { upsert: true });

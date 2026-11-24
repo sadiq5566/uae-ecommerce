@@ -3,6 +3,7 @@ import { cleanKeywords } from "@/lib/seo-fields";
 import { checkbox, int, json, optDate, optText, slug, text } from "@/lib/admin/common";
 import { isAllowedImageUrl } from "@/lib/image-url";
 import { PAGE_SLUGS } from "@/models/content-page";
+import { faqsField } from "@/lib/admin/faq-schema";
 
 export const articleSchema = z.object({
   id: z.string().optional(),
@@ -18,6 +19,7 @@ export const articleSchema = z.object({
   publishAt: optDate,
   seoTitle_en: text(70), seoTitle_ar: text(70), seoDesc_en: text(160), seoDesc_ar: text(160),
   seoKeywords_en: text(700).transform(cleanKeywords), seoKeywords_ar: text(700).transform(cleanKeywords),
+  faqs: faqsField,
 }).superRefine((a, ctx) => {
   // One language is enough: the store shows it in both languages when the other is left blank.
   if (a.title_en.length < 2 && a.title_ar.length < 2) ctx.addIssue({ code: "custom", path: ["title_en"], message: "A title is required (English or Arabic)" });
@@ -32,6 +34,7 @@ export const pageSchema = z.object({
 });
 
 /** The home page's own search-result title, description and keywords. */
+export const homeFaqSchema = z.object({ faqs: faqsField });
 export const homeSeoSchema = z.object({
   seoTitle_en: text(70), seoTitle_ar: text(70), seoDesc_en: text(160), seoDesc_ar: text(160),
   seoKeywords_en: text(700).transform(cleanKeywords), seoKeywords_ar: text(700).transform(cleanKeywords),

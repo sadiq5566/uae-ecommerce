@@ -327,6 +327,28 @@ npm run db:markup -- --restore --apply    # put the original prices back
 
 ---
 
+## 7j. FAQs for Google and AI answers (products, categories, home page, articles) + local SEO (Dubai / UAE)
+
+Every product, category, the home page and every article can show a question-and-answer block (marked up as FAQPage) so Google and AI assistants (ChatGPT, Gemini, Perplexity) can quote it. `/llms.txt` lists the store for AI assistants.
+Edit the questions by hand in **Admin -> Products / Categories / Homepage / Articles -> "Questions & answers (FAQ)"** (English + Arabic, with a live SEO checklist).
+The catalogue and the journal are shared by every store, so product / category / article questions live in the shared database, while price, delivery to Dubai / Abu Dhabi / Sharjah, cash on delivery and returns are built per store when the page renders.
+
+```
+# Product questions (what it is, colours, sizes, what is included, gift). Writes to the database this store uses: the SHARED database (uae_shared)
+# when USE_SHARED_DB=true, otherwise this store's own old database. The script prints which one. Run it ONCE from a store with USE_SHARED_DB=true.
+npm run db:seo-faq                      # dry run: counts + samples, writes nothing
+npm run db:seo-faq -- --apply           # writes (backup of the old faqs goes to ./backups)
+npm run db:seo-faq -- --limit=20        # try on the first 20 products only
+```
+
+Notes:
+- Always run the dry run first. Rows made by the script carry `auto: true` and are regenerated on the next run; rows you write or edit in the admin are never touched.
+- The journal articles' FAQ block + answer-first summaries are written by `npm run db:seo-articles` in the **oasishomemarket** project (articles are shared, run it once there). This store only needs its `Article` model to have the `faqs` field (already added).
+- After a deploy: pages refresh within about 5 minutes. Then in Google Search Console re-submit `/sitemap.xml` and open `/llms.txt` once to check it loads.
+- If `.env` does not exist, run directly: `node scripts/with-env.cjs scripts/seo-faq.ts --apply`.
+
+---
+
 ## Free home delivery
 
 Delivery is free on every order and the store says "Free home delivery · Cash on delivery" (top bar, product pages, cart, checkout). To go back to delivery fees and the free-delivery limit: Admin > Settings > Delivery rules: tick or untick **Free home delivery on every order**. No restart or deploy is needed.

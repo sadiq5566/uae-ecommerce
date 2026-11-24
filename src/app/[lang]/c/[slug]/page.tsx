@@ -8,6 +8,10 @@ import { isFiltered, parseFilters } from "@/features/catalog/filters";
 import { Listing } from "@/features/catalog/listing";
 import { alternatesFor, categoryTitle, noIndexIf, uaeDescription } from "@/features/catalog/seo";
 import { findSlugRedirect, getCategoryBySlug, listProducts } from "@/features/catalog/service";
+import { getPublicOffers } from "@/features/offers/service";
+import { getBrand } from "@/lib/email";
+import { FaqSection } from "@/components/faq-section";
+import { FAQ_TITLE, categoryPageFaqs } from "@/features/catalog/faq";
 
 export async function generateMetadata({ params, searchParams }: PageProps<"/[lang]/c/[slug]">): Promise<Metadata> {
   const { lang, slug } = await params;
@@ -49,6 +53,12 @@ export default async function CategoryPage({ params, searchParams }: PageProps<"
     { "@context": "https://schema.org", "@type": "CollectionPage", name: cat.name[lang], url: `${base}/${lang}/c/${slug}`, inLanguage: lang === "ar" ? "ar-AE" : "en-AE",
       mainEntity: { "@type": "ItemList", itemListElement: data.items.slice(0, 24).map((p, i) => ({ "@type": "ListItem", position: i + 1, url: `${base}/${lang}/p/${p.slug}`, name: p.name[lang] })) } },
   ];
+  // One FAQPage per page: stored category questions + the (no buying guide in this store) this store's delivery / COD / returns answers. Plain first page only.
+  let faqs: ReturnType<typeof categoryPageFaqs> = [];
+  if (!isFiltered(f)) {
+    const [offers, bEn, bAr] = await Promise.all([getPublicOffers(), getBrand("en"), getBrand("ar")]);
+    faqs = categoryPageFaqs({ stored: cat.faqs, category: cat.name, lang, store: { en: bEn.name, ar: bAr.name }, offers });
+  }
   return (
     <>
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
@@ -63,6 +73,7 @@ export default async function CategoryPage({ params, searchParams }: PageProps<"
         </nav>
       )}
     </Listing>
+    {faqs.length > 0 && <div className="mx-auto max-w-7xl px-4 pb-14 sm:px-6"><FaqSection faqs={faqs} lang={lang} title={FAQ_TITLE.category[lang]} id="category-faq" url={`${base}/${lang}/c/${slug}`} className="mt-0" /></div>}
     </>
   );
 }
